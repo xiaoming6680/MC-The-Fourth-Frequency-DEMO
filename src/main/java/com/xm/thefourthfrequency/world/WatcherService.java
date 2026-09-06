@@ -3,6 +3,8 @@ package com.xm.thefourthfrequency.world;
 import com.xm.thefourthfrequency.content.ModEntities;
 import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.entity.WatcherEntity;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -39,6 +41,20 @@ public final class WatcherService {
 	/** The wait after an attempt that never got as far as being a sighting. */
 	private static final long RETRY_INTERVAL_TICKS = 400L;
 
+	/**
+	 * When each player may next be considered, on the <b>world</b> clock.
+	 *
+	 * <p>Because the value is a {@code getGameTime()} deadline, an entry that outlives the save it
+	 * was written for is not merely stale, it is unreachable: a second world started in the same
+	 * client process begins near tick zero, so a leftover deadline from a long first world sits in
+	 * the future for as long as it takes the new world to catch up, and {@code getOrDefault}'s honest
+	 * fallback below is never consulted because the key is present.
+	 *
+	 * <p>That would silently delete this figure from the opening hours of every world after the
+	 * first, which is the only part of the game it appears in at all - it is gated on
+	 * {@code BAND_STAGE == 0}. {@link HimService} does the same job with the same field and has
+	 * always cleared it on leave; this one never did.
+	 */
 	private static final Map<UUID, Long> NEXT_ATTEMPT = new HashMap<>();
 	private static boolean initialized;
 	private WatcherService() { }
@@ -47,6 +63,11 @@ public final class WatcherService {
 		if (initialized) return;
 		initialized = true;
 		ServerTickEvents.END_SERVER_TICK.register(WatcherService::tick);
+		// Leaving drains it one player at a time, which also covers an ordinary shutdown; the clear
+		// below is for the paths where it does not, and for the singleplayer case this exists for -
+		// quitting to the title screen and opening a different save inside the same process.
+		ServerPlayerEvents.LEAVE.register(player -> NEXT_ATTEMPT.remove(player.getUUID()));
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> NEXT_ATTEMPT.clear());
 	}
 
 	private static void tick(MinecraftServer server) {

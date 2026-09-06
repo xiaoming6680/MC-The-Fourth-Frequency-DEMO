@@ -11,6 +11,7 @@ import com.xm.thefourthfrequency.terminal.TerminalNoticeService;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
 import com.xm.thefourthfrequency.world.TerminalLifecycleService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -36,14 +37,26 @@ public final class WorldInterfaceRitualService {
 	private static final int REMINDER_COOLDOWN_TICKS = 400;
 	private static final Map<UUID, Long> REMINDED_AT = new java.util.concurrent.ConcurrentHashMap<>();
 	private static AltarOpenHandler altarOpenHandler = (player, position, status) -> false;
+	private static boolean initialized;
 
 	private WorldInterfaceRitualService() {
 	}
 
 	public static void initialize() {
+		// Guarded like every other service. This one was the exception, and a second call would have
+		// registered a second copy of all three listeners - two reconciles per join and two reminders
+		// per beat, from a service whose reminders are already throttled to look deliberate.
+		if (initialized) return;
+		initialized = true;
 		ServerPlayerEvents.JOIN.register(WorldInterfaceRitualService::reconcilePlayer);
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> reconcilePlayer(newPlayer));
 		ServerTickEvents.END_SERVER_TICK.register(WorldInterfaceRitualService::tick);
+		// REMINDED_AT holds server.getTickCount() values, and that counter restarts at zero with each
+		// server. Carried into the next one they read as deadlines in the future - now - last goes
+		// negative, which is always under the cooldown - so the altar would stop explaining itself to
+		// anyone standing at it until the new session's tick count passed the old one's. In
+		// singleplayer that is simply "open a second world without restarting the game".
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> REMINDED_AT.clear());
 	}
 
 	/**

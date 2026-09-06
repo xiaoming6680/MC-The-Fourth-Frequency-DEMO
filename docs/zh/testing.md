@@ -93,7 +93,7 @@
 | 验证 | 结果 | 边界 |
 | --- | --- | --- |
 | `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | 通过 | 四个 source set 均可编译 |
-| 聚合 `unitTest` | **796/796 通过**（138 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
+| 聚合 `unitTest` | **798/798 通过**（139 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
 | 服务端 GameTest | **91/91 通过** | `All 91 required tests passed`。此前是 87，再往前是 80——`TerminalBackfillAndProfileGameTests` 从未写进 `src/gametest/resources/fabric.mod.json`，那 6 个测试一次也没跑过。现在由 `ResourceContractTest` 双向盯住注册表。新增 4 项来自 `PursuitRuntimeGameTests`：追逐此前有 10 个纯策略单测和 1 个只检查维度文件是否打包的 GameTest，退款账本与镜像放置规则两条玩家能感知的链路一条也没被覆盖 |
 | 完整（`all`）客户端 GameTest | **通过**（8 分 39 秒，退出码 0），产出 166 张截图 | 目录 18 项、覆盖 17 项：未渲染层按名字在 `AnomalyClientScenario.UNCOVERED` 中显式豁免。日志中 `unrendered_layer` 与六个镜像维度均正常加载并存盘，这是数据包三件套与生成器编解码器在真实运行时可用的**直接**证据。本轮它抓到两处：终端开屏会顶掉玩家自己打开的界面，以及 `terminal-3d` 里「没人开过终端就该静止」这条在自动开屏上线后不再成立的旧断言。**注意**：与另一个 Gradle／Minecraft 进程并行跑会争用 `build/run/clientGameTest`，表现为存档写不完加原生崩溃，看起来像主线断言失败 |
 | `notice-entry` 定向客户端 GameTest | **本轮未重跑**（上次通过 45 秒） | 它不在 `all` 里——`ClientGameTestSelection.runsNoticeEntry()` 只对这个套件为真，所以完整套件绿并不覆盖它。上次是在 `thefourthfrequency.mixins.json` 重排/重缩进之后单独复跑的，确认 7 条 common + 50 条 client mixin 全部解析——清单是 `defaultRequire: 1`，格式化打错一个名字就是 bootstrap 崩溃，而不是静默降级 |
@@ -213,14 +213,14 @@
 
 ## 发布物
 
-由 **2026-08-29** 的干净 `clean build` 产出。**这批产物早于上面记录的改动**（GameTest 注册、开屏规则与 CLOSE 拆分），因此不构成当前工作区的证据——发版前仍欠一次干净构建：
+由 **2026-09-06** 的干净 `clean build` 产出，对应上面记录的全部改动（798/798 单测在同一次构建内跑过）：
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 54,262,874 | `AEF844BDDD4760486611CAC3A6D8259A202494BD88F242983160540C2A272097` |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 53,728,263 | `DBBDEC69584B89FA6A7DBCE9304F60F465F772438253BABDCEE96CC89217C739` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 51,874,169 | `A42543914171CA25439BAB4A28D673EC45AB36955DAD68957BB700D0E9E6DB37` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 51,362,334 | `DA63BD83A4F1B480480A16F9C84DFEEDFA7441601984A4ECFCA6D224F58BCFC3` |
 
-可运行 JAR 共 6,247 个条目。随后一次带 `tffDeployDir` 的 `build` 已把它部署到本地实例，目标文件与源 JAR 的字节数和 SHA-256 完全一致。
+可运行 JAR 共 6,278 个条目。**本轮构建刻意跳过了部署步骤**（`-PtffDeployDir=`），没有向本地游戏实例写入任何东西；上面那行「本地部署」记录的是上一次真正跑过复制的那次。
 
 只记录**在最后一次生产源码/资源修改之后**完成的干净构建；更旧的 JAR 不作为发布证据。
 

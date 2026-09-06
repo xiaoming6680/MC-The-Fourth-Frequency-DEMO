@@ -94,7 +94,7 @@ The following actually completed on **2026-08-30** in the current workspace at `
 | Check | Result | Boundary |
 | --- | --- | --- |
 | `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | Pass | All four source sets compile |
-| Aggregate `unitTest` | **796/796 pass** (138 containers), 0 failed, 0 skipped | Every compiled test class enumerated explicitly via `--select-class` |
+| Aggregate `unitTest` | **798/798 pass** (139 containers), 0 failed, 0 skipped | Every compiled test class enumerated explicitly via `--select-class` |
 | Server GameTests | **91/91 pass** | `All 91 required tests passed`. It was 87 before, and 80 before that: `TerminalBackfillAndProfileGameTests` had never been listed in `src/gametest/resources/fabric.mod.json`, so those 6 tests had never run once. `ResourceContractTest` now watches the registration in both directions. The four new ones are `PursuitRuntimeGameTests`: the chase had ten pure-policy unit tests and one game test that only checked the dimension files were packaged, so neither of the two chains a player can feel - the refund ledger and the mirror's placement rule - was covered at all |
 | Full (`all`) client GameTests | **Pass** (8 m 39 s, exit code 0), 166 screenshots | 18 in the catalogue, 17 covered: the unrendered layer is exempted by name in `AnomalyClientScenario.UNCOVERED`. The log shows `unrendered_layer` and all six mirror dimensions loading and saving normally, which is **direct** evidence that the three datapack files and the generator codec work at real runtime. This round it caught two things: the terminal opening evicting a screen the player had opened, and `terminal-3d`'s "a terminal nobody opened is at rest" assertion, which stopped being true when the greeting shipped. **Note**: running this alongside another Gradle/Minecraft process contends for `build/run/clientGameTest` and shows up as an unfinished save plus a native crash, which looks like a mainline assertion failure |
 | Targeted `notice-entry` client GameTests | **Not re-run this round** (last pass 45 s) | It is not part of `all` - `ClientGameTestSelection.runsNoticeEntry()` is true for this suite only, so a green full run does not cover it. The last run was on its own after `thefourthfrequency.mixins.json` was sorted and re-indented, confirming all 7 common and 50 client mixins still resolve - the manifest is `defaultRequire: 1`, so one name broken by formatting is a bootstrap crash, not a silent downgrade |
@@ -214,14 +214,14 @@ The manual flow for a candidate build is in the [Manual acceptance checklist](ac
 
 ## Release artefacts
 
-From the clean `clean build` of **2026-08-29**. **These artefacts predate the changes recorded above** (the GameTest registration, the terminal opening rule and the CLOSE split), so they are not evidence for the current tree - a fresh `clean build` is owed before release:
+From the clean `clean build` of **2026-09-06**, which covers every change recorded above (the 798/798 unit run happened inside that same build):
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 54,262,874 | `AEF844BDDD4760486611CAC3A6D8259A202494BD88F242983160540C2A272097` |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 53,728,263 | `DBBDEC69584B89FA6A7DBCE9304F60F465F772438253BABDCEE96CC89217C739` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 51,874,169 | `A42543914171CA25439BAB4A28D673EC45AB36955DAD68957BB700D0E9E6DB37` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 51,362,334 | `DA63BD83A4F1B480480A16F9C84DFEEDFA7441601984A4ECFCA6D224F58BCFC3` |
 
-The runnable JAR holds 6,247 entries. A later `build` with `tffDeployDir` set deployed it to the local instance, and the target matches the source JAR byte for byte and by SHA-256.
+The runnable JAR holds 6,278 entries. **This round's build deliberately skipped the deploy step** (`-PtffDeployDir=`), so nothing was written to the local play instance; the deployment row above records the last run that actually exercised the copy.
 
 Only record a clean build completed **after the last production source/resource change**; an older JAR is not release evidence.
 
