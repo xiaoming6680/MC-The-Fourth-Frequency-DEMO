@@ -1,0 +1,41 @@
+# 行尾统一 / Line endings
+#
+# 仓库里所有文本文件在 Git 对象中一律存 LF；检出时按下面的规则还原。
+# 没有这份文件时，行尾取决于每个人的 core.autocrlf，克隆到 Linux/macOS 的
+# gradlew 可能带上 CR 而无法执行。
+#
+# Every text blob is stored with LF. Without this file the result depends on
+# each contributor's core.autocrlf, and a gradlew checked out with CRLF fails
+# on Linux/macOS with "bad interpreter".
+* text=auto eol=lf
+
+# Windows 批处理必须是 CRLF / Windows batch files must stay CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# POSIX 启动脚本必须是 LF / POSIX launcher must stay LF
+gradlew text eol=lf
+
+# 二进制资产：不做行尾转换，也不做文本合并
+# Binary assets: never converted, never merged as text
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.ogg    binary
+*.wav    binary
+*.mp3    binary
+*.jar    binary
+*.zip    binary
+*.ttf    binary
+*.otf    binary
+*.pdn    binary
+*.psd    binary
+*.blend  binary
+
+# GitHub 语言统计：参考图与母板素材不是本仓库的代码
+# GitHub linguist: reference art and source material are not this repo's code
+docs/art/**    linguist-documentation
+tools/assets/** linguist-vendored
