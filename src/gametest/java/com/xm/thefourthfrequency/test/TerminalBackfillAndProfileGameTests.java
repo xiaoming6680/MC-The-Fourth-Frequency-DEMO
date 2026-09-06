@@ -35,6 +35,42 @@ import java.util.UUID;
  * real record, a real terminal and the real control path are involved.
  */
 public final class TerminalBackfillAndProfileGameTests {
+	@GameTest
+	public void simultaneousProfilesRejectStaleAnswersAndForeignTerminals(GameTestHelper helper) {
+		var alice = helper.makeMockServerPlayerInLevel();
+		var bob = helper.makeMockServerPlayerInLevel();
+		var data = FrequencyWorldData.get(helper.getLevel().getServer());
+		var aliceTerminal = findTerminal(alice).copy();
+		var bobTerminal = findTerminal(bob).copy();
+		alice.setItemInHand(InteractionHand.MAIN_HAND, aliceTerminal);
+		bob.setItemInHand(InteractionHand.MAIN_HAND, bobTerminal);
+		TerminalRuntimeService.open(alice, 0);
+		TerminalRuntimeService.open(bob, 0);
+		TerminalRuntimeService.control(alice, TerminalControlPayload.ANSWER_PROFILE,
+				TerminalControlPayload.profileAnswer(1, 0));
+		helper.assertValueEqual(data.terminalRecord(alice.getUUID()).orElseThrow()
+				.getIntOr(TerminalData.PROFILE_QUESTION, -1), 0, "Answering a future question is rejected");
+		int first = TerminalControlPayload.profileAnswer(0, 1);
+		TerminalRuntimeService.control(alice, TerminalControlPayload.ANSWER_PROFILE, first);
+		TerminalRuntimeService.control(bob, TerminalControlPayload.ANSWER_PROFILE,
+				TerminalControlPayload.profileAnswer(0, 2));
+		TerminalRuntimeService.control(alice, TerminalControlPayload.ANSWER_PROFILE, first);
+		var a = data.terminalRecord(alice.getUUID()).orElseThrow();
+		var b = data.terminalRecord(bob.getUUID()).orElseThrow();
+		helper.assertValueEqual(TerminalData.profileAnswer(a, 0), 1, "Alice keeps her own answer");
+		helper.assertValueEqual(TerminalData.profileAnswer(b, 0), 2, "Bob keeps his own answer");
+		helper.assertValueEqual(a.getIntOr(TerminalData.PROFILE_QUESTION, -1), 1, "Repeated packets cannot skip a question");
+		bob.setItemInHand(InteractionHand.MAIN_HAND, aliceTerminal.copy());
+		TerminalRuntimeService.control(bob, TerminalControlPayload.ANSWER_PROFILE,
+				TerminalControlPayload.profileAnswer(1, 0));
+		helper.assertValueEqual(data.terminalRecord(bob.getUUID()).orElseThrow()
+				.getIntOr(TerminalData.PROFILE_QUESTION, -1), 1, "A foreign terminal grants no authority");
+		bob.setItemInHand(InteractionHand.MAIN_HAND, bobTerminal);
+		TerminalRuntimeService.control(alice, TerminalControlPayload.CLOSE, 0);
+		helper.assertTrue(TerminalRuntimeService.isOpen(bob), "Closing Alice's view leaves Bob's open");
+		TerminalRuntimeService.control(bob, TerminalControlPayload.CLOSE, 0);
+		helper.succeed();
+	}
 	/**
 	 * The whole point of the quarantined store: it fills from the first anomaly and nothing reads it.
 	 *
@@ -116,10 +152,8 @@ public final class TerminalBackfillAndProfileGameTests {
 	/**
 	 * The profile is the server's, start to finish.
 	 *
-	 * <p>The client sends an option and never a question number, so the three things worth defending
-	 * against - answering ahead, answering the same question twice, and rewriting one already down -
-	 * are not guarded against so much as unrepresentable. What this checks is that the index really
-	 * does advance here and nowhere else.
+	 * <p>Each answer carries the displayed question. Stale, duplicate and future submissions must
+	 * leave the server's current question and previously committed answers untouched.
 	 */
 	@GameTest
 	public void theProfileAdvancesOnlyOnTheServerAndOnlyForward(GameTestHelper helper) {
@@ -135,7 +169,8 @@ public final class TerminalBackfillAndProfileGameTests {
 		helper.assertFalse(TerminalData.profileTaken(record), "A fresh record has not been profiled");
 
 		// An option that does not exist on this question changes nothing at all.
-		TerminalRuntimeService.control(player, TerminalControlPayload.ANSWER_PROFILE, 99);
+		TerminalRuntimeService.control(player, TerminalControlPayload.ANSWER_PROFILE,
+				TerminalControlPayload.profileAnswer(0, 15));
 		record = data.terminalRecord(player.getUUID()).orElseThrow();
 		helper.assertValueEqual(record.getIntOr(TerminalData.PROFILE_QUESTION, -1), 0,
 				"An illegal option must not advance the question");
@@ -143,7 +178,12 @@ public final class TerminalBackfillAndProfileGameTests {
 				TerminalProfileQuestionnaire.UNANSWERED, "An illegal option must not be recorded");
 
 		for (int question = 0; question < TerminalProfileQuestionnaire.questionCount(); question++) {
-			TerminalRuntimeService.control(player, TerminalControlPayload.ANSWER_PROFILE, 0);
+			int answer = TerminalControlPayload.profileAnswer(question, 0);
+			TerminalRuntimeService.control(player, TerminalControlPayload.ANSWER_PROFILE, answer);
+			TerminalRuntimeService.control(player, TerminalControlPayload.ANSWER_PROFILE, answer);
+			helper.assertValueEqual(data.terminalRecord(player.getUUID()).orElseThrow()
+					.getIntOr(TerminalData.PROFILE_QUESTION, -1), question + 1,
+					"A duplicate packet must not answer the next question");
 		}
 		record = data.terminalRecord(player.getUUID()).orElseThrow();
 		helper.assertTrue(TerminalData.profileTaken(record),

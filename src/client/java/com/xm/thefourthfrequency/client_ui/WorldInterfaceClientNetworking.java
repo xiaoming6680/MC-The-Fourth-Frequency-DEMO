@@ -23,6 +23,9 @@ public final class WorldInterfaceClientNetworking {
 	public static void initialize() {
 		if (initialized) return;
 		initialized = true;
+		ClientPlayNetworking.registerGlobalReceiver(com.xm.thefourthfrequency.networking.StormParticleBatchS2C.TYPE,
+				(payload, context) -> context.client().execute(() ->
+						com.xm.thefourthfrequency.client_render.StormParticleReceiver.accept(context.client(), payload)));
 		ClientPlayNetworking.registerGlobalReceiver(AltarSnapshotS2C.TYPE, (payload, context) ->
 				context.client().execute(() -> acceptAltar(payload)));
 		ClientPlayNetworking.registerGlobalReceiver(WorldInterfaceSnapshotS2C.TYPE, (payload, context) ->
@@ -116,6 +119,7 @@ public final class WorldInterfaceClientNetworking {
 	}
 
 	private static void clearClientSession() {
+		com.xm.thefourthfrequency.client_render.StormParticleReceiver.clear();
 		WorldInterfaceClientState.clearSession();
 		WorldInterfaceVanillaPoemClient.clearPending();
 	}

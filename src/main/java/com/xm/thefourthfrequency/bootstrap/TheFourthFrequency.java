@@ -130,6 +130,7 @@ public final class TheFourthFrequency implements ModInitializer {
 		WorldInterfaceAttackService.initialize();
 		WorldInterfaceRitualService.initialize();
 		EndBossEncounterService.initialize();
+		com.xm.thefourthfrequency.ending.StormParticleBatcher.initialize();
 		TerminalCommands.initialize();
 		LOGGER.info("The Fourth Frequency common bootstrap is ready (schema {}, accelerated={})",
 				RuntimeServices.PERSISTENCE_SCHEMA_VERSION, config.pacing().developerAcceleration());

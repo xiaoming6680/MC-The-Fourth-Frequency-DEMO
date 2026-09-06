@@ -1,6 +1,11 @@
 package com.xm.thefourthfrequency.terminal;
 
 public final class TerminalUiLayout {
+	/** Fit the entire hardware panel; GUI scaling must never hide a control off-screen. */
+	public static float panelScale(int width, int height) {
+		return Math.min(2F, Math.min(Math.max(1, width - 16) / 512F,
+				Math.max(1, height - 16) / 256F));
+	}
 	public static final Bounds DISPLAY = new Bounds(36, 40, 356, 216);
 	public static final Bounds HOME_TAB = new Bounds(42, 45, 116, 62);
 	public static final Bounds TOOLS_TAB = new Bounds(119, 45, 193, 62);

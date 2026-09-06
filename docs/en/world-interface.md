@@ -406,3 +406,9 @@ Settings, accessibility and Quit are always available. From resolution onward, o
 - After a restart, only a `.thefourthfrequency-corrupted` lossless marker is added to the exactly-matching local save.
 - The mod **does not modify** `level.dat`, region files or player data; replaying requires a new world.
 - If the ending transaction is interrupted, launch once with `-Dthefourthfrequency.safeMode=true` for a safe recovery.
+
+## Multiplayer effects and HUD (RC.2)
+
+The three custom storm particle types are batched by spatial cell and tick for nearby players in the same dimension. Both server and client have independent budgets, and lower particle settings reduce decoration. Principal laser geometry and damage do not depend on decorative particles. See the [multiplayer verification report](../qa/multiplayer_experience/README.md) for limits and evidence.
+
+The compact HUD measures font widths to allocate separate title, percentage, collapse-clock, anchor-label and lamp regions. Long translations use an ellipsis and the panel retains bottom padding. Anchor-break text cannot overlap the clock; damage flashes trigger on new damage rather than every frame of health interpolation.

@@ -112,6 +112,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 			});
 
 			assertHeadHitboxMatchesTheDrawnHead(context, singleplayer, fixture);
+			assertStormParticleTransport(context, singleplayer);
 
 			captureForm(context, singleplayer, fixture, WorldInterfaceProtocol.Stage.PHASE_1,
 					WorldInterfaceProtocol.Form.LISTENING_EMBRYO, 0.92F, "world-interface-form-listening-embryo");
@@ -228,6 +229,49 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 		captureFormAngles(context, singleplayer, fixture, screenshot);
 	}
 
+	private static void assertStormParticleTransport(ClientGameTestContext context, TestSingleplayerContext singleplayer) {
+		var original = context.computeOnClient(client -> client.options.particles().get());
+		context.runOnClient(client -> {
+			client.options.particles().set(net.minecraft.server.level.ParticleStatus.ALL);
+			com.xm.thefourthfrequency.client_render.StormParticleReceiver.clear();
+		});
+		singleplayer.getServer().runOnServer(server -> {
+			var player = firstPlayer(server);
+			var center = player.getEyePosition().add(player.getLookAngle().scale(5));
+			com.xm.thefourthfrequency.ending.WorldInterfaceVfx.orientedRing((ServerLevel) player.level(),
+					com.xm.thefourthfrequency.ending.WorldInterfaceVfx.sigil(), center,
+					player.getLookAngle(), 2, 128, 0, 0.01);
+		});
+		context.waitFor(client -> com.xm.thefourthfrequency.client_render.StormParticleReceiver
+				.diagnostics().samples() >= 128, 60);
+		context.runOnClient(client -> {
+			var stats = com.xm.thefourthfrequency.client_render.StormParticleReceiver.diagnostics();
+			if (stats.batches() >= 16 || stats.spawned() < 128)
+				throw new AssertionError("Storm ring did not arrive in compact batches: " + stats);
+			System.out.println("Storm transport verified: " + stats);
+			var wrongWorld = new com.xm.thefourthfrequency.networking.StormParticleBatchS2C(
+					Level.OVERWORLD.identifier(), BlockPos.ZERO, List.of(
+						new com.xm.thefourthfrequency.networking.StormParticleBatchS2C.Sample(0, 0, 0, 0, 0, 0, 0, 0, 0)));
+			com.xm.thefourthfrequency.client_render.StormParticleReceiver.accept(client, wrongWorld);
+			if (!stats.equals(com.xm.thefourthfrequency.client_render.StormParticleReceiver.diagnostics()))
+				throw new AssertionError("A stale effect crossed dimensions");
+		});
+		context.waitTicks(3); // Newly constructed particles start transparent and fade in over two ticks.
+		context.takeScreenshot("world-interface-batched-storm-ring");
+		context.runOnClient(client -> {
+			client.options.particles().set(net.minecraft.server.level.ParticleStatus.MINIMAL);
+			com.xm.thefourthfrequency.client_render.StormParticleReceiver.clear();
+			var flood = new com.xm.thefourthfrequency.networking.StormParticleBatchS2C(
+					client.level.dimension().identifier(), client.player.blockPosition(), java.util.Collections.nCopies(256,
+					new com.xm.thefourthfrequency.networking.StormParticleBatchS2C.Sample(0, 0, 0, 0, 64, 0, 0, 0, 0)));
+			com.xm.thefourthfrequency.client_render.StormParticleReceiver.accept(client, flood);
+			com.xm.thefourthfrequency.client_render.StormParticleReceiver.accept(client, flood);
+			if (com.xm.thefourthfrequency.client_render.StormParticleReceiver.diagnostics().spawned() != 512)
+				throw new AssertionError("Minimal graphics or aggregate per-tick particle budget was ignored");
+		});
+		context.runOnClient(client -> client.options.particles().set(original));
+	}
+
 	private static void captureFormAngles(ClientGameTestContext context,
 			TestSingleplayerContext singleplayer, Fixture fixture, String screenshot) {
 		String[] labels = {"front", "side", "rear"};
@@ -251,9 +295,24 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 	}
 
 	private static void captureResolutionCoverage(ClientGameTestContext context) {
+		context.runOnClient(client -> {
+			try {
+				var fit = com.xm.thefourthfrequency.client_ui.WorldInterfaceHud.class.getDeclaredMethod(
+						"fit", net.minecraft.client.gui.Font.class, String.class, int.class);
+				fit.setAccessible(true);
+				for (String text : List.of("承伤增加 · 出手更密", "腐化正在自我修复...", "第四频段 · 世界接口",
+						"ANCHORS DESTROYED: DAMAGE AND ATTACK FREQUENCY INCREASED", "100%")) {
+					for (int width : new int[]{0, 1, 5, 12, 36, 72, 140, 210}) {
+						String clipped = (String) fit.invoke(null, client.font, text, width);
+						if (client.font.width(clipped) > width) throw new AssertionError("HUD text exceeds its measured column");
+					}
+				}
+			} catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
+		});
 		FramebufferSize original = context.computeOnClient(client -> new FramebufferSize(
 				client.getWindow().getWidth(), client.getWindow().getHeight()));
 		captureAtResolution(context, 854, 480, "world-interface-resolution-854x480");
+		captureAtResolution(context, 640, 360, "world-interface-resolution-640x360");
 		captureAtResolution(context, 1920, 1080, "world-interface-resolution-1920x1080");
 		context.runOnClient(client -> {
 			client.getWindow().setWidth(original.width());

@@ -37,6 +37,8 @@ final class ArenaParticles {
 
 	static <T extends ParticleOptions> void emit(ServerLevel level, T type, double x, double y,
 			double z, int count, double spreadX, double spreadY, double spreadZ, double speed) {
-		level.sendParticles(type, true, false, x, y, z, count, spreadX, spreadY, spreadZ, speed);
+		if (!StormParticleBatcher.enqueue(level, type, x, y, z, count, spreadX, spreadY, spreadZ, speed)) {
+			level.sendParticles(type, true, false, x, y, z, count, spreadX, spreadY, spreadZ, speed);
+		}
 	}
 }

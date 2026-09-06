@@ -16,4 +16,12 @@ public final class ModParticles {
 		return Registry.register(BuiltInRegistries.PARTICLE_TYPE,Identifier.fromNamespaceAndPath("thefourthfrequency",name),FabricParticleTypes.simple(true));
 	}
 	public static void initialize(){}
+	public static SimpleParticleType stormType(int kind) {
+		return switch (kind) {
+			case 0 -> STORM_FILAMENT;
+			case 1 -> STORM_EMBER;
+			case 2 -> STORM_SIGIL;
+			default -> throw new IllegalArgumentException("Unknown storm particle");
+		};
+	}
 }

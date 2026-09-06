@@ -9,6 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TerminalUiLayoutTest {
+	@Test void hardwareFitsSmallAndLargeGuiCanvases() {
+		for (int[] size : new int[][]{{160,90},{240,135},{320,180},{427,240},{960,540},{1920,1080}}) {
+			float scale = TerminalUiLayout.panelScale(size[0], size[1]);
+			assertTrue(scale > 0 && scale <= 2);
+			assertTrue(512 * scale <= size[0] - 16 + .001F);
+			assertTrue(256 * scale <= size[1] - 16 + .001F);
+		}
+	}
 	@Test
 	void everyTextAndInteractionRegionStaysInsideItsPanel() {
 		var display = TerminalUiLayout.DISPLAY;

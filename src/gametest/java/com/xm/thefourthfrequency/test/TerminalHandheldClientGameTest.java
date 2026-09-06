@@ -228,7 +228,8 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 				}
 				int target = terminal.onboardingTargetPageForTesting();
 				// -1 during the self test, which takes no input at all - just wait it out.
-				if (target >= 0) terminal.selectPageForTesting(target);
+				if (target >= 0) terminal.keyPressed(new net.minecraft.client.input.KeyEvent(
+						org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER, 0, 0));
 			});
 			if (!held[0]) break;
 			context.waitTicks(4);

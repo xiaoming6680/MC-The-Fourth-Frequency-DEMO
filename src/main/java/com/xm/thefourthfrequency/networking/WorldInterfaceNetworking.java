@@ -18,6 +18,7 @@ public final class WorldInterfaceNetworking {
 		PayloadTypeRegistry.playC2S().register(AltarActionC2S.TYPE, AltarActionC2S.CODEC);
 		PayloadTypeRegistry.playS2C().register(WorldInterfaceSnapshotS2C.TYPE, WorldInterfaceSnapshotS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(BossActionS2C.TYPE, BossActionS2C.CODEC);
+		PayloadTypeRegistry.playS2C().register(StormParticleBatchS2C.TYPE, StormParticleBatchS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(WorldInterfaceBlastS2C.TYPE, WorldInterfaceBlastS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(PoemStartS2C.TYPE, PoemStartS2C.CODEC);
 		PayloadTypeRegistry.playC2S().register(PoemCompleteC2S.TYPE, PoemCompleteC2S.CODEC);

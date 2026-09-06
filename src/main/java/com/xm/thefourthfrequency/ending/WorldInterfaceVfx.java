@@ -21,12 +21,10 @@ import net.minecraft.world.phys.Vec3;
  * packets, safe to call on any tick, safe to lose entirely, and identical on every client because
  * the phase terms come from the world clock rather than from {@code Random}.
  *
- * <p><b>On budget.</b> The rest of this package is careful about the particle channel, and the
- * reasoning there is still correct. This class is deliberately not: the user asked for the fight to
- * be spent on rather than metered, so the counts here are chosen for how the shot looks and the
- * throttling is left to the call sites, which know which of them are once-per-attack and which run
- * every tick. Everything routes through {@link ArenaParticles} because the arena is a hundred and
- * sixty blocks across and vanilla's own 32-block particle limiter would hide most of it.
+ * <p>Shapes retain their authored counts. {@link ArenaParticles} batches the three custom storm
+ * types, with a per-world per-tick budget and independent client graphics limits. Damage and the
+ * principal beam telegraphs do not depend on these decorative particles. The long-distance route
+ * keeps effects visible across the island instead of vanilla's usual 32-block radius.
  */
 public final class WorldInterfaceVfx {
 	/** The interface's violet, used wherever a coloured particle carries the palette. */

@@ -39,6 +39,7 @@ public final class StructureNavigationService {
 	 */
 	public static final int VERTICAL_ARRIVAL_TOLERANCE = 16;
 	private static boolean initialized;
+	private static final StructureSearchCache SEARCHES = new StructureSearchCache();
 
 	private StructureNavigationService() {
 	}
@@ -47,6 +48,7 @@ public final class StructureNavigationService {
 		if (initialized) return;
 		initialized = true;
 		ServerTickEvents.END_SERVER_TICK.register(StructureNavigationService::onServerTick);
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> SEARCHES.clear());
 	}
 
 	public static int availableTargetsMask(ServerPlayer player, CompoundTag tag) {
@@ -87,8 +89,10 @@ public final class StructureNavigationService {
 				|| TerminalToolService.toolsDisabled(tag, player.level().getGameTime())
 				|| (availableTargetsMask(player, tag) & bit(target)) == 0) return false;
 		ServerLevel level = player.level();
-		BlockPos found = level.findNearestMapStructure(target.structureTag(), player.blockPosition(),
-				target.searchRadiusChunks(), false);
+		BlockPos origin = player.blockPosition();
+		BlockPos found = SEARCHES.find(new StructureSearchCache.Key(level.dimension().identifier().toString(),
+				target.id(), origin.getX() >> 4, origin.getZ() >> 4), level.getServer().getTickCount(),
+				() -> level.findNearestMapStructure(target.structureTag(), origin, target.searchRadiusChunks(), false));
 		long now = level.getGameTime();
 		String dimension = level.dimension().identifier().toString();
 		data.updateTerminalRecord(player.getUUID(), record -> {

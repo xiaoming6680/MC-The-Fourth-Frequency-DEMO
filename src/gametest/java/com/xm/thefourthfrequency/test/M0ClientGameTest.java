@@ -230,19 +230,28 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			setTerminalView(context, TerminalControlPolicy.Mode.FILES.ordinal(),
 					TerminalControlPolicy.DEFAULT_TUNING, 0);
 			context.waitTicks(2);
+			var expectedInitialFiles = singleplayer.getServer().computeOnServer(server -> {
+				var player = server.getPlayerList().getPlayers().getFirst();
+				var record = FrequencyWorldData.get(server).terminalRecord(player.getUUID()).orElseThrow();
+				var expected = new java.util.HashSet<>(java.util.Set.of("maintenance_handoff", "encrypted_witness_file"));
+				expected.addAll(com.xm.thefourthfrequency.narrative.DeviceManualPolicy.earned(
+						TerminalToolService.availableToolsMask(player, record)));
+				return expected;
+			});
+			context.waitFor(client -> client.screen instanceof TerminalScreen terminal
+					&& terminal.fileCountForTesting() >= expectedInitialFiles.size(), 60);
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				terminal.openLogDirectoryForTesting();
-				// Two, not one. Binding moved to the end of the profile - it is what the five questions
-				// and "user preferences recorded" were always building to - and binding is what reveals
-				// the maintenance handoff. By the time the walkthrough hands the terminal back, this
-				// player is bound, so a first look at FILES finds the handoff above the locked diary.
-				// It used to be one because binding waited for the first logs, several minutes later.
-				if (terminal.fileCountForTesting() != 2 || terminal.selectedFileForTesting() != -1
-						|| !terminal.fileIdForTesting(0).equals("maintenance_handoff")
-						|| !terminal.fileIdForTesting(1).equals("encrypted_witness_file")
+				// Binding exposes the handoff and locked diary; every unlocked tool also contributes
+				// its manual. Compare the complete set so missing manuals and premature files both fail.
+				var actualFiles = java.util.stream.IntStream.range(0, terminal.fileCountForTesting())
+						.mapToObj(terminal::fileIdForTesting).collect(java.util.stream.Collectors.toSet());
+				if (!actualFiles.equals(expectedInitialFiles) || terminal.selectedFileForTesting() != -1
 						|| !"FILES".equals(terminal.pageForTesting())) {
-					throw new AssertionError("A freshly bound terminal must expose the handoff and the locked diary");
+					throw new AssertionError("A freshly bound terminal must expose the handoff and the locked diary: "
+							+ java.util.stream.IntStream.range(0, terminal.fileCountForTesting()).mapToObj(terminal::fileIdForTesting).toList()
+							+ " page=" + terminal.pageForTesting() + " selected=" + terminal.selectedFileForTesting());
 				}
 			});
 			context.takeScreenshot("r86-file-directory-initial-locked-diary");
@@ -447,7 +456,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				context.waitTicks(10);
 				context.runOnClient(client -> {
 					TerminalScreen terminal = (TerminalScreen) client.screen;
-					terminal.scrollRowsForTesting(64);
+					terminal.keyPressed(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_END, 0, 0));
 					if (terminal.recordsScrollRowForTesting() <= 0) {
 						throw new AssertionError("Fixture must build a RECORDS list long enough to scroll");
 					}
@@ -463,7 +472,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 						throw new AssertionError(
 								"A record must stay unread while the list is scrolled away from it");
 					}
-					terminal.scrollRowsForTesting(-64);
+					terminal.keyPressed(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_HOME, 0, 0));
 				});
 				context.waitTicks(10);
 				context.runOnClient(client -> {
@@ -1206,8 +1215,10 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 	private static void assertLockedRenderDistance(ClientGameTestContext context,
 			net.minecraft.resources.ResourceKey<Level> dimension, int expected) {
 		context.waitFor(client -> client.level != null && client.level.dimension() == dimension
+				&& client.getOverlay() == null
+				&& !(client.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen)
 				&& client.options.renderDistance().get().equals(expected)
-				&& client.options.getEffectiveRenderDistance() == expected, 100);
+				&& client.options.getEffectiveRenderDistance() == expected, 300);
 		context.runOnClient(client -> {
 			int rejected = expected == 12 ? 2 : 12;
 			client.options.renderDistance().set(rejected);
@@ -1875,7 +1886,19 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 							| SurvivalMilestone.PREPARED_NETHER.mask());
 		});
 		var nether = server.getLevel(Level.NETHER);
-		if (nether == null || !player.teleportTo(nether, 0.5, 64.0, 0.5,
+		if (nether == null) throw new AssertionError("Nether fixture dimension missing");
+		// The navigation test needs a survival player, but an arbitrary seed may put (0,64,0)
+		// inside lava. Prepare a sealed landing so the test exercises portal state, not drowning.
+		for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) for (int y = -1; y <= 4; y++) {
+			boolean shell = y == -1 || y == 4 || Math.abs(x) == 3 || Math.abs(z) == 3;
+			nether.setBlockAndUpdate(new BlockPos(x, 64 + y, z),
+					(shell ? Blocks.POLISHED_BLACKSTONE : Blocks.AIR).defaultBlockState());
+		}
+		player.clearFire();
+		player.setHealth(player.getMaxHealth());
+		player.setDeltaMovement(Vec3.ZERO);
+		player.resetFallDistance();
+		if (!player.teleportTo(nether, 0.5, 64.0, 0.5,
 				Set.of(), 0.0F, 0.0F, true)) {
 			throw new AssertionError("M6 client fixture could not cross into the Nether");
 		}

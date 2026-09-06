@@ -6,39 +6,39 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 
 public final class PrivateAnomalyClient {
-	private static String anomalyId = "none";
-	private static int variant;
-	private static int remainingTicks;
+	private static final PrivateAnomalyPresentation PRESENTATION = new PrivateAnomalyPresentation();
 
 	private PrivateAnomalyClient() {
 	}
 
 	public static void initialize() {
 		ClientPlayNetworking.registerGlobalReceiver(PrivateAnomalyPayload.TYPE, (payload, context) -> {
-			anomalyId = payload.anomalyId();
-			variant = Math.floorMod(payload.variant(), 4);
-			remainingTicks = 100;
+			PRESENTATION.accept(payload.anomalyId(), payload.variant());
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(PrivateAnomalyClient::tick);
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
+				(handler, sender, client) -> clear());
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
+				(handler, client) -> clear());
 	}
 
 	private static void tick(Minecraft client) {
-		if (remainingTicks <= 0 || client.player == null) {
-			return;
-		}
-		remainingTicks--;
-		if (remainingTicks == 0) {
-			anomalyId = "none";
-		}
+		// Portal generation is not part of the five seconds the player gets to see this event.
+		PRESENTATION.advance(client.player != null && client.level != null && client.getOverlay() == null
+				&& !(client.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen));
+	}
+
+	private static void clear() {
+		PRESENTATION.clear();
 	}
 
 	public static String anomalyId() {
-		return anomalyId;
+		return PRESENTATION.id();
 	}
 
 	public static int variant() {
-		return variant;
+		return PRESENTATION.variant();
 	}
 
-	public static int remainingTicks() { return remainingTicks; }
+	public static int remainingTicks() { return PRESENTATION.remaining(); }
 }

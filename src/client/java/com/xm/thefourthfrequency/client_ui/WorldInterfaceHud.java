@@ -40,19 +40,19 @@ public final class WorldInterfaceHud {
 	private static final int ANCHOR_SWEEP_SLICE = 4;
 
 	private static final int PANEL_PAD_X = 8;
-	private static final int PANEL_PAD_TOP = 6;
-	private static final int PANEL_PAD_BOTTOM = 7;
+	private static final int PANEL_PAD_TOP = 4;
+	private static final int PANEL_PAD_BOTTOM = 3;
 	private static final int BRACKET_LENGTH = 9;
-	private static final int GAUGE_HEIGHT = 9;
-	private static final int RAIL_HEIGHT = 3;
-	private static final int ANCHOR_CELL = 7;
+	private static final int GAUGE_HEIGHT = 5;
+	private static final int RAIL_HEIGHT = 2;
+	private static final int ANCHOR_CELL = 5;
 	private static final int ANCHOR_GAP = 2;
 	/** Target width of one gauge cell before the count is fitted to the panel. */
 	private static final int GAUGE_CELL_TARGET = 7;
 	private static final int MIN_GAUGE_SEGMENTS = 18;
 	private static final int MAX_GAUGE_SEGMENTS = 44;
 
-	private static final int PANEL_BACKDROP = 0xD2070410;
+	private static final int PANEL_BACKDROP = 0x9C070410;
 	private static final int PANEL_INNER = 0x64100A1E;
 	private static final int SCANLINE = 0x1A000000;
 	private static final int GAUGE_TRACK = 0xFF1B1024;
@@ -74,6 +74,7 @@ public final class WorldInterfaceHud {
 	private static int trackedBand = -1;
 	private static int trackedAnchorMask;
 	private static float displayedRatio = Float.NaN;
+	private static float lastTargetRatio = Float.NaN;
 	private static float ghostRatio = Float.NaN;
 	private static float ghostHold;
 	private static float damageFlash;
@@ -117,16 +118,15 @@ public final class WorldInterfaceHud {
 
 		Font font = client.font;
 		int screenWidth = graphics.guiWidth();
-		int barWidth = Math.clamp(screenWidth - 80, 180, 360);
+		int barWidth = Math.max(80, Math.min(screenWidth - 32, 290));
 		int left = (screenWidth - barWidth) / 2;
 		int top = 12;
 
 		int headerY = top;
 		int gaugeY = headerY + font.lineHeight + 3;
-		int readoutY = gaugeY + GAUGE_HEIGHT + 4;
-		int railY = readoutY + font.lineHeight + 4;
-		int footerY = railY + RAIL_HEIGHT + 4;
-		int panelBottom = footerY + font.lineHeight + PANEL_PAD_BOTTOM - 3;
+		int railY = gaugeY + GAUGE_HEIGHT + 3;
+		int footerY = railY + RAIL_HEIGHT + 3;
+		int panelBottom = footerY + font.lineHeight + PANEL_PAD_BOTTOM;
 
 		int band = WorldInterfacePalette.band(encounter.stage());
 		boolean failing = encounter.outcome() == WorldInterfaceProtocol.Outcome.FAILURE;
@@ -141,7 +141,6 @@ public final class WorldInterfaceHud {
 				left + barWidth + PANEL_PAD_X, panelBottom, frame);
 		drawHeader(graphics, font, encounter, left, barWidth, headerY, accent, failing);
 		drawGauge(graphics, left, gaugeY, barWidth, band, accent);
-		drawReadout(graphics, font, encounter, left, barWidth, readoutY, accent);
 		double collapse = projection.collapseProgress(client.level.getGameTime());
 		drawCollapseRail(graphics, left, railY, barWidth, collapse);
 		drawFooter(graphics, font, encounter, left, barWidth, footerY, collapse, accent);
@@ -183,7 +182,12 @@ public final class WorldInterfaceHud {
 		for (int step = 0; step < 3; step++) {
 			graphics.fill(caretX + step, y + 2 + step, caretX + step + 1, y + font.lineHeight - 2 - step, accent);
 		}
-		graphics.drawString(font, stageLabel(encounter), left + 7, y, failing ? FAILURE_ACCENT : LABEL, false);
+		String title = stageLabel(encounter).getString();
+		String percent = Math.round(Math.clamp(displayedRatio, 0F, 1F) * 100) + "%";
+		var row = com.xm.thefourthfrequency.ending.WorldInterfaceHudLayout.header(barWidth, font.width(percent));
+		graphics.drawString(font, fit(font, title, row.text().width()), left + row.text().left(), y,
+				failing ? FAILURE_ACCENT : LABEL, false);
+		graphics.drawString(font, fit(font, percent, row.readout().width()), left + row.readout().left(), y, accent, false);
 		drawFormPips(graphics, encounter, left + barWidth, y + 2);
 	}
 
@@ -285,14 +289,6 @@ public final class WorldInterfaceHud {
 
 	// ---------------------------------------------------------------- readouts
 
-	private static void drawReadout(GuiGraphics graphics, Font font, WorldInterfaceSnapshotS2C encounter,
-			int left, int barWidth, int y, int accent) {
-		String health = Math.round(encounter.currentHealth()) + " / " + Math.round(encounter.maxHealth());
-		graphics.drawString(font, health, left, y, READOUT, false);
-		String percent = Math.round(Math.clamp(displayedRatio, 0.0F, 1.0F) * 100.0F) + "%";
-		graphics.drawString(font, percent, left + barWidth - font.width(percent), y, accent, false);
-	}
-
 	private static void drawCollapseRail(GuiGraphics graphics, int left, int y, int barWidth, double collapse) {
 		graphics.fill(left, y, left + barWidth, y + RAIL_HEIGHT, RAIL_TRACK);
 		int filled = (int) Math.round(barWidth * Math.clamp(collapse, 0.0D, 1.0D));
@@ -320,9 +316,28 @@ public final class WorldInterfaceHud {
 				: Component.translatable(encounter.timerPaused()
 						? "hud.thefourthfrequency.world_interface.collapse_paused"
 						: "hud.thefourthfrequency.world_interface.collapse", clock);
-		graphics.drawString(font, collapseLabel, left, y,
+		String footer = collapseLabel.getString();
+		int alive = Integer.bitCount(encounter.anchorAliveMask() & WorldInterfaceProtocol.ANCHOR_MASK);
+		String anchorLabel = (anchorSweep > 0.0F
+				? Component.translatable("hud.thefourthfrequency.world_interface.anchor_shift")
+				: Component.translatable("hud.thefourthfrequency.world_interface.anchors", alive, ANCHOR_COUNT)).getString();
+		var row = com.xm.thefourthfrequency.ending.WorldInterfaceHudLayout.footer(barWidth, font.width(anchorLabel));
+		int footerRoom = row.text().width();
+		if (font.width(footer) > footerRoom)
+			footer = repairing ? footer : clock;
+		graphics.drawString(font, fit(font, footer, footerRoom), left, y,
 				repairing ? 0xFF9BE6B4 : collapse >= 0.85D ? 0xFFFF8C91 : 0xFFD5A991, false);
+		graphics.drawString(font, fit(font, anchorLabel, row.readout().width()), left + row.readout().left(), y,
+				anchorSweep > 0.0F ? 0xFFFFE0A0 : LABEL_DIM, false);
 		drawAnchors(graphics, font, encounter, left, barWidth, y, accent);
+	}
+
+	/** Even the ellipsis must fit; a zero-width column draws nothing. */
+	private static String fit(Font font, String text, int width) {
+		if (width <= 0) return "";
+		if (font.width(text) <= width) return text;
+		if (font.width("…") > width) return "";
+		return font.plainSubstrByWidth(text, width - font.width("…")) + "…";
 	}
 
 	/** Indicator lamps: a seated husk that keeps its slot after the anchor is gone. */
@@ -330,12 +345,6 @@ public final class WorldInterfaceHud {
 			int left, int barWidth, int y, int accent) {
 		int stripWidth = ANCHOR_COUNT * ANCHOR_CELL + (ANCHOR_COUNT - 1) * ANCHOR_GAP;
 		int stripLeft = left + barWidth - stripWidth;
-		int alive = Integer.bitCount(encounter.anchorAliveMask() & WorldInterfaceProtocol.ANCHOR_MASK);
-		Component label = anchorSweep > 0.0F
-				? Component.translatable("hud.thefourthfrequency.world_interface.anchor_shift")
-				: Component.translatable("hud.thefourthfrequency.world_interface.anchors", alive, ANCHOR_COUNT);
-		graphics.drawString(font, label, stripLeft - font.width(label) - 6, y,
-				anchorSweep > 0.0F ? 0xFFFFE0A0 : LABEL_DIM, false);
 		int lampTop = y + 1;
 		for (int index = 0; index < ANCHOR_COUNT; index++) {
 			int x = stripLeft + index * (ANCHOR_CELL + ANCHOR_GAP);
@@ -343,7 +352,7 @@ public final class WorldInterfaceHud {
 			graphics.fill(x, lampTop, x + ANCHOR_CELL, lampTop + ANCHOR_CELL, ANCHOR_HUSK);
 			if (!present) continue;
 			graphics.fill(x + 1, lampTop + 1, x + ANCHOR_CELL - 1, lampTop + ANCHOR_CELL - 1, accent);
-			graphics.fill(x + 2, lampTop + 2, x + ANCHOR_CELL - 3, lampTop + ANCHOR_CELL - 3,
+			graphics.fill(x + 2, lampTop + 2, x + 3, lampTop + 3,
 					ARGB.srgbLerp(0.55F, accent, 0xFFFFFFFF));
 		}
 	}
@@ -364,6 +373,7 @@ public final class WorldInterfaceHud {
 			trackedBand = band;
 			trackedAnchorMask = aliveAnchors;
 			displayedRatio = target;
+			lastTargetRatio = target;
 			ghostRatio = target;
 			ghostHold = 0.0F;
 			damageFlash = 0.0F;
@@ -388,14 +398,15 @@ public final class WorldInterfaceHud {
 			ghostRatio = target;
 		}
 
-		if (target < displayedRatio - 1.0E-4F) {
+		if (target < lastTargetRatio - 1.0E-4F) {
 			ghostHold = GHOST_HOLD_TICKS;
 			damageFlash = DAMAGE_FLASH_TICKS;
 			if (ghostRatio < displayedRatio) ghostRatio = displayedRatio;
-		} else if (target > displayedRatio + 1.0E-4F) {
+		} else if (target > lastTargetRatio + 1.0E-4F) {
 			// Healing must not leave a stale ghost floating above the restored gauge.
 			ghostRatio = Math.min(ghostRatio, target);
 		}
+		lastTargetRatio = target;
 		displayedRatio += (target - displayedRatio) * approach(HEALTH_EASE_RATE, delta);
 		damageFlash = Math.max(0.0F, damageFlash - delta);
 		bandFlash = Math.max(0.0F, bandFlash - delta);
@@ -429,6 +440,7 @@ public final class WorldInterfaceHud {
 		trackedBand = -1;
 		trackedAnchorMask = 0;
 		displayedRatio = Float.NaN;
+		lastTargetRatio = Float.NaN;
 		ghostRatio = Float.NaN;
 		ghostHold = 0.0F;
 		damageFlash = 0.0F;

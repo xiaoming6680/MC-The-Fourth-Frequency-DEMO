@@ -49,15 +49,18 @@ public record TerminalControlPayload(int action, int value) implements CustomPac
 	public static final int DISMISS_NAVIGATION_COMPLETION = 19;
 	public static final int MARK_FILES_SEEN = 20;
 	/**
-	 * Commits one first-boot profile answer. {@code value} is the option index.
-	 *
-	 * <p>Carries the option but not the question: the server holds which question is being asked and
-	 * advances it itself, so a client cannot answer ahead, answer twice, or reach back and rewrite an
-	 * earlier one. Any legal option is a legal answer, so there is nothing here worth forging - the
-	 * guard exists because the profile is one-shot, and a bad index would land in a file the player
-	 * has no way to correct.
+	 * Commits one first-boot profile answer. The high bits hold the displayed question, and the
+	 * low four bits hold the option. The server requires an exact question match before advancing;
+	 * repeated or delayed packets cannot answer a later question. See {@link #profileAnswer}.
 	 */
 	public static final int ANSWER_PROFILE = 21;
+
+	/** Carries the question revision so a delayed/repeated answer cannot consume the next one. */
+	public static int profileAnswer(int question, int option) {
+		if (question < 0 || question >= 16 || option < 0 || option >= 16)
+			throw new IllegalArgumentException("Invalid profile answer");
+		return question * 16 + option;
+	}
 	/**
 	 * Tells the server this client holds a record of a previous playthrough. {@code value} is 1 or 0.
 	 *

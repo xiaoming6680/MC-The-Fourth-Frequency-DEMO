@@ -2,6 +2,8 @@
 
 日期：2026-09-07。Minecraft 1.21.11 / Fabric，Java 21。
 
+本文记录 RC.1 实体返工交付；后续 RC.2 的多人、终端与 HUD 修正见 [多人体验验收](../multiplayer_experience/README.md)。
+
 最终 `gradlew build` 通过。成品为 `thefourthfrequency-1.0.0-rc.1.jar`，已部署到配置的 PCL 实例，部署文件与构建文件 SHA-256 一致：`77b540d6f212d21fddf3567061214333c40645df2829f11e74d37f67106b8c03`。成品校验覆盖 58 个 Mixin 类和 21 个 Minecraft 注入目标。
 
 ## 已接入内容

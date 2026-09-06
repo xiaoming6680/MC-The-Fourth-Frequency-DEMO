@@ -6,7 +6,7 @@
 
 玩家在唯一的零号站醒来，得到一台会提供真实生存信息的旧终端。它不靠凭空加入怪物制造恐怖，而是让你熟悉的方块、菜单、声音和规则逐步失去原有解释——终端是你唯一稳定的解释工具，而它也在被同一件事影响。
 
-> 当前版本 **RC 1.0.0**（`1.0.0-rc.1`）。玩法功能已全部实现并冻结，进入发布候选阶段。
+> 当前构建版本 **1.0.0-rc.2**，包含多人状态隔离、风暴粒子批量同步与 HUD/终端适配修正。客户端与服务端请使用同一构建；仍处于发布候选阶段。
 
 ## 运行环境
 
@@ -21,7 +21,7 @@
 
 ## 安装
 
-1. 从 [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency/releases) 下载 `thefourthfrequency-1.0.0-rc.1.jar`，或按下面的步骤自行构建。
+1. 按下面的步骤构建 `thefourthfrequency-1.0.0-rc.2.jar`。正式发布的附件以 [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases) 为准。
 2. 与对应版本的 Fabric API 一起放入客户端和服务器的 `mods` 目录。
 3. 用 Java 21 启动 Fabric 1.21.11，**新建世界**或连入服务器。
 

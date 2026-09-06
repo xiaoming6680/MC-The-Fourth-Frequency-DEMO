@@ -20,6 +20,8 @@ public final class PursuitSafetyPolicy {
 		float safeHealthFloor = Math.max(6.0F, player.getMaxHealth() * 0.4F);
 		if (player.isSleeping() || player.getAbilities().flying || player.isFallFlying()
 				|| player.isPassenger() || player.isOnFire() || player.isInLava()
+				|| player.isUnderWater() || player.getAirSupply() < player.getMaxAirSupply()
+				|| player.containerMenu != player.inventoryMenu
 				|| player.fallDistance > 3.0F || player.getHealth() <= safeHealthFloor) return false;
 		if (!player.level().getEntitiesOfClass(Monster.class, player.getBoundingBox().inflate(12.0D),
 				monster -> monster.isAlive() && monster.getTarget() == player).isEmpty()) return false;

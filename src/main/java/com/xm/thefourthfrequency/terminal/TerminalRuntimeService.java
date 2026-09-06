@@ -241,25 +241,35 @@ public final class TerminalRuntimeService {
 			}
 			default -> { return; }
 		}
-		sendSnapshot(player, view);
-		sendNavigation(player);
+		long feedbackTick = player.level().getServer().getTickCount();
+		if (view.feedbackWindow.take(feedbackTick)) {
+			sendSnapshot(player, view);
+			sendNavigation(player);
+		} else {
+			// Process every authoritative input, but send the final state once rather than
+			// serializing the entire archive for every mouse event in the same tick.
+			view.nextSyncTick = Math.min(view.nextSyncTick, feedbackTick + 1);
+			view.nextNavigationSyncTick = Math.min(view.nextNavigationSyncTick, feedbackTick + 1);
+		}
 	}
 
 	/**
 	 * Records one profile answer and moves to the next question.
 	 *
-	 * <p>The question index is the server's, never the client's. The packet carries only which option
-	 * was chosen, so there is no way to answer ahead, answer the same question twice, or reach back
-	 * and rewrite one that is already down. Any legal option is a legal answer, so none of this is
-	 * defending against a cheat - it is defending against a one-shot record that cannot be corrected.
+	 * <p>The packet names the question the player saw. The server compares it with the current
+	 * question before committing, so duplicate submissions cannot consume the following question.
 	 */
-	private static boolean recordProfileAnswer(ServerPlayer player, int optionIndex) {
+	private static boolean recordProfileAnswer(ServerPlayer player, int packedAnswer) {
+		if (packedAnswer < 0) return false;
+		int expectedQuestion = packedAnswer >>> 4;
+		int optionIndex = packedAnswer & 15;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
 		if (record == null) return false;
 		if (TerminalData.profileTaken(record)) return false;
 		if (record.getBooleanOr(TerminalData.ONBOARDING_DONE, false)) return false;
 		int question = record.getIntOr(TerminalData.PROFILE_QUESTION, 0);
+		if (question != expectedQuestion) return false;
 		if (!TerminalProfileQuestionnaire.validAnswer(question, optionIndex)) return false;
 		data.updateTerminalRecord(player.getUUID(), tag -> {
 			int[] answers = TerminalData.profileAnswers(tag);
@@ -860,6 +870,7 @@ public final class TerminalRuntimeService {
 	}
 
 	private static final class ViewState {
+		private final TerminalSyncWindow feedbackWindow = new TerminalSyncWindow();
 		private final InteractionHand hand;
 		private int mode;
 		private final int initialPage;

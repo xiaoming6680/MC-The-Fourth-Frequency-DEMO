@@ -8,7 +8,7 @@ Gameplay truth is elsewhere: page semantics and tool unlocks in [Anomalies, term
 
 ## Coordinate space
 
-The terminal draws on a virtual **512×256** canvas. `TerminalScreen#render` blits the panel backdrop in screen space, then `pushMatrix` → `translate(left, top)` → `scale(scale, scale)`; everything after that is canvas coordinates. The scale comes from `panelScale()`, clamped to `[0.55, 2.0]`. `local(mouseX, mouseY)` converts screen → canvas, and all hit testing happens in canvas coordinates.
+The terminal draws on a virtual **512×256** canvas. `TerminalScreen#render` blits the panel backdrop in screen space, then `pushMatrix` → `translate(left, top)` → `scale(scale, scale)`; everything after that is canvas coordinates. `TerminalUiLayout.panelScale()` fits both window dimensions with 16 pixels of margin, up to 2×; the old 0.55 minimum no longer pushes small windows off screen. `local(mouseX, mouseY)` converts screen → canvas, and all hit testing happens in canvas coordinates.
 
 > **The scissor trap.** `GuiGraphics#enableScissor` **runs the current pose itself**, so the clip rect must be given in canvas coordinates and never pre-converted to screen pixels — the transform would be applied twice and clip the whole panel away. The clip must also be opened **before** pushing the content offset, and `disableScissor` called **before** the outer `popMatrix`. Vanilla's `ScissorStack#push` intersects with the parent rect, so nesting is safe.
 
@@ -161,7 +161,7 @@ Those 20 ticks are not a load guard — ticks where nothing was shown were never
 | Phase | Advances on | Permitted input |
 |---|---|---|
 | `BOOT` | Self test finishing (~3.1 s) | All swallowed; any key finishes the current line at once |
-| `STEP_1`–`STEP_4` | Pressing Next (Finish tutorial on the last step) | **The walkthrough button only**; the tab strip and number keys are all swallowed |
+| `STEP_1`–`STEP_4` | Pressing Next (Finish tutorial on the last step), Enter or Space | All share the button's reading delay; the tab strip and number keys are swallowed |
 | `RELEASED` | The damage safety valve firing | Everything restored |
 | `DONE` | 40 ticks after step four lands | Everything |
 
@@ -230,7 +230,7 @@ After the self test and before the four-step tour, once per new save. Rules in `
 
 **The needle takes the maximum of "a sharp station" and "a gentle carrier floor"**, so it is non-zero and has a gradient everywhere on the band — with the exit locked, the needle is the player's only guide.
 
-**One-off and server-held.** The question index only advances on the server, and `ANSWER_PROFILE` carries an option but no question index, so racing ahead, answering twice and going back are all impossible. Closing the terminal and disconnecting both seal in place; unanswered questions stay **unanswered** and are **never filled with a default**.
+**One-off and server-held.** `ANSWER_PROFILE` carries the displayed question and option (`question * 16 + option`). The server requires an exact question match before advancing, so duplicate or delayed answers cannot consume the next question. Another player's terminal cannot submit answers. Update clients and servers together. Closing the terminal and disconnecting both seal in place; unanswered questions stay **unanswered** and are **never filled with a default**.
 
 The keyboard path is required, not optional: `←/→` step by 1, `Shift+←/→` jump one lock radius, `Enter/Space` commits.
 
@@ -390,3 +390,11 @@ The contract test asserts two things: the animator must never call `set(` on the
 `ResourceContractTest` asserts on **source text** of `TerminalScreen.java` (about 18 asserted strings exist only inside drawing method bodies), which effectively pins it as a two-thousand-line file that cannot be refactored — any attempt to move drawing into a new file turns the contract red.
 
 The real fix is replacing those assertions with behavioural tests (the class already has about 50 `*ForTesting` hooks), not moving code to dodge them. **Until then, new drawing code goes into new files and existing drawing is not touched.**
+
+## Multiplayer and navigation update, 2026-09-07
+
+Profile submissions include the question revision. Multiple controls from one player in a tick are processed in order, with full archive feedback coalesced and the final state sent on the following tick. Each player has an independent window.
+
+Long directory titles use an ellipsis. Files, records and tool details support PageUp / PageDown / Home / End; tool details support Backspace. Enter / Space advances the tutorial after the same reading delay as the button. The panel fits both viewport dimensions.
+
+Structure queries share a 30-second cache by dimension, target and chunk, including misses. The cache holds at most 128 entries and clears on server stop; player navigation progress stays separate. Uncached lookups still use vanilla synchronous structure search, so world-generation stalls remain possible.

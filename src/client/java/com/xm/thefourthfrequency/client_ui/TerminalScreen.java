@@ -396,7 +396,7 @@ public final class TerminalScreen extends Screen {
 			profileHeldTicks = 0;
 			profileHeldOption = -1;
 			TerminalClientAudio.noticeStable();
-			send(TerminalControlPayload.ANSWER_PROFILE, locked);
+			submitProfileAnswer(locked);
 		}
 		// No question may be a dead end: the walkthrough is only allowed to hold the exit because it
 		// ends. A player who has never locked anything gets the device sweeping to the nearest option
@@ -1852,11 +1852,8 @@ public final class TerminalScreen extends Screen {
 				: Component.translatable("terminal.thefourthfrequency.file.locked_title", snapshot.fileTitle(file));
 		int color = HiddenFilePolicy.isHiddenFile(file.id()) ? DIM
 				: completeDiary ? diaryTitleColor(file) : file.unlocked() ? GREEN : CYAN;
-		List<FormattedCharSequence> titleRows = font.split(title, cell.width() - 10);
-		if (!titleRows.isEmpty()) {
-			graphics.drawString(font, titleRows.getFirst(), cell.left() + 5,
-					cell.top() + Math.max(4, (cell.height() - font.lineHeight) / 2), color, false);
-		}
+		graphics.drawString(font, ellipsize(title.getString(), cell.width() - 10), cell.left() + 5,
+				cell.top() + Math.max(4, (cell.height() - font.lineHeight) / 2), color, false);
 	}
 
 	private void drawSelectedFileContent(GuiGraphics graphics) {
@@ -2582,7 +2579,7 @@ public final class TerminalScreen extends Screen {
 						profileHeldTicks = 0;
 						profileHeldOption = -1;
 						TerminalClientAudio.noticeStable();
-						send(TerminalControlPayload.ANSWER_PROFILE, locked);
+						submitProfileAnswer(locked);
 					}
 				}
 				default -> refuseOnboardingInput();
@@ -2590,8 +2587,12 @@ public final class TerminalScreen extends Screen {
 			return true;
 		}
 		if (onboardingLocksExit()) {
-			// The number keys are the tab strip by another name, and they are refused for the same
-			// reason: while the walkthrough is up, the button is the only thing that turns a page.
+			if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER
+					|| event.key() == GLFW.GLFW_KEY_SPACE)
+					&& onboardingAdvanceClicked(TerminalUiLayout.ONBOARD_NEXT.left() + 1,
+							TerminalUiLayout.ONBOARD_NEXT.top() + 1)) {
+				return selectPage(TerminalOnboardingPolicy.target(onboardingPhase));
+			}
 			refuseOnboardingInput();
 			return true;
 		}
@@ -2623,6 +2624,29 @@ public final class TerminalScreen extends Screen {
 	}
 
 	private boolean pageKeyPressed(KeyEvent event) {
+		if (event.key() == GLFW.GLFW_KEY_BACKSPACE && selectedTool != null)
+			return backFromToolDetail();
+		if (event.key() == GLFW.GLFW_KEY_PAGE_UP || event.key() == GLFW.GLFW_KEY_PAGE_DOWN
+				|| event.key() == GLFW.GLFW_KEY_HOME || event.key() == GLFW.GLFW_KEY_END) {
+			boolean beginning = event.key() == GLFW.GLFW_KEY_HOME;
+			boolean ending = event.key() == GLFW.GLFW_KEY_END;
+			int direction = event.key() == GLFW.GLFW_KEY_PAGE_UP ? -1 : 1;
+			if (page == TerminalPage.TOOLS && selectedTool != null) {
+				toolDetailScroll = beginning ? 0 : ending ? toolDetailMaxScroll(selectedTool)
+						: TerminalUiLayout.scroll(toolDetailScroll,
+								direction * Math.max(1, toolDetailVisibleRows(selectedTool) - 1), toolDetailMaxScroll(selectedTool));
+				return true;
+			}
+			if (page == TerminalPage.RECORDS) {
+				recordsScrollRow = beginning ? 0 : ending ? recordsMaxScroll()
+						: TerminalUiLayout.scroll(recordsScrollRow, direction * Math.max(1, recordsVisibleRows() - 1), recordsMaxScroll());
+				return true;
+			}
+			if (page == TerminalPage.FILES) {
+				fileContentScroll = beginning ? 0 : ending ? fileContentMaxScroll() : filePageScroll(direction);
+				return true;
+			}
+		}
 		if (page == TerminalPage.TOOLS && selectedTool != null
 				&& (event.key() == GLFW.GLFW_KEY_UP || event.key() == GLFW.GLFW_KEY_DOWN)) {
 			toolDetailScroll = TerminalUiLayout.scroll(toolDetailScroll,
@@ -2635,7 +2659,7 @@ public final class TerminalScreen extends Screen {
 			return true;
 		}
 		if (page == TerminalPage.FILES) {
-			if (event.key() == GLFW.GLFW_KEY_ENTER) {
+			if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
 				openDirectoryEntry(selectedFile);
 				return true;
 			}
@@ -2643,13 +2667,22 @@ public final class TerminalScreen extends Screen {
 				moveFileSelection(event.key() == GLFW.GLFW_KEY_UP ? -1 : 1);
 				return true;
 			}
-			if (event.key() == GLFW.GLFW_KEY_PAGE_UP || event.key() == GLFW.GLFW_KEY_PAGE_DOWN) {
-				fileContentScroll = TerminalUiLayout.scroll(fileContentScroll,
-						event.key() == GLFW.GLFW_KEY_PAGE_UP ? -3 : 3, fileContentMaxScroll());
-				return true;
-			}
 		}
 		return false;
+	}
+
+	private int filePageScroll(int direction) {
+		var rows = fileDetailRows();
+		int index = Math.clamp(fileContentScroll, 0, Math.max(0, rows.size() - 1));
+		int pixels = 0;
+		int room = Math.max(1, fileViewportHeight() - (rows.isEmpty() ? 0 : rows.get(index).height()));
+		while (!rows.isEmpty() && pixels < room) {
+			int next = index + direction;
+			if (next < 0 || next >= rows.size()) break;
+			pixels += rows.get(direction > 0 ? index : next).height();
+			index = next;
+		}
+		return Math.clamp(index, 0, fileContentMaxScroll());
 	}
 
 	private boolean selectPage(TerminalPage next) {
@@ -3125,8 +3158,13 @@ public final class TerminalScreen extends Screen {
 	}
 
 	private float panelScale() {
-		return Math.min(2.0F, Math.max(0.55F,
-				Math.min((width - 16) / (float) BASE_WIDTH, (height - 16) / (float) BASE_HEIGHT)));
+		return TerminalUiLayout.panelScale(width, height);
+	}
+
+	private void submitProfileAnswer(int option) {
+		int question = snapshot.profileQuestion();
+		if (TerminalProfileQuestionnaire.validAnswer(question, option))
+			send(TerminalControlPayload.ANSWER_PROFILE, TerminalControlPayload.profileAnswer(question, option));
 	}
 
 	private double[] local(double mouseX, double mouseY) {

@@ -38,6 +38,61 @@ import java.lang.reflect.Method;
  * feature; entry and return stay manual-acceptance items.
  */
 public final class PursuitRuntimeGameTests implements CustomTestMethodInvoker {
+	@GameTest
+	public void teammatesSettleOnlyTheirOwnRefundLedgers(GameTestHelper helper) {
+		ServerPlayer alice = helper.makeMockServerPlayerInLevel();
+		ServerPlayer bob = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = requireRecord(helper, alice);
+		requireRecord(helper, bob);
+		clearInventory(alice);
+		clearInventory(bob);
+		PursuitRecoveryLedger.recordPlacement(alice, new ItemStack(Items.COBBLESTONE, 5));
+		PursuitRecoveryLedger.recordPlacement(bob, new ItemStack(Items.GOLD_BLOCK, 3));
+		PursuitRecoveryLedger.settleAndDeliver(alice);
+		PursuitRecoveryLedger.settleAndDeliver(alice);
+		helper.assertValueEqual(5, totalCount(alice, Items.COBBLESTONE), "Alice is refunded once");
+		helper.assertValueEqual(3, countIn(ledger(data, bob, TerminalData.PURSUIT_REFUND_LEDGER)),
+				"Alice's recovery cannot consume Bob's debt");
+		PursuitRecoveryLedger.settleAndDeliver(bob);
+		helper.assertValueEqual(3, totalCount(bob, Items.GOLD_BLOCK), "Bob receives his own refund");
+		helper.assertValueEqual(0, totalCount(alice, Items.GOLD_BLOCK), "Bob's items never go to Alice");
+		helper.assertValueEqual(0, totalCount(bob, Items.COBBLESTONE), "Alice's items never go to Bob");
+		helper.succeed();
+	}
+
+	@GameTest
+	public void pursuitWaitsForAirAndContainersWithoutBlockingOtherPlayers(GameTestHelper helper) {
+		ServerPlayer alice = helper.makeMockServerPlayerInLevel();
+		ServerPlayer bob = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = requireRecord(helper, alice);
+		requireRecord(helper, bob);
+		String key = com.xm.thefourthfrequency.ending.WorldInterfaceState.ROOT_KEY;
+		var previous = data.narrativeState().get(key);
+		try {
+			data.updateNarrativeState(root -> root.remove(key));
+			CompoundTag aliceRecord = data.terminalRecord(alice.getUUID()).orElseThrow();
+			CompoundTag bobRecord = data.terminalRecord(bob.getUUID()).orElseThrow();
+			helper.assertTrue(com.xm.thefourthfrequency.pursuit.PursuitSafetyPolicy.canBegin(alice, aliceRecord, data),
+					"Fixture: a healthy idle player can enter a pursuit");
+			alice.setAirSupply(alice.getMaxAirSupply() - 1);
+			helper.assertFalse(com.xm.thefourthfrequency.pursuit.PursuitSafetyPolicy.canBegin(alice, aliceRecord, data),
+					"The opening freeze must not strand a player who is still recovering air");
+			helper.assertTrue(com.xm.thefourthfrequency.pursuit.PursuitSafetyPolicy.canBegin(bob, bobRecord, data),
+					"Another player's air shortage must not block Bob's encounter");
+			alice.setAirSupply(alice.getMaxAirSupply());
+			alice.containerMenu = net.minecraft.world.inventory.ChestMenu.threeRows(1, alice.getInventory());
+			helper.assertFalse(com.xm.thefourthfrequency.pursuit.PursuitSafetyPolicy.canBegin(alice, aliceRecord, data),
+					"Do not teleport a player while a shared container is open");
+			alice.containerMenu = alice.inventoryMenu;
+			helper.assertTrue(com.xm.thefourthfrequency.pursuit.PursuitSafetyPolicy.canBegin(alice, aliceRecord, data),
+					"Closing the container restores eligibility without affecting the other player");
+		} finally {
+			alice.containerMenu = alice.inventoryMenu;
+			data.updateNarrativeState(root -> { if (previous == null) root.remove(key); else root.put(key, previous); });
+		}
+		helper.succeed();
+	}
+
 	/**
 	 * A refund gives back the stack that was spent, not something that shares its id.
 	 *
