@@ -104,6 +104,7 @@ MC-The-Fourth-Frequency/
 | 客户端套件（默认 `all`） | `.\gradlew.bat runClientGameTest --no-daemon` |
 | 定向客户端套件 | `.\gradlew.bat runClientGameTest -PtffClientTestSuite=world-interface --no-daemon` |
 | 干净发布构建 | `.\gradlew.bat clean build --no-daemon` |
+| 产物校验（真实 remap 后的 JAR） | `.\gradlew.bat verifyRemappedJar --no-daemon` |
 
 - **编译成功不等于验收通过。** GameTest、客户端演出与人工验收各管各的一层。
 - **只报告本轮实际完成的验证。** 未运行、超时或被并行构建干扰的项必须明确写出。

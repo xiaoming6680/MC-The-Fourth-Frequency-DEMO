@@ -104,6 +104,7 @@ Do not treat an older JAR in `build/libs`, a stale test number or a historical r
 | Client suites (default `all`) | `.\gradlew.bat runClientGameTest --no-daemon` |
 | Targeted client suite | `.\gradlew.bat runClientGameTest -PtffClientTestSuite=world-interface --no-daemon` |
 | Clean release build | `.\gradlew.bat clean build --no-daemon` |
+| Artefact check (the real remapped JAR) | `.\gradlew.bat verifyRemappedJar --no-daemon` |
 
 - **A successful compile is not acceptance.** GameTests, client presentation and manual acceptance each cover their own layer.
 - **Report only what actually ran this round.** Anything not run, timed out or disturbed by a concurrent build must be stated explicitly.

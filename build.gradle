@@ -196,6 +196,107 @@ tasks.named("check") {
 // `build` works unchanged on a fresh clone that has configured nothing.
 def deployDirProperty = providers.gradleProperty("tffDeployDir").orElse("")
 def remappedModJar = tasks.named("remapJar").flatMap { it.archiveFile }
+
+// The one failure mode the four test layers cannot see.
+//
+// Everything else in this build - unit tests, server GameTests, the client suite - runs against
+// *named* Minecraft, where a mixin annotation that Loom failed to rewrite still names a method that
+// exists and therefore still binds. Only the remapped artefact, loaded by a real launcher against
+// intermediary names, looks for a Mojang name among intermediary ones and dies at bootstrap. So the
+// jar is inspected as an artefact rather than trusted because the tests that never opened it passed.
+//
+// Four things, all of which are silent until launch: the version placeholder actually expanded, the
+// entrypoint classes named in fabric.mod.json exist in the jar, every mixin the config declares is
+// packaged, and no Minecraft-owned injection target survived remapping under its Mojang name.
+def verifyRemappedJar = tasks.register("verifyRemappedJar") {
+	group = "verification"
+	description = "Checks the remapped mod JAR the way a launcher would: names, entrypoints, mixins."
+	dependsOn tasks.named("remapJar")
+	inputs.file(remappedModJar)
+	doLast {
+		File jarFile = remappedModJar.get().asFile
+		if (!jarFile.isFile()) throw new GradleException("Remapped mod JAR was not produced: ${jarFile}")
+		List<String> problems = []
+		String verificationSummary = "nothing"
+		new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+			Set<String> entries = zip.entries().collect { it.name } as Set
+
+			def metadataEntry = zip.getEntry("fabric.mod.json")
+			if (metadataEntry == null) throw new GradleException("fabric.mod.json is missing from ${jarFile.name}")
+			def metadata = new groovy.json.JsonSlurper().parse(
+					zip.getInputStream(metadataEntry).bytes, "UTF-8")
+
+			// processResources expands this. An unexpanded placeholder ships a mod whose version is
+			// the literal string, which every dependency check downstream then reads as a version.
+			if (metadata.version == null || metadata.version.toString().contains('${')) {
+				problems << "fabric.mod.json version was not expanded: ${metadata.version}"
+			}
+			metadata.entrypoints?.each { kind, declared ->
+				declared.each { entry ->
+					String className = entry instanceof String ? entry : entry.value
+					String path = className.replace('.', '/') + ".class"
+					if (!entries.contains(path)) problems << "${kind} entrypoint is not in the jar: ${className}"
+				}
+			}
+			metadata.mixins?.each { declared ->
+				String config = declared instanceof String ? declared : declared.config
+				if (!entries.contains(config)) {
+					problems << "mixin config is not in the jar: ${config}"
+					return
+				}
+				def parsed = new groovy.json.JsonSlurper().parse(
+						zip.getInputStream(zip.getEntry(config)).bytes, "UTF-8")
+				String prefix = parsed.package.replace('.', '/') + '/'
+				["mixins", "client", "server"].each { section ->
+					parsed[section]?.each { String simpleName ->
+						String path = prefix + simpleName.replace('.', '/') + ".class"
+						if (!entries.contains(path)) {
+							problems << "${config} declares a mixin that is not packaged: ${simpleName}"
+						}
+					}
+				}
+			}
+
+			// An injection descriptor is "Lowner;name(args)ret" or "Lowner;name:type". Anything owned
+			// by Minecraft must have come out of remapping as an intermediary name; a Mojang spelling
+			// here is a binding that resolves in the dev environment and nowhere else.
+			def target = ~/^(L[\w\/$]+;)([\w$<>]+)(\(.*\).*|:.*)$/
+			def intermediary = ~/^(method_\d+|field_\d+|<init>|<clinit>)$/
+			int classesRead = 0
+			int targetsChecked = 0
+			entries.findAll { it.contains("/mixin/") && it.endsWith(".class") }.each { String name ->
+				classesRead++
+				constantPoolStrings(zip.getInputStream(zip.getEntry(name)).bytes).each { String text ->
+					def matcher = target.matcher(text)
+					if (!matcher.matches()) return
+					if (!matcher.group(1).startsWith("Lnet/minecraft/")) return
+					targetsChecked++
+					if (!intermediary.matcher(matcher.group(2)).matches()) {
+						problems << "${name - ~/.*\//} keeps an un-remapped Minecraft target: ${text}"
+					}
+				}
+			}
+			// A check that examined nothing reports the same "pass" as one that examined everything,
+			// and this one is looking for a needle it expects not to find - so the count is the only
+			// thing separating "no un-remapped targets" from "no targets, because the walk broke or
+			// the jar layout moved". Both floors are deliberately loose; they catch zero, not drift.
+			if (classesRead == 0) problems << "no mixin classes were read from the jar at all"
+			if (targetsChecked == 0) problems << "no Minecraft-owned injection targets were examined"
+			verificationSummary = "${classesRead} mixin classes, ${targetsChecked} Minecraft-owned injection targets"
+		}
+		if (!problems.isEmpty()) {
+			throw new GradleException("The remapped JAR would not load correctly:\n  "
+					+ problems.join("\n  "))
+		}
+		logger.lifecycle("Verified remapped JAR (${verificationSummary}): "
+				+ "entrypoints, mixin manifest and injection targets all resolve.")
+	}
+}
+
+tasks.named("check") {
+	dependsOn verifyRemappedJar
+}
+
 tasks.named("build") {
 	doLast {
 		String configured = deployDirProperty.get().trim()
@@ -280,4 +381,45 @@ tasks.register("printTestRuntimeClasspath") {
 		println "testClasspath:"
 		testTask.classpath.files.sort().each { println "  ${it}" }
 	}
+}
+
+/**
+ * Every CONSTANT_Utf8 entry in a class file's constant pool.
+ *
+ * Written out rather than pulled from ASM because the buildscript classpath is Loom's, not ours,
+ * and a verification step that only runs at release time is the wrong place to add a dependency it
+ * would silently inherit. The pool is the first structure in the file, so nothing after it has to
+ * be understood - the walk stops as soon as it is read.
+ *
+ * The one non-obvious rule is that CONSTANT_Long and CONSTANT_Double each occupy *two* pool slots;
+ * getting that wrong desynchronises the walk and turns the rest of the pool into noise.
+ */
+static List<String> constantPoolStrings(byte[] classBytes) {
+	def input = new DataInputStream(new ByteArrayInputStream(classBytes))
+	input.readInt()                 // magic
+	input.readUnsignedShort()       // minor
+	input.readUnsignedShort()       // major
+	int count = input.readUnsignedShort()
+	List<String> strings = []
+	int index = 1
+	while (index < count) {
+		int tag = input.readUnsignedByte()
+		if (tag == 1) {
+			strings << input.readUTF()
+		} else if (tag in [7, 8, 16, 19, 20]) {
+			input.skipBytes(2)
+		} else if (tag == 15) {
+			input.skipBytes(3)
+		} else if (tag in [3, 4, 9, 10, 11, 12, 17, 18]) {
+			input.skipBytes(4)
+		} else if (tag == 5 || tag == 6) {
+			// Long and Double each take two slots. Miscounting here desynchronises the whole walk.
+			input.skipBytes(8)
+			index++
+		} else {
+			throw new GradleException("Unknown constant pool tag ${tag}")
+		}
+		index++
+	}
+	return strings
 }
