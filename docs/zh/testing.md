@@ -189,6 +189,7 @@
 - 可攻击部件为 14 / 16 / 20：本体、三头、每条脖子 2 段、每条绘制触手 1 段。
 - 判定框绑在**动画后的**骨骼上：`WorldInterfaceRig` 每 Tick 摆一次骨架（绑定姿势 + 剪辑 + 程序化漂移 + 结构下垂），服务端据此放框、客户端用同一次求值驱动 `ModelPart`，剪辑数据在 common 的 `WorldInterfaceClips`。中央头颅判定框下沿落在离地约 1.44 / 0.78 / 0.43 格，远在一次挥砍（4.5 格）之内；量的是 `headHitRadius`（含 `HEAD_HIT_SLACK` 的 45% 余量），即玩家真正能挥中的体积，而不是裸骷髅。判定框锚在**下颌**上而不是颅骨立方体的中心，否则下沿会比看得见的下颌高出近一格。头必须落在风暴**正前方**（模型 -Z 映射到实体前方）。
 - 三条颈链在三个形态与全部行动演出中都不得互相穿透：`WorldInterfaceRigTest` 分别按静止形状（严格：两骷髅半径之和）与动画全程（宽松：不得进入彼此内部）断言，偏航与翻滚一律以"向外为正"由 `WorldInterfaceAnatomy` 带符号给出。
+- 几何来自 Blockbench 导出的 `models/entity/world_interface.json`，不再由 Java 生成：`WorldInterfaceGeometryContractTest` 逐轴比对每根骨架骨骼的枢轴与绑定旋转是否等于 `WorldInterfaceRig.bindPose()`（容差 0.002）、渲染器按名解析的骨骼是否存在、骨骼是否父先子后、每形态绘制的部件数是否在 `WorldInterfaceModel.MAX_VISIBLE_PARTS` 之内、bbmodel 与导出 JSON 的立方体数是否一致且每个立方体都带已知材质前缀。`WorldInterfaceBoneBindingTest` 与 `ResourceContractTest` 的 UV 契约也改读这份 JSON 与 `layout.txt`。
 - 箭矢与三叉戟按 2.5 倍结算，倍率先乘、锚承伤系数后乘；两参数的 `adjustedIncomingDamage` 仍是近战语义，不得默默获得加成。
 - 固定范围音效的注册半径与 `sounds.json` 的 `attenuation_distance` 必须一致；变量范围事件不得声明 `attenuation_distance`。
 - 多曲目配乐事件（`music_game`、`music_menu`）必须放完整池才允许重复，且轮次接缝处不得连放同一首；`MusicRotationPolicy.rotatingEvents()` 与 `sounds.json` 中池大小大于 1 的 `music_*` 事件必须双向一致，单曲事件不得参与轮换。

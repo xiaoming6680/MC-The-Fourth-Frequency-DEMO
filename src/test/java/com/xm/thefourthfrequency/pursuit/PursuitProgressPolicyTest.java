@@ -26,22 +26,22 @@ final class PursuitProgressPolicyTest {
 	}
 
 	@Test
-	void derivesFiveStoryPermissionsWithoutSkippingTheActualForm() {
+	void derivesThreeStoryPermissionsWithoutSkippingTheActualForm() {
 		int enteredNether = SurvivalMilestone.ENTERED_NETHER.mask();
 		int returnedWithRods = enteredNether
 				| SurvivalMilestone.RETURNED_NETHER.mask()
 				| SurvivalMilestone.COLLECTED_BLAZE_RODS.mask();
 		assertEquals(1, PursuitProgressPolicy.allowedForm(0, 0, true));
 		assertEquals(2, PursuitProgressPolicy.allowedForm(enteredNether, 0, true));
-		assertEquals(3, PursuitProgressPolicy.allowedForm(returnedWithRods, 0, true));
-		assertEquals(4, PursuitProgressPolicy.allowedForm(returnedWithRods, 3, true));
-		assertEquals(5, PursuitProgressPolicy.allowedForm(
+		assertEquals(2, PursuitProgressPolicy.allowedForm(returnedWithRods, 0, true));
+		assertEquals(3, PursuitProgressPolicy.allowedForm(returnedWithRods, 3, true));
+		assertEquals(3, PursuitProgressPolicy.allowedForm(
 				returnedWithRods | SurvivalMilestone.FOUND_STRONGHOLD.mask(), 0, false));
 
 		assertEquals(1, PursuitProgressPolicy.actualForm(0));
 		assertEquals(2, PursuitProgressPolicy.actualForm(1));
-		assertEquals(5, PursuitProgressPolicy.actualForm(4));
-		assertEquals(5, PursuitProgressPolicy.actualForm(5));
+		assertEquals(3, PursuitProgressPolicy.actualForm(4));
+		assertEquals(3, PursuitProgressPolicy.actualForm(5));
 	}
 
 	@Test
@@ -50,7 +50,7 @@ final class PursuitProgressPolicyTest {
 		assertFalse(PursuitProgressPolicy.pendingAfterAllowedFormUpdate(false, 4, 4, 1));
 		assertTrue(PursuitProgressPolicy.pendingAfterAllowedFormUpdate(true, 4, 5, 0));
 		assertEquals(1, PursuitProgressPolicy.resolvedAfterSuccess(0));
-		assertEquals(5, PursuitProgressPolicy.resolvedAfterSuccess(5));
+		assertEquals(3, PursuitProgressPolicy.resolvedAfterSuccess(5));
 		assertTrue(PursuitProgressPolicy.pendingAfterSuccess(1, 4));
 		assertFalse(PursuitProgressPolicy.pendingAfterSuccess(1, 1));
 		assertFalse(PursuitProgressPolicy.pendingAfterSuccess(5, 5));
@@ -118,9 +118,9 @@ final class PursuitProgressPolicyTest {
 	void terminalStagesUsePersonalPursuitAndLateStoryState() {
 		assertEquals(0, PursuitProgressPolicy.terminalVisualStage(0, 5, 5));
 		assertEquals(1, PursuitProgressPolicy.terminalVisualStage(1, 5, 5));
-		assertEquals(1, PursuitProgressPolicy.terminalVisualStage(3, 3, 5));
-		assertEquals(1, PursuitProgressPolicy.terminalVisualStage(3, 4, 3));
-		assertEquals(2, PursuitProgressPolicy.terminalVisualStage(3, 4, 4));
+		assertEquals(1, PursuitProgressPolicy.terminalVisualStage(2, 2, 5));
+		assertEquals(1, PursuitProgressPolicy.terminalVisualStage(2, 3, 3));
+		assertEquals(2, PursuitProgressPolicy.terminalVisualStage(2, 3, 4));
 	}
 	@Test
 	void captureMaxHealthPenaltyStopsAtTheSixHeartFloor() {

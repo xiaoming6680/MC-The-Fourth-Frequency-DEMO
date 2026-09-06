@@ -37,6 +37,7 @@ import net.minecraft.client.renderer.entity.NoopRenderer;
 public final class TheFourthFrequencyClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
+		com.xm.thefourthfrequency.client_render.StormParticle.initialize();
 		WorldInterfaceEndingClient.initialize();
 		AlphaLoadSessionController.initialize();
 		DimensionViewDistanceController.initialize();
@@ -47,10 +48,6 @@ public final class TheFourthFrequencyClient implements ClientModInitializer {
 				ReworkBodyModel::createStage2Layer);
 		EntityModelLayerRegistry.registerModelLayer(ReworkBodyRenderer.STAGE_3_LAYER,
 				ReworkBodyModel::createStage3Layer);
-		EntityModelLayerRegistry.registerModelLayer(ReworkBodyRenderer.STAGE_4_LAYER,
-				ReworkBodyModel::createStage4Layer);
-		EntityModelLayerRegistry.registerModelLayer(ReworkBodyRenderer.STAGE_5_LAYER,
-				ReworkBodyModel::createStage5Layer);
 		EntityRendererRegistry.register(ModEntities.REWORK_BODY, ReworkBodyRenderer::new);
 		EntityModelLayerRegistry.registerModelLayer(WatcherRenderer.MODEL_LAYER, WatcherModel::createBodyLayer);
 		EntityRendererRegistry.register(ModEntities.WATCHER, WatcherRenderer::new);
@@ -63,6 +60,8 @@ public final class TheFourthFrequencyClient implements ClientModInitializer {
 				WorldInterfaceModel::createLayer);
 		EntityRendererRegistry.register(ModEntities.WORLD_INTERFACE, WorldInterfaceRenderer::new);
 		EntityRendererRegistry.register(ModEntities.WORLD_INTERFACE_PART, NoopRenderer::new);
+		EntityModelLayerRegistry.registerModelLayer(WorldInterfaceEnergyOrbRenderer.MODEL_LAYER,
+				com.xm.thefourthfrequency.client_render.WorldInterfaceEnergyOrbModel::createLayer);
 		EntityRendererRegistry.register(ModEntities.WORLD_INTERFACE_ENERGY_ORB,
 				WorldInterfaceEnergyOrbRenderer::new);
 		EntityModelLayerRegistry.registerModelLayer(StabilityAnchorRenderer.MODEL_LAYER,

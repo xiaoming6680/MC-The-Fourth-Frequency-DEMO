@@ -10,11 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PursuitFormPolicyTest {
 	@Test
-	void fiveFormsHaveDistinctMechanicsAndIncreasingSurvivalWindows() {
+	void threeFormsHaveDistinctMechanicsAndIncreasingSurvivalWindows() {
 		Set<String> ids = new HashSet<>();
 		Set<String> counterplay = new HashSet<>();
 		int previousDuration = 0;
-		for (int form = 1; form <= 5; form++) {
+		for (int form = 1; form <= 3; form++) {
 			var policy = PursuitFormPolicy.forForm(form);
 			assertEquals(form, policy.number());
 			assertTrue(ids.add(policy.id()));
@@ -27,6 +27,6 @@ final class PursuitFormPolicyTest {
 	@Test
 	void invalidFormInputsClampToTheSupportedRange() {
 		assertEquals(1, PursuitFormPolicy.forForm(Integer.MIN_VALUE).number());
-		assertEquals(5, PursuitFormPolicy.forForm(Integer.MAX_VALUE).number());
+		assertEquals(3, PursuitFormPolicy.forForm(Integer.MAX_VALUE).number());
 	}
 }

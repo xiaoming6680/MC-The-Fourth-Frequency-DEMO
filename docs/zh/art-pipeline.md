@@ -24,8 +24,9 @@ python tools/<script>.py
 
 | 脚本 | 产出 |
 |---|---|
-| `world_interface_uv.py` | 世界接口 UV 布局的唯一事实源；`--emit-java` 同时写出模型侧偏移表 |
-| `prepare_world_interface_textures.py` | 三形态的底图、自发光与受击叠加，外加失败结局的全黑底图 |
+| `export_world_interface_model.py` | 从 `world_interface.bbmodel` 重排 UV 岛并导出运行时几何 JSON 与 `layout.txt` |
+| `paint_world_interface_textures.py` | 按 bbmodel 的材质与 UV 岛绘制三形态底图、自发光与受击叠加，外加失败结局的全黑底图 |
+| `build_world_interface_model.py` | 一次性脚手架：在运行时骨架上生成初版 bbmodel；重跑会覆盖手工编辑 |
 | `generate_world_interface_textures.py` | 遭遇战用到的方块贴图 |
 | `prepare_world_interface_wallpaper.py` | 失败结局壁纸，精确 16:10 |
 | `generate_world_interface_audio.py` | 世界接口音效库（44.1 kHz），并校验 `docs/art/world_interface/audio_manifest.json` |
@@ -48,65 +49,53 @@ python tools/<script>.py
 
 ## 世界接口
 
-模型 `WorldInterfaceModel.createLayer()` 声明 **256×128** 画布，PNG 是 **1024×512**，因此密度 **4×**——第三形态放大 16 倍后仍是一格四分之一一个纹素。画布宽而扁，因为打包器实际只填到 89 行；方形画布会让每张 PNG 都为三分之二的空白付钱。
+BOSS 的几何在 **Blockbench** 里编辑，运行时不再由 Java 生成器烘立方体。编辑源是 `docs/art/world_interface/world_interface.bbmodel`（Modded Entity 格式、box UV），三段管线把它送进游戏：
 
-模型由程序化生成器烘出几百个立方体，手写岛屿表会在任何一个生成参数变动时立刻过期。所以 `world_interface_uv.py` **重新推导模型将要构建的每一个立方体**（逐字镜像生成器及其散布哈希），按尺寸分桶、每桶打一个岛，并输出模型的偏移表；模型与绘制脚本读的是同一个模块。
+| 步骤 | 命令 | 产出 |
+|---|---|---|
+| 导出几何 | `python tools/export_world_interface_model.py` | 重排 UV 岛并写回 bbmodel；输出 `assets/thefourthfrequency/models/entity/world_interface.json`（Java 模型空间的骨骼与立方体）与 `docs/art/world_interface/layout.txt` |
+| 绘制贴图 | `python tools/paint_world_interface_textures.py` | 三形态底图、自发光与受击叠加，外加失败结局的全黑底图，以及 `world_interface_uv_template.png` 参考图 |
+| 回环校验 | `gradlew exportWorldInterfaceBbmodel` | 把客户端实际烘出的模型再写成 `world_interface_runtime.bbmodel`，用于核对转换链 |
 
-- **69 个岛，画布利用率 59.4%。**
-- **三个形态共用一套布局。** 各阶段的部件是同一批材质，变的只是配色，而三张 PNG 已经承载了配色。
-- **按尺寸分桶。** 一个成员尺寸相差 6 倍的类别（本体从 5 单位到近 28 单位）会分到多个岛，每个立方体用生成器分桶时的同一个标量挑岛。共用一个岛会让小成员采样到大成员材质的一角。
-- **桶必须连续。** 出现空桶时脚本直接拒绝运行，否则 Java 侧的表会短于它的边界数组，模型会索引越界。
+`WorldInterfaceGeometry` 在客户端读 JSON 并烘成 `LayerDefinition`；`WorldInterfaceModel` 只负责哪些骨骼由骨架驱动、哪一形态显示哪一层、哪些骨骼带光。
 
-两半必须一起重新生成——偏移表与画好的图不一致等于把部件指向没有画过东西的矩形：
+### 骨骼契约
 
-```bash
-python tools/world_interface_uv.py --emit-java && python tools/prepare_world_interface_textures.py
-```
+- **由服务端摆姿势的骨骼必须原样保留。** `hover`、`storm_body`、`interface_kernel`、`weapon`、三条 `{center,left,right}_head_mount → _neck_a → _neck_b → _skull → _jaw` 与十条 `tendril_N → _mid → _tip` 的枢轴和绑定旋转必须与 `WorldInterfaceRig.bindPose()` 一致；`WorldInterfaceGeometryContractTest` 逐骨骼、逐轴比对（容差 0.002）。改动这些枢轴等于把判定框从看得见的部件上挪走。
+- 渲染器按名字解析 `shell_base`、`phase_2_accretion`、`phase_3_accretion`、`kernel_glow`、每颗头的 `_eye_0` 与每条触手的 `_glow`；自发光通道只提交这些骨骼，所以要发光的立方体必须挂在它们之下。
+- 立方体在 Blockbench 里可以自带旋转；导出时会包成名为 `<骨骼>/<立方体>` 的合成骨骼，因为 `ModelPart` 的立方体本身不能转。每个旋转立方体因此多占一个部件；每形态绘制的部件数受 `WorldInterfaceModel.MAX_VISIBLE_PARTS` 约束，由契约测试按 JSON 计数。
+- 坐标约定沿用 Blockbench 自带的 Modded Entity 导出：Blockbench 枢轴相对父级取 `(-dx, -dy, dz)`（根级再减 24 单位抬升），旋转取 `(-rx, -ry, rz)`，立方体 `from..to` 变为 `addBox(pivot.x - to.x, pivot.y - to.y, from.z - pivot.z, size)`。`tools/world_interface_model.py` 与 `WorldInterfaceBbmodelExport` 是这套约定的两个方向。
 
-### 材质与浮雕
+### 材质与 UV
 
-参考的是原版末影龙：近黑的皮、几乎没有色相、靠斑驳而不是线条、整张图上唯一饱和的东西是那只发光的眼。早先有一版走了反方向——网格状的方块缝、拉丝金属、骨头描边、强烘焙光照——在 BOSS 尺度上把身体变成了一张技术制图。**材质之间靠明度和斑驳的形状区分，永远不靠画出来的线。**
+每个立方体以 `材质.名称` 命名（`bone.center_cranium`、`endstone.chunk_3`）。同材质、同尺寸的立方体共用一个 box UV 岛，导出脚本按整 UV 单位做货架打包。画布 **512×256**，底图 **2048×1024**（密度 4×），自发光与受击叠加 **1024×512**（密度 2×，同一画布）。参考仍是原版末影龙：近黑的皮、几乎没有色相、靠斑驳而不是线条，整张图上唯一饱和的东西是发光的部件。
 
 | 材质 | 用于 | 处理 |
 |---|---|---|
-| `swallowed` | 本体、碎块 | 皮质斑驳加稀疏的单纹素矿物斑点，几乎不离基准明度——它吞掉的地形只剩这些 |
-| `plating` | 装甲、光环、闸片、武器、核心插座 | 只有斑驳，比本体深一档 |
-| `bone` | 颅骨、眉骨、颚、角、椎骨、肋、颌、牙 | 整张图上最浅的材质，一道柔和顶部高光，无描边 |
-| `root` | 根须 | 斑驳单元沿股向拉长三比一，纤维顺着长度走 |
-| `flesh` | 触手节 | 斑驳加偶发的短暗条纹 |
-| `socket` | 骷髅眼窝 | 眉骨下最深，向眼眶下沿开口 |
-| `core` | 瞳、裂隙、内环、触手结节 | 底图上只有冷色外壳，是自发光图让它燃起来 |
-| `sclera` | 眼球 | 浅色，淡淡的斜向血丝 |
+| `swallowed` | 吞噬的地表、核心团块 | 皮质斑驳加稀疏矿物斑点 |
+| `endstone` | 嵌入的末地石碎块、地层 | 最浅的岩石，细胞更小的斑驳 |
+| `obsidian` | 深色地层、导管 | 最深的岩石，偶发冷色裂纹 |
+| `plating` | 装甲片、核心框、武器 | 只有斑驳，比本体深一档 |
+| `bone` / `tooth` | 颅骨、颚、椎骨、肋 / 牙 | 整张图最浅，一道顶部高光，大面上偶有发丝裂纹，无描边 |
+| `horn` | 角、冠、触手倒刺 | 沿长度的生长环 |
+| `root` | 根须 | 斑驳沿股向拉长三比一 |
+| `flesh` | 颈核、触手节 | 斑驳加短暗条纹 |
+| `socket` | 眼窝、鼻腔 | 最深的凹陷 |
+| `eye` / `core` / `glow` | 眼孔 / 内核格栅、虹膜 / 触手结节 | 底图只有冷色外壳，自发光图让它燃起来 |
 
-浮雕加在材质之上。末影龙几乎不烘焙方向明度，但那么平在这里活不下来——龙是十几个大部件，这里是几百个小部件，没有区分就会并成一整块剪影。所以做法是把范围压狠，而不是取消：
-
-- **方向性部件**（本体、肋、根须、骷髅、眼、颌、武器）：每面系数上 1.16 / 北 1.00 / 东西 0.90 / 南 0.82 / 下 0.74，四个直立面另有 1.05 → 0.92 的自上而下衰减。
-- **各向同性部件**（装甲、碎块、光环、触手结节）：统一 0.94。模型会在三个轴上翻滚它们，烘一个"顶部更亮"在盒子倒过来之后比不加还糟。
-- **所有面**：一像素 ×0.74 的环境光遮蔽描边。这是把上百个相邻盒子分成上百个可读盒子的最便宜手段，对各向同性部件来说也是它们唯一的浮雕。
+翻滚的部件（`plating`、`endstone`、`obsidian`、`swallowed`、`glow`、`horn`）各向同性上色，其余按面方向上色；所有面都有一像素 ×0.74 的环境光遮蔽描边。
 
 ### 自发光契约
 
-只有这些岛可以带光，`validate()` 在别处出现亮像素时直接让构建失败：`eye_{1,2,3}_pupil`、`eye_3_slit`、`socket`、`tendril_glow`、`ring_inner`。
-
-- 每张自发光图 **2,220 个非透明像素——占画布 0.42%**，全部落在打包好的岛行里。
-- **朝前的部件只在北面发光。** 从各个角度都会被看到的部件（眼窝、触手结节、内环）在四个直立面发光，但绝不在上下面——一个六面都亮的盒子只是在宣告自己是个盒子。
-- 眼窝沿下沿是一汪浅浅的光而不是填满的矩形，于是骷髅读成"眼窝后面有东西"，而不是"装了灯的立方体"。
-- 内环带是唯一在自发光岛上的环。第三形态的光环已经大到把整圈点亮会淹掉它本该框住的核心。
-
-`WorldInterfaceRenderer` **只提交带光的骨骼**——核心、光环、六个骷髅眼窝与激活的触手结节——而不是把整个模型再走一遍。0.42% 的覆盖率下，遍历第三形态的几百个部件意味着几乎每个顶点都进了一次半透明通道去画一片空白。受击叠加是例外：它必须够到光从不触及的装甲与碎块，所以那一下仍然付一次完整提交，持续几个 Tick。
+只有 `eye`、`core`、`glow`、`socket` 材质的岛可以带光，`validate()` 在别处出现亮像素时直接让脚本失败。眼孔只在北面发光并在中心更亮；眼窝只在下沿留一汪浅光；内核是格栅；触手结节在四个直立面各留一条带，绝不在上下面。受击叠加覆盖全部岛，是唯一仍需整模第二次提交的通道。
 
 ### 配色
 
-三个形态靠明度、以及有多少冷紫渗进灰里来区分，而不是一路变得更紫。皮在每个阶段都是炭黑；升级由核心和 `WorldInterfacePalette` 里的自发光色带承担，那才是玩家真正读出阶段的地方。
+三个形态靠明度与冷紫渗入的程度区分。皮在每个阶段都是炭黑，末地石从灰黄褪到冷灰，骨头随之变冷；升级由眼孔、内核与 `WorldInterfacePalette` 的自发光色带承担。失败结局换成同一几何的全黑底图；受击叠加在所有形态都是品红 `(255, 42, 88)`。
 
-| 形态 | 读法 | 皮色 |
-|---|---|---|
-| 1 · 初生 | 大部分还是它吞下的世界。石灰色，骨头还没变暗 | `(52, 50, 55)` |
-| 2 · 长成 | 灰变冷了，骨头跟着一起 | `(44, 41, 50)` |
-| 3 · 终末 | 皮黑到核心是它身上唯一有颜色的东西 | `(34, 31, 40)` |
-| 全黑 | 失败结局：同一副几何，光全灭了 | `(15, 14, 17)` |
+### 预览
 
-受击叠加在所有形态都是品红 `(255, 42, 88)`。
+`tools/preview/bbmodel_viewer.html` 用 three.js 按 Blockbench 语义渲染任意 bbmodel（六视角、形态切换、玩家尺度参照、`?texture=` 覆盖贴图）。用仓库根目录起一个静态服务后打开即可，例如 `python -m http.server 8765` 再访问 `tools/preview/bbmodel_viewer.html?model=../../docs/art/world_interface/world_interface.bbmodel&form=2`。
 
 ## 观察者
 
@@ -120,31 +109,15 @@ python tools/world_interface_uv.py --emit-java && python tools/prepare_world_int
 
 ## HIM
 
-标准 64×64 玩家布局，原版人形网格因此不加改动就能贴上去，`HimModel` 不需要任何自定义几何。**剪影必须严格等于 Steve**：这东西在屏幕上只有五分之一秒，任何有自己比例的形体都会读成一只自定义生物而不是一个人。
+当前材质为 256×256，沿用 64 单位标准人形 UV。灰白凹陷面孔、发黑衣物与局部细小眼光取代旧版平整皮肤。母图经 Blockbench MCP 重排 UV，最终图集位于 docs/art/entities/textures/him_atlas.png；眼部遮罩为 him_atlas_emissive.png。
 
-无法走捷径的原因写在这里：经典造型就是把默认玩家皮肤的眼睛涂掉，但那张默认皮肤是 Mojang 自己的资产，而粉丝改的各种版本是第三方作品，两者都不能随模组分发。所以这张皮肤和本项目其他实体一样从零确定性生成，读起来是那个传说，却不是任何人的文件。
-
-| 部位 | UV | 材质 |
-|---|---|---|
-| 头 | `(0, 0)` 8×8×8 | 直立面上两行是头发，其下是皮肤 |
-| 躯干 | `(16, 16)` 8×12×4 | 上衣 |
-| 手臂 | `(40, 16)` / `(32, 48)` 4×12×4 | 袖子到第 8 行，其下是皮肤 |
-| 腿 | `(0, 16)` / `(16, 48)` 4×12×4 | 裤子到第 10 行，其下是鞋 |
-
-**自发光只有八个像素**：头部北面两块 2×2 的空矩形，别处一个都不许有，`validate()` 会让构建失败。它们**故意是空的**——画个瞳孔就变成"一个角色在看你"，两个什么都没有的亮槽才是"一个没有眼睛却正对着你的东西"，那才是这个传说真正的读法。
-
-配色刻意压低。在它被放置的距离上，饱和的衣服会读成一个穿着戏服的玩家，而戏服会招来第二眼——那正是绝不能发生的事，因为第二眼什么都找不到。
-
-与观察者的眼不同，这一处不以"被注视"为门槛：观察者用两秒的凝视爬升自己的辉光，而这东西一共只有五分之一秒，摊在那个窗口上的渐显永远到不了。
+prepare_him_textures.py 验证身体所有 UV 面不透明，且发光像素仅位于眼区，再原样安装材质。当前遮罩包含 5 个非透明像素。动作保留僵直肢体，增加先转头和长时间倾头停顿。
 
 ## 返工体
 
-`docs/art/rework_body/` 下的两张母板是生产参考，不是运行时贴图。`prepare_rework_body_art.py` 把材质板采样进模型的语义 UV 岛，加上各阶段的淤伤、筋膜、坏死、骨骼与面部细节，写出七张 256×256 的运行时 PNG。
+返工体现在有三个阶段，材质为三张不透明的 256×256 底图及第 2、3 阶段的稀疏自发光图。128×128 逻辑 UV 保持不变。旧第 4、5 阶段资源已删除。
 
-- 五张底图是 RGB 不透明 256×256。
-- 第四、五阶段的自发光是稀疏 RGBA 256×256，背景透明。
-- 模型使用 128×128 虚拟 UV 画布，所以一个模型纹素对应 2×2 资源像素。
-- `rework_body_uv_guide.png` 记录了绘制脚本使用的语义岛包络。
+prepare_rework_body_art.py 从 docs/art/rework_body/ 的母板采样材质；细化模型和动作见 [实体编辑入口](../art/entities/README.md)。
 
 ## 冻结资产
 
@@ -159,7 +132,8 @@ python tools/world_interface_uv.py --emit-java && python tools/prepare_world_int
 | 文件 | 谁在读 |
 |---|---|
 | `world_interface/audio_manifest.json` | `WorldInterfaceAudioManifestTest` · `WorldInterfaceSummonTimelineTest` · `generate_world_interface_audio.py` |
-| `world_interface/layout.txt` | `ResourceContractTest` · `world_interface_uv.py` |
+| `world_interface/layout.txt` | `ResourceContractTest` · `export_world_interface_model.py` |
+| `world_interface/world_interface.bbmodel` | `WorldInterfaceGeometryContractTest` · `export_world_interface_model.py` · `paint_world_interface_textures.py`（Blockbench 可编辑源） |
 | `analog_filter/filter_manifest.json` | `PostFilterContractTest` · `generate_analog_filter_textures.py` |
 | `terminal/old_terminal_shell.bbmodel` | `generate_terminal_3d_assets.py`（Blockbench 可编辑源） |
 

@@ -20,6 +20,8 @@ public final class WatcherModel extends EntityModel<WatcherRenderState> {
 	private static final float FULL_TURN = (float) (Math.PI * 2.0);
 	/** Far past a human neck. The body may face away while the head stays on the player. */
 	private static final float MAX_NECK_YAW = 2.5F;
+	private final HorrorDigits digits;
+	private final ModelPart upperLid;
 	private final ModelPart torso;
 	private final ModelPart neck;
 	private final ModelPart head;
@@ -36,9 +38,11 @@ public final class WatcherModel extends EntityModel<WatcherRenderState> {
 
 	public WatcherModel(ModelPart root) {
 		super(root);
+		digits = new HorrorDigits(root);
 		torso = root.getChild("torso");
 		neck = torso.getChild("neck");
 		head = neck.getChild("head");
+		upperLid = head.getChild("upper_lid");
 		eye = head.getChild("eye");
 		iris = eye.getChild("iris");
 		leftArm = torso.getChild("left_arm");
@@ -57,6 +61,10 @@ public final class WatcherModel extends EntityModel<WatcherRenderState> {
 	 * stays inside u [80,120) and v [0,8) so the emissive mask can never leave the eye.
 	 */
 	public static LayerDefinition createBodyLayer() {
+		return WorldInterfaceGeometry.loadEntity("watcher").layer();
+	}
+
+	public static LayerDefinition createAuthoringLayer() {
 		MeshDefinition mesh = new MeshDefinition();
 		PartDefinition root = mesh.getRoot();
 		float pelvisY = 4.0F;
@@ -237,5 +245,9 @@ public final class WatcherModel extends EntityModel<WatcherRenderState> {
 		iris.yScale = irisScale;
 		iris.zScale = 1.0F;
 		eye.xScale = eye.yScale = eye.zScale = 1.0F;
+		digits.animate(state.ageInTicks, state.gazeProgress * .25F);
+		float browTension = state.gazeProgress * .08F + Mth.sin(state.ageInTicks * .025F) * .025F;
+		upperLid.y += browTension;
+		upperLid.xRot += browTension * .12F;
 	}
 }

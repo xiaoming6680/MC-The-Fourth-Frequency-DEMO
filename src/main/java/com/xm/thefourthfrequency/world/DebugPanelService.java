@@ -259,7 +259,7 @@ public final class DebugPanelService {
 
 	private static String pursuitFailure(PursuitDirector.DebugStartResult result) {
 		return switch (result) {
-			case INVALID_FORM -> "追逐形态必须在 1–5 之间";
+			case INVALID_FORM -> "追逐形态必须在 1–3 之间";
 			case NO_TERMINAL_RECORD -> "没有可用的个人终端记录";
 			case ALREADY_ACTIVE -> "玩家已经处于追逐或镜像世界中";
 			case UNSUPPORTED_DIMENSION -> "测试追逐只能从主世界或下界开始";

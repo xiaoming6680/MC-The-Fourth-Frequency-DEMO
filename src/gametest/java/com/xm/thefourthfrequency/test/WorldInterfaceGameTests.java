@@ -70,8 +70,10 @@ import java.util.UUID;
 /** Server integration contracts for the persisted world-interface encounter. */
 public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 	@GameTest(setupTicks = 60, maxTicks = 200)
-	public void arenaPreparationBuildsExactProtectedTopologyAndBoundedNoDropScars(GameTestHelper helper) {
+	public void arenaPreparationBuildsExactProtectedTopologyAndBoundedNoDropScars(GameTestHelper helper)
+			throws ReflectiveOperationException {
 		ServerLevel end = requireEnd(helper);
+		resetArenaPreparationFixture(end);
 		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
 		EndBossArenaService.PreparedArena repeated = EndBossArenaService.prepare(end);
 
@@ -1678,6 +1680,25 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 
 	private static void clearWorldInterface(FrequencyWorldData data) {
 		data.updateNarrativeState(root -> root.remove(WorldInterfaceState.ROOT_KEY));
+	}
+
+	/** GameTest batches share the End. A previous damage case may have consumed an anchor. */
+	private static void resetArenaPreparationFixture(ServerLevel end) throws ReflectiveOperationException {
+		var previous = EndBossArenaService.prepare(end);
+		clearWorldInterface(FrequencyWorldData.get(end.getServer()));
+		for (var slot : previous.anchors()) {
+			end.getChunkAt(slot.position());
+			end.waitForEntities(new net.minecraft.world.level.ChunkPos(slot.position()), 0);
+			EndBossArenaService.findAuthoritativeAnchor(end, slot.anchorEntityUuid()).ifPresent(Entity::discard);
+		}
+		// Reset only the test arena's durable marker and its two process-local caches. The actual
+		// preparation below must recreate all ten anchors; reconciliation cannot hide a spawn bug.
+		end.setBlock(previous.altar(), Blocks.AIR.defaultBlockState(), 2);
+		for (String name : List.of("RUNTIMES", "KNOWN_ANCHORS")) {
+			var field = EndBossArenaService.class.getDeclaredField(name);
+			field.setAccessible(true);
+			((Map<?, ?>) field.get(null)).remove(end);
+		}
 	}
 
 	@Override

@@ -1,11 +1,14 @@
 package com.xm.thefourthfrequency.client_ui;
 
+import com.xm.thefourthfrequency.ending.SummonHoldPolicy;
 import com.xm.thefourthfrequency.ending.WorldInterfacePolicy;
 import com.xm.thefourthfrequency.networking.AltarSnapshotS2C;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -147,6 +150,26 @@ public final class ResonanceAltarScreen extends Screen {
 		summonButton.active = waiting && snapshot.localCanSummon();
 		withdrawButton.visible = localDeposited();
 		withdrawButton.active = waiting && withdrawButton.visible;
+	}
+
+	/**
+	 * Any release anywhere lets the plate go.
+	 *
+	 * <p>Handled here rather than only on the widget because a release does not always reach the
+	 * control the press started on - the pointer may have left it, or focus may have moved - and a
+	 * plate that kept filling after the button came up would commit the one thing on this screen
+	 * that cannot be taken back, on an input the player had already ended.
+	 */
+	@Override
+	public boolean mouseReleased(MouseButtonEvent event) {
+		if (summonButton != null) summonButton.releaseHold();
+		return super.mouseReleased(event);
+	}
+
+	@Override
+	public boolean keyReleased(KeyEvent event) {
+		if (summonButton != null) summonButton.releaseHold();
+		return super.keyReleased(event);
 	}
 
 	private void send(WorldInterfaceProtocol.AltarAction action) {
@@ -349,13 +372,58 @@ public final class ResonanceAltarScreen extends Screen {
 	 * that blinks off reads as broken rather than as waiting.</p>
 	 */
 	private final class SummonPlate extends Button {
+		private final Runnable commit;
+		/** When the plate was pushed down, or -1 when it is not being held. */
+		private long heldSinceMillis = -1L;
+		private boolean committed;
+
 		private SummonPlate(int x, int y, int width, int height, Component message, Runnable action) {
-			super(x, y, width, height, message, ignored -> action.run(), DEFAULT_NARRATION);
+			// The vanilla press is kept and deliberately does nothing but start the travel. Routing
+			// it this way rather than intercepting mouseClicked leaves the press feedback, the
+			// keyboard activation and the narration exactly where vanilla put them.
+			super(x, y, width, height, message,
+					pressed -> ((SummonPlate) pressed).startHold(), DEFAULT_NARRATION);
+			this.commit = action;
 			// AbstractButton draws its sprite in a final renderWidget and then hands over to
 			// renderContents, so the vanilla frame cannot be overridden away - but it is blitted
 			// with this alpha, and at zero it is not there at all. Everything below is then the
 			// whole widget, and the press, keyboard focus and narration stay vanilla's.
 			setAlpha(0.0F);
+		}
+
+		private void startHold() {
+			if (committed || !active) return;
+			// Key repeat fires this again every few frames while a key is down; restarting the
+			// travel on each of them would mean the plate never fills for a keyboard player.
+			if (heldSinceMillis < 0L) heldSinceMillis = System.currentTimeMillis();
+		}
+
+		void releaseHold() {
+			heldSinceMillis = -1L;
+		}
+
+		private long heldMillis() {
+			return heldSinceMillis < 0L ? 0L : System.currentTimeMillis() - heldSinceMillis;
+		}
+
+		/**
+		 * How far down the plate is, and the one place the request is sent from.
+		 *
+		 * <p>Read on the frame rather than on the tick because the fill is drawn on the frame, so
+		 * the moment the track looks full is the moment it commits - twenty-hertz sampling would
+		 * leave the plate visibly full for up to another frame before anything happened.
+		 */
+		private float travel() {
+			if (committed) return 1.0F;
+			if (!active || heldSinceMillis < 0L) return 0.0F;
+			long held = heldMillis();
+			if (SummonHoldPolicy.complete(held)) {
+				committed = true;
+				heldSinceMillis = -1L;
+				commit.run();
+				return 1.0F;
+			}
+			return SummonHoldPolicy.progress(held);
 		}
 
 		@Override
@@ -375,6 +443,13 @@ public final class ResonanceAltarScreen extends Screen {
 			if (live) graphics.fill(left - 2, top - 2, right + 2, bottom + 2,
 					withAlpha(edge, 40 + Math.round(50.0F * pulse)));
 			graphics.fill(left, top, right, bottom, live ? (hot ? PLATE_HOT : PLATE) : PLATE_OFF);
+			// The travel. Inside the housing and behind the label, so the plate reads as being
+			// pushed to the bottom of its stroke rather than as a progress bar bolted onto a button.
+			float travel = travel();
+			if (travel > 0.0F) {
+				graphics.fill(left, top, left + Math.round(getWidth() * travel), bottom,
+						withAlpha(GOLD, 70));
+			}
 			graphics.renderOutline(left, top, getWidth(), getHeight(), edge);
 			graphics.renderOutline(left + 3, top + 3, getWidth() - 6, getHeight() - 6,
 					withAlpha(edge, live ? 90 : 40));

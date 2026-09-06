@@ -12,10 +12,11 @@ import net.minecraft.util.Mth;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Five independently baked silhouettes sharing one animation and bone naming contract. */
+/** Three independently baked silhouettes sharing one animation and bone naming contract. */
 public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 	private static final float DEG_TO_RAD = (float) (Math.PI / 180.0);
 	private final int stage;
+	private final HorrorDigits digits;
 	private final ModelPart torso;
 	private final ModelPart neck;
 	private final ModelPart head;
@@ -35,7 +36,8 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 
 	public ReworkBodyModel(ModelPart root, int stage) {
 		super(root);
-		this.stage = Math.clamp(stage, 1, 5);
+		digits = new HorrorDigits(root);
+		this.stage = Math.clamp(stage, 1, 3) * 2 - 1;
 		torso = root.getChild("torso");
 		neck = torso.getChild("neck");
 		head = neck.getChild("head");
@@ -56,7 +58,7 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 		// These two counts used to be written independently (stage * 2 here against the profile
 		// field there); they happened to agree only because the old table set backArmCount to
 		// stage * 2, so any change to that column would have crashed here on a missing child.
-		for (int index = 0; index < FormProfile.forStage(this.stage).backArmCount(); index++) {
+		for (int index = 0; index < FormProfile.forStage(stage).backArmCount(); index++) {
 			ModelPart upper = torso.getChild("back_arm_" + index);
 			ModelPart forearm = upper.getChild("forearm");
 			found.add(new BackArm(index, index % 2 == 0 ? 1.0F : -1.0F,
@@ -65,11 +67,11 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 		backArms = List.copyOf(found);
 	}
 
-	public static LayerDefinition createStage1Layer() { return createLayer(FormProfile.forStage(1)); }
-	public static LayerDefinition createStage2Layer() { return createLayer(FormProfile.forStage(2)); }
-	public static LayerDefinition createStage3Layer() { return createLayer(FormProfile.forStage(3)); }
-	public static LayerDefinition createStage4Layer() { return createLayer(FormProfile.forStage(4)); }
-	public static LayerDefinition createStage5Layer() { return createLayer(FormProfile.forStage(5)); }
+	public static LayerDefinition createStage1Layer() { return WorldInterfaceGeometry.loadEntity("rework_body_stage_1").layer(); }
+	public static LayerDefinition createStage2Layer() { return WorldInterfaceGeometry.loadEntity("rework_body_stage_2").layer(); }
+	public static LayerDefinition createStage3Layer() { return WorldInterfaceGeometry.loadEntity("rework_body_stage_3").layer(); }
+
+	public static LayerDefinition createAuthoringLayer(int stage) { return createLayer(FormProfile.forStage(stage)); }
 
 	private static LayerDefinition createLayer(FormProfile profile) {
 		MeshDefinition mesh = new MeshDefinition();
@@ -313,16 +315,17 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 
 		animateBackArms(state, 1.0F);
 		applyMorphPose(state);
+		digits.animate(state.ageInTicks, walkStrength);
 	}
 
 	private void animateBackArms(ReworkBodyRenderState state, float amount) {
 		for (BackArm arm : backArms) {
-			float phase = state.ageInTicks * (0.026F + arm.index() * 0.0013F) + arm.index() * 1.371F;
-			arm.upper().xRot += Mth.sin(phase) * (0.035F + stage * 0.006F) * amount;
-			arm.upper().yRot += Mth.cos(phase * 0.83F + 0.7F) * 0.055F * amount;
-			arm.upper().zRot += Mth.sin(phase * 0.61F + 1.4F) * 0.045F * amount;
-			arm.forearm().xRot += Mth.cos(phase * 0.77F + 0.9F) * 0.075F * amount;
-			arm.forearm().zRot += Mth.sin(phase * 0.69F) * 0.055F * amount;
+			float phase = state.ageInTicks * (0.043F + arm.index() * 0.0013F) + arm.index() * 1.371F;
+			arm.upper().xRot += Mth.sin(phase) * (0.12F + stage * 0.014F) * amount;
+			arm.upper().yRot += Mth.cos(phase * 0.83F + 0.7F) * 0.16F * amount;
+			arm.upper().zRot += Mth.sin(phase * 0.61F + 1.4F) * 0.11F * amount;
+			arm.forearm().xRot += Mth.cos(phase * 0.77F + 0.9F) * 0.24F * amount;
+			arm.forearm().zRot += Mth.sin(phase * 0.69F) * 0.16F * amount;
 			arm.claw().xRot += 0.08F + Mth.sin(phase * 1.21F + 0.35F) * 0.08F * amount;
 			arm.claw().yRot += Mth.cos(phase * 0.94F) * 0.06F * amount;
 		}
@@ -363,7 +366,7 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 		leftArm.zRot += collapsed * 0.54F;
 		rightArm.zRot -= collapsed * 0.54F;
 		for (BackArm arm : backArms) {
-			float phase = state.ageInTicks * (0.026F + arm.index() * 0.0013F) + arm.index() * 1.371F;
+			float phase = state.ageInTicks * (0.043F + arm.index() * 0.0013F) + arm.index() * 1.371F;
 			float scale = 0.18F + unfold * 0.82F;
 			arm.upper().xScale = arm.upper().yScale = arm.upper().zScale = scale;
 			PartPose initialUpper = arm.upper().getInitialPose();
@@ -408,12 +411,8 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 			return switch (stage) {
 				case 1 -> new FormProfile(1, 10, 21.0F, 9.0F, 5.2F, 5.0F,
 						4.2F, 2.2F, 4.0F, 3.8F, 9.5F, 11.5F, 9.5F, 11.0F, 1.30F, 0.160F);
-				case 2 -> new FormProfile(2, 8, 19.0F, 10.0F, 4.4F, 5.8F,
-						5.2F, 2.7F, 5.0F, 4.8F, 8.6F, 10.2F, 8.5F, 10.0F, 1.80F, -0.120F);
-				case 3 -> new FormProfile(3, 6, 16.5F, 11.0F, 3.4F, 6.6F,
+				case 2 -> new FormProfile(3, 6, 16.5F, 11.0F, 3.4F, 6.6F,
 						6.3F, 3.2F, 6.2F, 6.0F, 7.6F, 8.8F, 7.5F, 9.0F, 2.50F, 0.080F);
-				case 4 -> new FormProfile(4, 4, 14.0F, 11.6F, 2.2F, 7.3F,
-						7.2F, 3.6F, 7.2F, 7.0F, 6.7F, 7.3F, 7.0F, 8.0F, 3.20F, -0.040F);
 				default -> new FormProfile(5, 2, 12.6F, 12.2F, 1.1F, 7.9F,
 						7.8F, 4.3F, 7.9F, 7.7F, 6.1F, 6.2F, 6.5F, 7.5F, 3.80F, 0.015F);
 			};

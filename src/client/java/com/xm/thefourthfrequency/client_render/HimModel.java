@@ -4,9 +4,11 @@ import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
+import com.xm.thefourthfrequency.entity.HorrorMotion;
+import net.minecraft.util.Mth;
 
 /**
- * The default player silhouette, standing perfectly still.
+ * Familiar human proportions with a delayed head turn and an unnaturally held listening tilt.
  *
  * <p>Built on vanilla's own humanoid mesh rather than a hand-authored one, because the entire point
  * of the figure is that it is Steve-shaped. Anything with its own proportions reads as a custom mob
@@ -18,22 +20,25 @@ public final class HimModel extends HumanoidModel<HimRenderState> {
 	}
 
 	public static LayerDefinition createBodyLayer() {
+		return WorldInterfaceGeometry.loadEntity("him").layer();
+	}
+
+	public static LayerDefinition createAuthoringLayer() {
 		return LayerDefinition.create(HumanoidModel.createMesh(CubeDeformation.NONE, 0.0F), 64, 64);
 	}
 
 	@Override
 	public void setupAnim(HimRenderState state) {
 		super.setupAnim(state);
-		// Every limb pinned. The humanoid model idles with a breathing sway and swings its arms off
-		// the walk animation; a figure that is subtly alive is a figure the eye keeps tracking, and
-		// this one has to be over before it is resolved. Total stillness is what makes it read as a
-		// still frame rather than as something standing there.
-		head.xRot = 0.0F;
-		head.yRot = 0.0F;
-		head.zRot = 0.0F;
-		hat.xRot = 0.0F;
-		hat.yRot = 0.0F;
-		hat.zRot = 0.0F;
+		// A head-first turn, followed by an unnaturally long held tilt. No walking sway.
+		float settle = HorrorMotion.ease(state.ageInTicks / 18.0F);
+		float listen = HorrorMotion.envelope(state.ageInTicks % 197, 38, 19, 72, 42);
+		head.xRot = -0.075F * settle;
+		head.yRot = Mth.clamp(state.yRot * Mth.DEG_TO_RAD, -.6F, .6F);
+		head.zRot = -0.12F * listen;
+		hat.xRot = head.xRot;
+		hat.yRot = head.yRot;
+		hat.zRot = head.zRot;
 		rightArm.xRot = 0.0F;
 		rightArm.yRot = 0.0F;
 		rightArm.zRot = 0.0F;

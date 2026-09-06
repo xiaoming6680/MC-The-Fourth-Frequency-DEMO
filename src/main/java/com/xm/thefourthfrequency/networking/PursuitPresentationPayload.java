@@ -27,7 +27,7 @@ public record PursuitPresentationPayload(String sessionId, int phase, int form)
 	public PursuitPresentationPayload {
 		sessionId = sessionId == null ? "" : sessionId;
 		phase = Math.clamp(phase, CLEAR, ESCAPE_RESOLUTION);
-		form = Math.clamp(form, 0, 5);
+		form = Math.clamp(form, 0, com.xm.thefourthfrequency.correction.ReworkFormStage.MAX_STAGE);
 	}
 
 	@Override

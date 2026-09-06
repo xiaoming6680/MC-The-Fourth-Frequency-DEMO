@@ -331,6 +331,27 @@ public final class WorldInterfaceAnatomy {
 		return coreOrigin(boss.position(), boss.form(), boss.yBodyRot);
 	}
 
+	/** Server emission and damage share the same animated mouth socket. */
+	public static Vec3 mouthOrigin(WorldInterfaceEntity boss, int head) {
+		return boss.position().add(rotate(boss.rigPose().mouthOffset(head), boss.yBodyRot));
+	}
+
+	/** Charge glow fits inside the cheek spacing instead of using the much larger torso core. */
+	public static double mouthRadius(int form, int head) {
+		return formScale(form) * WorldInterfaceRig.headScale(head) * 3.4D / UNITS_PER_BLOCK;
+	}
+
+	/** Interpolated presentation of that socket, using the model's own pose inputs. */
+	public static Vec3 mouthOrigin(WorldInterfaceEntity boss, int head, float partialTick) {
+		long age = (long) (Math.max(0.0D,
+				boss.level().getGameTime() - boss.actionStartTick() + partialTick) * 50.0D);
+		WorldInterfaceRig.Pose pose = WorldInterfaceRig.pose(boss.form(), boss.poseClock() + partialTick,
+				boss.healthFraction(), boss.actionId(), age,
+				boss.renderGazeYaw(partialTick), boss.renderGazePitch(partialTick));
+		return boss.getPosition(partialTick).add(rotate(pose.mouthOffset(head),
+				Mth.rotLerp(partialTick, boss.yBodyRotO, boss.yBodyRot)));
+	}
+
 	/**
 	 * Core position for an arbitrary foot position and body facing. The model faces its own -Z, so
 	 * the forward term rides the body yaw rather than the head yaw: the core is part of the torso and

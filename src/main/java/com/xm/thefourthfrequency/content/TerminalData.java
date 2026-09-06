@@ -274,6 +274,7 @@ public final class TerminalData {
 	public static final String NAVIGATION_COMPLETION_DIMENSION = "navigation_completion_dimension";
 	public static final String NAVIGATION_COMPLETION_DIRECTION = "navigation_completion_direction";
 	public static final String PURSUIT_RESOLVED_CHASES = "pursuit_resolved_chases";
+	public static final String REWORK_FORM_SCHEMA = "rework_form_schema";
 	/**
 	 * Chases the player actually lived through, counting captures as well as escapes. This is
 	 * deliberately separate from {@link #PURSUIT_RESOLVED_CHASES}, which only counts successes and
@@ -487,6 +488,7 @@ public final class TerminalData {
 		tag.putString(NAVIGATION_COMPLETION_DIMENSION, "");
 		tag.putInt(NAVIGATION_COMPLETION_DIRECTION, 0);
 		tag.putInt(PURSUIT_RESOLVED_CHASES, 0);
+		tag.putInt(REWORK_FORM_SCHEMA, com.xm.thefourthfrequency.correction.ReworkFormStage.SCHEMA);
 		tag.putInt(PURSUIT_ENCOUNTERED_CHASES, 0);
 		tag.putInt(PURSUIT_ALLOWED_FORM, 0);
 		tag.putInt(PURSUIT_TUTORIAL_DEMO_MASK, 0);
@@ -744,6 +746,18 @@ public final class TerminalData {
 		if (!record.contains(PURSUIT_SESSION_ID)) record.putString(PURSUIT_SESSION_ID, "");
 		if (!record.contains(PURSUIT_SESSION_PHASE)) record.putString(PURSUIT_SESSION_PHASE, "none");
 		if (!record.contains(PURSUIT_SESSION_FORM)) record.putInt(PURSUIT_SESSION_FORM, 0);
+		if (record.getIntOr(REWORK_FORM_SCHEMA, 1) < com.xm.thefourthfrequency.correction.ReworkFormStage.SCHEMA) {
+			record.putInt(PURSUIT_RESOLVED_CHASES, com.xm.thefourthfrequency.correction.ReworkFormStage.legacyResolved(
+					record.getIntOr(PURSUIT_RESOLVED_CHASES, 0)));
+			for (String key : java.util.List.of(PURSUIT_ALLOWED_FORM, PURSUIT_SESSION_FORM)) {
+				record.putInt(key, com.xm.thefourthfrequency.correction.ReworkFormStage.legacyPermission(record.getIntOr(key, 0)));
+			}
+			for (String key : java.util.List.of(PURSUIT_TUTORIAL_DEMO_MASK, PURSUIT_TUTORIAL_WARNING_MASK,
+					PURSUIT_TUTORIAL_ARCHIVE_MASK)) {
+				record.putInt(key, com.xm.thefourthfrequency.correction.ReworkFormStage.legacyMask(record.getIntOr(key, 0)));
+			}
+			record.putInt(REWORK_FORM_SCHEMA, com.xm.thefourthfrequency.correction.ReworkFormStage.SCHEMA);
+		}
 		if (!record.contains(PURSUIT_SESSION_DEBUG)) record.putBoolean(PURSUIT_SESSION_DEBUG, false);
 		if (!record.contains(PURSUIT_SOURCE_DIMENSION)) record.putString(PURSUIT_SOURCE_DIMENSION, "");
 		if (!record.contains(PURSUIT_SOURCE_POSITION)) record.putLong(PURSUIT_SOURCE_POSITION, 0L);

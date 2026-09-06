@@ -39,7 +39,7 @@ public final class M5GameTests implements CustomTestMethodInvoker {
 				0.0F, 0.0F);
 		ReworkEntity body = ModEntities.REWORK_BODY.create(level, EntitySpawnReason.EVENT);
 		if (body == null) throw new AssertionError("Registered rework body factory returned null");
-		body.configurePursuit(player.getUUID(), "tower-gametest", 5);
+		body.configurePursuit(player.getUUID(), "tower-gametest", 3);
 		body.snapTo(base.getX() + 3.5D, base.getY(), base.getZ() + 0.5D, 90.0F, 0.0F);
 		body.setInvulnerable(true);
 		helper.assertTrue(level.addFreshEntity(body), "Pursuit body must enter the tower fixture");

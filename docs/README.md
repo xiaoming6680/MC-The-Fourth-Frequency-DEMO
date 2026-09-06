@@ -27,7 +27,7 @@ Paths under `docs/art/` are referenced directly by tests and generators (`Resour
 | [架构与安全边界](zh/architecture.md) | [Architecture](en/architecture.md) | 权威数据流、持久化、协议、预算与保护 / Authoritative data flow, persistence, protocol, budgets | 开发、审核 / Developers, reviewers |
 | [背景音乐](zh/audio.md) | [Background music](en/audio.md) | 情境判定表、淡变接缝、曲目轮换与混音余量 / Situation table, fade seams, rotation, mix headroom | 开发、音频 / Developers, audio |
 | [终端界面与手持形态](zh/terminal-ui.md) | [Terminal interface](en/terminal-ui.md) | 坐标系、布局常量、配色、动画、首次引导、3D 模型 / Coordinate space, layout, palette, animation, onboarding, 3D model | UI、美术、QA |
-| [异象、终端形态与个人追逐](zh/anomalies-and-pursuits.md) | [Anomalies and pursuits](en/anomalies-and-pursuits.md) | 五阶段异象、五形态校正者、私人镜像、滤镜语言 / Five stages, five forms, the private mirror, filter languages | 设计、开发、QA |
+| [异象、终端形态与个人追逐](zh/anomalies-and-pursuits.md) | [Anomalies and pursuits](en/anomalies-and-pursuits.md) | 五阶段异象、三形态校正者、私人镜像、滤镜语言 / Five anomaly stages, three pursuit forms, the private mirror, filter languages | 设计、开发、QA |
 | [世界接口终局](zh/world-interface.md) | [The World Interface finale](en/world-interface.md) | 仪式、状态机、数值、八类行动、结局与 F8 / Ritual, state machine, numbers, eight actions, endings, F8 | 设计、QA、服主 / Design, QA, server ops |
 | [美术与资产管线](zh/art-pipeline.md) | [Art and asset pipeline](en/art-pipeline.md) | 生成脚本、UV 契约、自发光契约、冻结资产 / Generators, UV and emissive contracts, frozen assets | 美术、渲染 / Art, rendering |
 | [测试与验收](zh/testing.md) | [Testing and acceptance](en/testing.md) | Gradle 入口、分层覆盖、关键不变量、当前证据 / Entry points, layered coverage, invariants, current evidence | 开发、发布 / Developers, release |

@@ -86,6 +86,11 @@ htmlcov/
 *.sfk
 *.peak
 
+# Reproducible Blockbench interchange caches; keep editable final projects.
+/docs/art/entities/motion/*.json
+/docs/art/world_interface/world_interface_runtime.bbmodel
+/docs/art/world_interface/world_interface_storm_form*_animation_v3.bbmodel
+
 # Project-local scratch output
 /tmp/
 /temp/

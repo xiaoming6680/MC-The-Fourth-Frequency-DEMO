@@ -25,6 +25,7 @@
       "com.xm.thefourthfrequency.test.AnomalyClientGameTest",
       "com.xm.thefourthfrequency.test.ReworkBodyClientGameTest",
       "com.xm.thefourthfrequency.test.WatcherModelClientGameTest"
+      ,"com.xm.thefourthfrequency.test.HorrorEntityClientGameTest"
       ,"com.xm.thefourthfrequency.test.WorldInterfaceClientGameTest"
       ,"com.xm.thefourthfrequency.test.TerminalHandheldClientGameTest"
       ,"com.xm.thefourthfrequency.test.ScreenFilterClientGameTest"

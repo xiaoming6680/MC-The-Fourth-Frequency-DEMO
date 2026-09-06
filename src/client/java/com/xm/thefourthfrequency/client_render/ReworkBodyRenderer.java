@@ -21,23 +21,21 @@ public final class ReworkBodyRenderer
 	public static final ModelLayerLocation STAGE_1_LAYER = layer(1);
 	public static final ModelLayerLocation STAGE_2_LAYER = layer(2);
 	public static final ModelLayerLocation STAGE_3_LAYER = layer(3);
-	public static final ModelLayerLocation STAGE_4_LAYER = layer(4);
-	public static final ModelLayerLocation STAGE_5_LAYER = layer(5);
-	private static final Identifier[] TEXTURES = new Identifier[5];
+	private static final Identifier[] TEXTURES = new Identifier[3];
 	private static final Identifier[] EMISSIVE_TEXTURES = new Identifier[2];
-	private static final float[] SHADOWS = {0.28F, 0.34F, 0.40F, 0.47F, 0.54F};
-	private static final double[] CULL_HORIZONTAL = {0.85, 1.05, 1.30, 1.58, 1.88};
-	private static final double[] CULL_UP = {0.62, 0.78, 0.96, 1.18, 1.42};
+	private static final float[] SHADOWS = {0.28F, 0.40F, 0.54F};
+	private static final double[] CULL_HORIZONTAL = {0.85, 1.30, 1.88};
+	private static final double[] CULL_UP = {0.62, 0.96, 1.42};
 
 	static {
-		for (int stage = 1; stage <= 5; stage++) {
+		for (int stage = 1; stage <= 3; stage++) {
 			TEXTURES[stage - 1] = Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID,
 					"textures/entity/rework_body_stage_" + stage + ".png");
 		}
 		EMISSIVE_TEXTURES[0] = Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID,
-				"textures/entity/rework_body_stage_4_emissive.png");
+				"textures/entity/rework_body_stage_2_emissive.png");
 		EMISSIVE_TEXTURES[1] = Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID,
-				"textures/entity/rework_body_stage_5_emissive.png");
+				"textures/entity/rework_body_stage_3_emissive.png");
 	}
 
 	private final ReworkBodyModel[] models;
@@ -47,9 +45,7 @@ public final class ReworkBodyRenderer
 		models = new ReworkBodyModel[] {
 				model,
 				new ReworkBodyModel(context.bakeLayer(STAGE_2_LAYER), 2),
-				new ReworkBodyModel(context.bakeLayer(STAGE_3_LAYER), 3),
-				new ReworkBodyModel(context.bakeLayer(STAGE_4_LAYER), 4),
-				new ReworkBodyModel(context.bakeLayer(STAGE_5_LAYER), 5)
+				new ReworkBodyModel(context.bakeLayer(STAGE_3_LAYER), 3)
 		};
 		addLayer(new EmissiveLayer(this));
 	}
@@ -67,31 +63,31 @@ public final class ReworkBodyRenderer
 	@Override
 	public void extractRenderState(ReworkEntity entity, ReworkBodyRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
-		state.formStage = Math.clamp(entity.formStage(), 1, 5);
-		state.morphTargetStage = Math.clamp(entity.morphTargetStage(), 1, 5);
+		state.formStage = Math.clamp(entity.formStage(), 1, 3);
+		state.morphTargetStage = Math.clamp(entity.morphTargetStage(), 1, 3);
 		state.morphTicks = Math.clamp(entity.morphTicks(), 0, ReworkEntity.MORPH_DURATION_TICKS);
 	}
 
 	@Override
 	public void submit(ReworkBodyRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
 			CameraRenderState camera) {
-		model = models[Math.clamp(state.formStage, 1, 5) - 1];
+		model = models[Math.clamp(state.formStage, 1, 3) - 1];
 		super.submit(state, poseStack, collector, camera);
 	}
 
 	@Override
 	public Identifier getTextureLocation(ReworkBodyRenderState state) {
-		return TEXTURES[Math.clamp(state.formStage, 1, 5) - 1];
+		return TEXTURES[Math.clamp(state.formStage, 1, 3) - 1];
 	}
 
 	@Override
 	protected float getShadowRadius(ReworkBodyRenderState state) {
-		return SHADOWS[Math.clamp(state.formStage, 1, 5) - 1];
+		return SHADOWS[Math.clamp(state.formStage, 1, 3) - 1];
 	}
 
 	@Override
 	protected AABB getBoundingBoxForCulling(ReworkEntity entity) {
-		int stage = Math.clamp(Math.max(entity.formStage(), entity.morphTargetStage()), 1, 5);
+		int stage = Math.clamp(Math.max(entity.formStage(), entity.morphTargetStage()), 1, 3);
 		AABB physical = super.getBoundingBoxForCulling(entity);
 		double horizontal = CULL_HORIZONTAL[stage - 1];
 		return new AABB(physical.minX - horizontal, physical.minY - 0.12, physical.minZ - horizontal,
@@ -106,12 +102,12 @@ public final class ReworkBodyRenderer
 		@Override
 		public void submit(PoseStack poseStack, SubmitNodeCollector collector, int packedLight,
 				ReworkBodyRenderState state, float yRot, float xRot) {
-			if (state.formStage < 4 || state.isInvisible) return;
+			if (state.formStage < 2 || state.isInvisible) return;
 			float wave = (MthBridge.sin(state.ageInTicks * ((float) Math.PI * 2.0F / 80.0F)) + 1.0F) * 0.5F;
-			float alpha = (state.formStage == 4 ? 0.88F : 0.94F) + wave * 0.05F;
-			float strength = (state.formStage == 4 ? 0.82F : 0.88F) + wave * 0.04F;
+			float alpha = (state.formStage == 2 ? 0.88F : 0.94F) + wave * 0.05F;
+			float strength = (state.formStage == 2 ? 0.82F : 0.88F) + wave * 0.04F;
 			int color = ARGB.colorFromFloat(alpha, strength, strength * 0.82F, strength * 0.76F);
-			Identifier texture = EMISSIVE_TEXTURES[state.formStage - 4];
+			Identifier texture = EMISSIVE_TEXTURES[state.formStage - 2];
 			collector.order(1).submitModel(getParentModel(), state, poseStack,
 					RenderTypes.entityTranslucentEmissive(texture), LightTexture.FULL_BRIGHT,
 					OverlayTexture.NO_OVERLAY, color, null, state.outlineColor, null);

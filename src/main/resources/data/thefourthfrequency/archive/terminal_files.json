@@ -44,6 +44,46 @@
     ]
   },
   {
+    "id": "manual_sky_monitor",
+    "titleKey": "terminal.thefourthfrequency.file.manual_sky_monitor.title",
+    "lineKeys": [
+      "terminal.thefourthfrequency.file.manual_sky_monitor.1",
+      "terminal.thefourthfrequency.file.manual_sky_monitor.2",
+      "terminal.thefourthfrequency.file.manual_sky_monitor.3",
+      "terminal.thefourthfrequency.file.manual_sky_monitor.4"
+    ]
+  },
+  {
+    "id": "manual_mineral_probe",
+    "titleKey": "terminal.thefourthfrequency.file.manual_mineral_probe.title",
+    "lineKeys": [
+      "terminal.thefourthfrequency.file.manual_mineral_probe.1",
+      "terminal.thefourthfrequency.file.manual_mineral_probe.2",
+      "terminal.thefourthfrequency.file.manual_mineral_probe.3",
+      "terminal.thefourthfrequency.file.manual_mineral_probe.4"
+    ]
+  },
+  {
+    "id": "manual_structure_navigator",
+    "titleKey": "terminal.thefourthfrequency.file.manual_structure_navigator.title",
+    "lineKeys": [
+      "terminal.thefourthfrequency.file.manual_structure_navigator.1",
+      "terminal.thefourthfrequency.file.manual_structure_navigator.2",
+      "terminal.thefourthfrequency.file.manual_structure_navigator.3",
+      "terminal.thefourthfrequency.file.manual_structure_navigator.4"
+    ]
+  },
+  {
+    "id": "manual_stronghold_estimate",
+    "titleKey": "terminal.thefourthfrequency.file.manual_stronghold_estimate.title",
+    "lineKeys": [
+      "terminal.thefourthfrequency.file.manual_stronghold_estimate.1",
+      "terminal.thefourthfrequency.file.manual_stronghold_estimate.2",
+      "terminal.thefourthfrequency.file.manual_stronghold_estimate.3",
+      "terminal.thefourthfrequency.file.manual_stronghold_estimate.4"
+    ]
+  },
+  {
     "id": "recovered_predecessor_record",
     "titleKey": "terminal.thefourthfrequency.file.recovered_predecessor_record.title",
     "lineKeys": [

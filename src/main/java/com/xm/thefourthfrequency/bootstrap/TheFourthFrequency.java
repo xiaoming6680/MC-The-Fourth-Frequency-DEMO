@@ -73,6 +73,7 @@ public final class TheFourthFrequency implements ModInitializer {
 		WorldInterfaceBlockEntities.initialize();
 		ModItems.initialize();
 		ModEntities.initialize();
+		com.xm.thefourthfrequency.content.ModParticles.initialize();
 		// Before any level is loaded: the layer's dimension file names this codec by id, and a
 		// generator type a datapack cannot resolve drops the dimension silently.
 		UnrenderedDimensions.initialize();

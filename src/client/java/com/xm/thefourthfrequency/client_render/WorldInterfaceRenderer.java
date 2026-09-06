@@ -51,8 +51,15 @@ public final class WorldInterfaceRenderer extends MobRenderer<WorldInterfaceEnti
 	}
 
 	@Override
+	protected int getBlockLightLevel(WorldInterfaceEntity entity, net.minecraft.core.BlockPos position) {
+		// Light escaping the storm reveals its own surface even beneath the End's rain treatment.
+		return Math.max(9, super.getBlockLightLevel(entity, position));
+	}
+
+	@Override
 	public void extractRenderState(WorldInterfaceEntity entity, WorldInterfaceRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
+		state.ageInTicks = entity.poseClock() + partialTick;
 		state.form = Math.clamp(entity.form(), 0, 2);
 		state.actionId = entity.actionId();
 		long now = entity.level().getGameTime();

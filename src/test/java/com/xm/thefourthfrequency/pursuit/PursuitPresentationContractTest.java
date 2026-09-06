@@ -139,7 +139,7 @@ final class PursuitPresentationContractTest {
 	}
 
 	@Test
-	void debugGuiStartsFormFiveWithoutAdvancingFormalProgress() throws Exception {
+	void debugGuiStartsFormThreeWithoutAdvancingFormalProgress() throws Exception {
 		String screen = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/DebugPanelScreen.java"),
 				StandardCharsets.UTF_8);
@@ -160,8 +160,8 @@ final class PursuitPresentationContractTest {
 				StandardCharsets.UTF_8);
 				// The confirmation was dropped, not the entry: a debug chase resolves and returns the player
 		// on its own, so it was never one of the actions with nothing to undo it.
-		assertTrue(screen.contains("追逐 第5形态"));
-		assertTrue(screen.contains("\"pursuit_test\", \"\", 5, false"));
+		assertTrue(screen.contains("追逐 第3形态"));
+		assertTrue(screen.contains("\"pursuit_test\", \"\", 3, false"));
 		assertTrue(service.contains("case \"pursuit_test\""));
 		assertTrue(director.contains("enterEmptyMirror(player, lease, requestedForm, true)"));
 		assertTrue(session.contains("TerminalNoticeService.pursuitWarning(player)"));
@@ -188,12 +188,12 @@ final class PursuitPresentationContractTest {
 				StandardCharsets.UTF_8);
 		String warning = zh.get("message.thefourthfrequency.pursuit.warning").getAsString();
 		assertTrue(warning.equals("终端传来剧烈震动"));
-		// The five forms deliberately no longer share a line. They track by five different rules, and
+		// The three forms deliberately no longer share a line. They track by three different rules, and
 		// the log entry is where a player finds out which one they survived; PursuitWarningTextContract
 		// owns the distinctness assertion, so all this needs is that the opening half is still there
 		// and still recognisable as the same instrument reporting.
 		String opening = "检测到异常信号波动正在接近..";
-		for (int form = 1; form <= 5; form++) {
+		for (int form = 1; form <= 3; form++) {
 			assertTrue(zh.get("terminal.thefourthfrequency.signal.event.pursuit_warning_" + form)
 					.getAsString().startsWith(opening));
 		}

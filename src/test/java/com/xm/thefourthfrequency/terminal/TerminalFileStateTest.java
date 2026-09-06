@@ -1,5 +1,6 @@
 package com.xm.thefourthfrequency.terminal;
 
+import com.xm.thefourthfrequency.narrative.DeviceManualPolicy;
 import com.xm.thefourthfrequency.narrative.NarrativeFileCatalog;
 import com.xm.thefourthfrequency.narrative.HiddenFilePolicy;
 import com.xm.thefourthfrequency.narrative.TerminalFileState;
@@ -18,11 +19,16 @@ final class TerminalFileStateTest {
 		// Seven belong to this world, in story order. The eighth is the fragment a previous
 		// playthrough left on this machine and sits after all of them, because it is not part of the
 		// story this world tells - it is the previous one leaking into it.
-		assertEquals(8, NarrativeFileCatalog.definitions().size());
+		assertEquals(12, NarrativeFileCatalog.definitions().size());
 		assertEquals("maintenance_handoff", NarrativeFileCatalog.definitions().getFirst().id());
 		assertEquals("encrypted_witness_file", NarrativeFileCatalog.definitions().get(5).id());
 		assertEquals("body_mapping_warning", NarrativeFileCatalog.definitions().get(6).id());
 		assertEquals("recovered_predecessor_record", NarrativeFileCatalog.definitions().getLast().id());
+		// The manual pages sit between the narrative files and the recovered fragment: the story
+		// order is untouched, and the fragment stays last, which is where it is meant to be.
+		assertEquals(DeviceManualPolicy.ids(),
+				NarrativeFileCatalog.definitions().subList(7, 11).stream()
+						.map(NarrativeFileCatalog.Definition::id).toList());
 		assertFalse(NarrativeFileCatalog.definitions().stream().anyMatch(definition ->
 				definition.id().equals("recovered_fragment")
 						|| definition.id().equals("correction_response_record")

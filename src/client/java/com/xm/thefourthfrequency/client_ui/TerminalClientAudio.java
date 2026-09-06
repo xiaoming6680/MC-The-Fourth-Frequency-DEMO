@@ -3,6 +3,7 @@ package com.xm.thefourthfrequency.client_ui;
 import com.xm.thefourthfrequency.audio.ModSounds;
 import com.xm.thefourthfrequency.bootstrap.RuntimeServices;
 import com.xm.thefourthfrequency.networking.TerminalNoticePayload;
+import com.xm.thefourthfrequency.terminal.TerminalContactVoice;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -29,12 +30,9 @@ public final class TerminalClientAudio {
 	private static int signalSweepPlays;
 	private static int detentPlays;
 	private static int carrierStarts;
+	private static int panelStage;
 
 	private TerminalClientAudio() {
-	}
-
-	public static void click() {
-		playContact(ModSounds.TERMINAL_CLICK, 0.92F, 0.50F);
 	}
 
 	/**
@@ -45,7 +43,38 @@ public final class TerminalClientAudio {
 	 * panel a hierarchy the player can hear without having to look.</p>
 	 */
 	public static void keypress() {
-		playContact(ModSounds.TERMINAL_KEYPRESS, 1.0F, 0.34F);
+		contact(TerminalContactVoice.MOVE);
+	}
+
+	/** Leaving one page for another. */
+	public static void tab() {
+		contact(TerminalContactVoice.TAB);
+	}
+
+	/** One level in: a tool detail, a file body. */
+	public static void openLevel() {
+		contact(TerminalContactVoice.OPEN);
+	}
+
+	/** One level back out. Pitched under {@link #openLevel()} so the pair reads as a direction. */
+	public static void backLevel() {
+		contact(TerminalContactVoice.BACK);
+	}
+
+	/**
+	 * The player told the server to do something - start guiding, rescan, choose a destination.
+	 *
+	 * <p>The only voice with the bolt sample in it, and deliberately not routed through
+	 * {@link #lock()}: that one is the receiver finding a band, it is counted by the first-run
+	 * notice tests as a sound that must not play there, and it answers a different question.
+	 */
+	public static void commit() {
+		contact(TerminalContactVoice.COMMIT);
+	}
+
+	/** An unread marker clearing. The lamp going out, not a button going down. */
+	public static void acknowledge() {
+		contact(TerminalContactVoice.ACKNOWLEDGE);
 	}
 
 	/** One notch of the dial. Rides on top of the sweep loop {@link #tuningInput()} maintains. */
@@ -200,6 +229,25 @@ public final class TerminalClientAudio {
 	}
 
 	/**
+	 * Plays one of the graded press voices at the wear the holder's stage has earned.
+	 *
+	 * <p>The table itself lives in {@link TerminalContactVoice}, in the common source set, where a
+	 * plain JUnit test can hold the six voices apart from each other.
+	 */
+	private static void contact(TerminalContactVoice voice) {
+		playContact(sampleFor(voice.sample()), voice.pitchAt(panelStage), voice.relativeVolume());
+	}
+
+	private static SoundEvent sampleFor(TerminalContactVoice.Sample sample) {
+		return switch (sample) {
+			case CONTACT -> ModSounds.TERMINAL_CLICK;
+			case KEY -> ModSounds.TERMINAL_KEYPRESS;
+			case NOTCH -> ModSounds.TERMINAL_DETENT;
+			case BOLT -> ModSounds.TERMINAL_LOCK;
+		};
+	}
+
+	/**
 	 * Contact sounds are the ones that fire in bursts - a held dial, a run of keystrokes - so
 	 * they are the ones that expose how few variants there are. Four samples at a fixed pitch
 	 * start sounding like four samples very quickly; a little jitter on each hit is enough to
@@ -238,6 +286,7 @@ public final class TerminalClientAudio {
 	public static int attentionPlaysForTesting() { return attentionPlays; }
 	public static int signalSweepPlaysForTesting() { return signalSweepPlays; }
 	public static int detentPlaysForTesting() { return detentPlays; }
+	public static int panelStageForTesting() { return panelStage; }
 	public static void resetTuningForTesting() {
 		if (tuningLoop != null) tuningLoop.forceStop();
 		tuningLoop = null;
@@ -253,6 +302,11 @@ public final class TerminalClientAudio {
 	 * @param stage the holder's anomaly stage, 0-5
 	 */
 	public static void carrierOn(int stage) {
+		// The one place the client is told its visual stage every tick, so it is also where the
+		// press voices pick up how worn the panel should sound. Latched rather than cleared on
+		// close: the stage only moves between sessions, and a stale value would only ever be the
+		// stage this same player had a moment ago.
+		panelStage = Math.clamp(stage, 0, TerminalContactVoice.MAX_STAGE);
 		Minecraft client = Minecraft.getInstance();
 		if (client == null || client.getSoundManager() == null) return;
 		float pitch = CarrierLoop.pitchFor(stage);

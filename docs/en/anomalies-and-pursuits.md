@@ -229,17 +229,15 @@ They occupy no anomaly slot, write no anomaly history and are not bound by the s
 
 The "anomalies" group in the debug panel's right column is their only manual entry, with a button each for `him_spawn` and `watcher_spawn`. Manual spawning goes through the same `HimService.debugSpawn` / `WatcherService.debugSpawn` as a natural trigger, so **the placement rules are not bypassed**. The debug HUD's entity outlines tell you whether one spawned and where, but they are no part of the server's "has been seen" judgement: an outline visible through a wall is not a figure that will still be there when you reach it.
 
-## The five-form personal pursuit
+## The three-form personal pursuit
 
 | Form | Permission threshold | Duration | Core counterplay |
 | ---: | --- | ---: | --- |
 | 1 Soundseeker | Terminal bound and at least one anomaly completed successfully; plus either any mining/exploration/loot/building/trading proof, or 20 minutes of cumulative activity | 60 s | Stop forming a rhythm; sneak and break line of sight |
-| 2 Router | Entered the Nether | 75 s | Do not repeat a route; use corners and multiple exits |
-| 3 Interceptor | Blaze rods obtained and returned to the Overworld | 85 s | Recognise the predicted route; double back, change direction or change elevation |
-| 4 Boundary-crosser | Three real Eye of Ender bearings recorded | 95 s | Read the glow/sound wind-up and cut away at the end of the lunge |
-| 5 Interface Corrector | Stronghold found | 110 s | Ignore conflicting text, coordinates and bearings; use the heartbeat only for distance |
+| 2 Interceptor | Entered the Nether | 85 s | Recognise the predicted route; double back, change direction or change elevation |
+| 3 Interface Corrector | Three Eye of Ender bearings recorded or stronghold found | 110 s | Ignore conflicting text, coordinates and bearings; use the heartbeat only for distance |
 
-`allowedForm` is the highest form the mainline permits; `actualForm` always equals "resolved pursuits + 1", capped at 5. A real trigger requires `actualForm <= allowedForm`.
+`allowedForm` is the highest form the mainline permits; `actualForm` always equals "resolved pursuits + 1", capped at 3. A real trigger requires `actualForm <= allowedForm`.
 
 The teaching chain:
 
@@ -258,7 +256,7 @@ A success advances the actual form one step, and the next real pursuit waits **2
 
 Once the safety window is confirmed and a mirror slot taken, the server immediately appends an unread record, still in two colours: **the green half now differs per form**, the red half is always "prepare yourself...". The action bar shows only "the terminal is vibrating violently". Opening the terminal then jumps straight to RECORDS.
 
-The green half is split because the five forms do not track alike — form 1 only calibrates while the player is making noise, form 3 takes their heading rather than their position, form 4 keeps reappearing behind them — and running on instinct is precisely the worst answer to form 1. The five keys already existed, but the records page used to discard the form and render a shared line, so nothing ever read them and nobody noticed all five held the same text; `PursuitWarningTextContractTest` now asserts they are pairwise distinct.
+The three forms distinguish silence, breaking predicted routes, and reading a continuous waveform. Historical warning keys remain for compatibility. Legacy forms migrate as 1/2→1, 3/4→2 and 5→3; schema 2 makes the conversion idempotent.
 
 **The action bar line is not split by form, and must not be.** During the event there is only the shake; what this is and how it hunts belongs to the records page, which the terminal force-opens the next time it is raised (`PURSUIT_WARNING_RECORDS_REDIRECT`). That ordering is the [world bible](world-bible.md)'s rule that explanation arrives after the event, and splitting the action bar by form would move the explanation in front of it. `ResourceContractTest` asserts no per-form variant of that key exists.
 

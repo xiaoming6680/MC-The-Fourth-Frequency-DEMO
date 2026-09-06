@@ -98,6 +98,10 @@ public final class StabilityAnchorModel extends EntityModel<StabilityAnchorRende
 	 * the only geometry with positive Y - they are what reaches down over the cap's edge.
 	 */
 	public static LayerDefinition createLayer() {
+		return WorldInterfaceGeometry.loadEntity("stability_anchor").layer();
+	}
+
+	public static LayerDefinition createAuthoringLayer() {
 		MeshDefinition mesh = new MeshDefinition();
 		PartDefinition root = mesh.getRoot();
 		// One bone between root and everything else, so the breathing lift has somewhere to live that
@@ -286,6 +290,7 @@ public final class StabilityAnchorModel extends EntityModel<StabilityAnchorRende
 		relayCore.y = RELAY_LOCAL_Y + Mth.sin(time * 0.06F) * 0.25F;
 		relayCore.xRot = 0.0F;
 		relayCore.zRot = 0.0F;
+		relayCore.yRot = time * 0.018F;
 		torso.xScale = torso.yScale = torso.zScale = 1.0F;
 		emitter.xScale = emitter.yScale = emitter.zScale = 1.0F;
 		for (int index = 0; index < CLAW_COUNT; index++) {
@@ -295,9 +300,10 @@ public final class StabilityAnchorModel extends EntityModel<StabilityAnchorRende
 			clawRoots[index].xScale = 1.0F;
 			clawRoots[index].yScale = 1.0F;
 			clawRoots[index].zScale = 1.0F;
-			upperArms[index].zRot = UPPER_ARM_PITCH;
-			forearms[index].zRot = FOREARM_PITCH;
-			feet[index].zRot = FOOT_PITCH;
+			float tension = Mth.sin(time * .034F + index * 1.57F) * .018F;
+			upperArms[index].zRot = UPPER_ARM_PITCH + tension;
+			forearms[index].zRot = FOREARM_PITCH - tension * 1.25F;
+			feet[index].zRot = FOOT_PITCH + tension * .25F;
 			seams[index].visible = true;
 			seams[index].xScale = 1.0F;
 			seams[index].yScale = 1.0F;

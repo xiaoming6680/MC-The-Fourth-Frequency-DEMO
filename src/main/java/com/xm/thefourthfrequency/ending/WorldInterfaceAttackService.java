@@ -834,12 +834,14 @@ public final class WorldInterfaceAttackService {
 		if (target != null) runtime.recordAim(target.getEyePosition());
 		if (elapsed < LASER_WARNING_TICKS) {
 			announceLock(level, runtime, target, elapsed, LASER_WARNING_TICKS);
-			// The muzzle end of the same warning. See chargeCore: for ninety ticks this attack said
-			// nothing at all to anyone except the person it had picked.
-			chargeCore(level, boss, elapsed, LASER_WARNING_TICKS);
+			// Each firing mouth gathers light through the warning, before its beam can burn.
+			for (int beam = 0; beam < WorldInterfacePhasePressure.laserBeamCount(boss.form()); beam++) {
+				chargeMouth(level, boss, elapsed, LASER_WARNING_TICKS,
+						WorldInterfacePhasePressure.laserHead(boss.form(), beam));
+			}
 			return false;
 		}
-		Vec3 start = WorldInterfaceAnatomy.coreOrigin(boss);
+		Vec3 start = WorldInterfaceAnatomy.mouthOrigin(boss, 0);
 		Vec3 aim = runtime.laggedAim(WorldInterfacePhasePressure.laserTrackingLagTicks(boss.form()));
 		if (aim == null) {
 			aim = target != null ? target.getEyePosition()
@@ -860,9 +862,11 @@ public final class WorldInterfaceAttackService {
 		// a spike nothing on the screen explains.
 		Set<UUID> burned = new HashSet<>();
 		for (int index = 0; index < beams; index++) {
+			Vec3 mouth = WorldInterfaceAnatomy.mouthOrigin(boss,
+					WorldInterfacePhasePressure.laserHead(boss.form(), index));
 			Vec3 end = groundUnder(level, WorldInterfacePhasePressure.swingAroundY(start, primaryEnd,
 					WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(), index)));
-			sweepBeam(level, boss, runtime, start, end, sweptTicks, index, burned);
+			sweepBeam(level, boss, runtime, mouth, end, sweptTicks, index, burned);
 		}
 		return elapsed >= LASER_WARNING_TICKS + LASER_SWEEP_TICKS;
 	}
@@ -997,7 +1001,8 @@ public final class WorldInterfaceAttackService {
 	 */
 	private static void emitLaserDischarge(ServerLevel level, WorldInterfaceEntity boss, Vec3 start,
 			Vec3 end) {
-		double coreRadius = WorldInterfaceAnatomy.coreRadius(boss.form());
+		double coreRadius = WorldInterfaceAnatomy.mouthRadius(boss.form(),
+				WorldInterfacePhasePressure.laserHead(boss.form(), 0));
 		Vec3 bearing = end.subtract(start);
 		double length = bearing.length();
 		Vec3 forward = length < 1.0E-4D ? new Vec3(0.0D, -1.0D, 0.0D) : bearing.scale(1.0D / length);
@@ -1116,12 +1121,12 @@ public final class WorldInterfaceAttackService {
 		if (elapsed < ORB_WARNING_TICKS) {
 			ServerPlayer marked = onlineTarget(level, runtime, 0);
 			announceLock(level, runtime, marked, elapsed, ORB_WARNING_TICKS);
-			chargeCore(level, boss, elapsed, ORB_WARNING_TICKS);
-			// The charge's own voice, which used to live inside chargeCore and now cannot: the laser
+			chargeMouth(level, boss, elapsed, ORB_WARNING_TICKS, 0);
+			// The charge's own voice, which used to live inside chargeMouth and now cannot: the laser
 			// shares those particles and must not share this cue.
 			if (elapsed == 0L || elapsed % 8L == 0L) {
 				float progress = elapsed / (float) ORB_WARNING_TICKS;
-				AudioService.playBounded(level, BlockPos.containing(WorldInterfaceAnatomy.coreOrigin(boss)),
+				AudioService.playBounded(level, BlockPos.containing(WorldInterfaceAnatomy.mouthOrigin(boss, 0)),
 						ModSounds.WORLD_INTERFACE_ORB, SoundSource.HOSTILE,
 						0.45F + progress * 0.4F, 0.72F + progress * 0.55F);
 			}
@@ -1147,7 +1152,7 @@ public final class WorldInterfaceAttackService {
 
 	/**
 	 * The other half of a ranged weapon's tell, drawn at the interface rather than at the victim:
-	 * the core gathers visibly before it fires, so the rest of the table can see the shot coming as
+	 * the mouth gathers visibly before it fires, so the rest of the table can see the shot coming as
 	 * well as the person it is coming for.
 	 *
 	 * <p>Shared by the orb and the laser. It used to belong to the orb alone, which left the laser -
@@ -1162,12 +1167,12 @@ public final class WorldInterfaceAttackService {
 	 * own cadence - two attacks whose charges sound alike would be two attacks that cannot be told
 	 * apart before they land, which is exactly the thing the charge exists to prevent.</p>
 	 */
-	private static void chargeCore(ServerLevel level, WorldInterfaceEntity boss, long elapsed,
-			int windowTicks) {
+	private static void chargeMouth(ServerLevel level, WorldInterfaceEntity boss, long elapsed,
+			int windowTicks, int head) {
 		if (elapsed % 2L != 0L) return;
 		float progress = Math.clamp(elapsed / (float) Math.max(1, windowTicks), 0.0F, 1.0F);
-		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
-		double radius = WorldInterfaceAnatomy.coreRadius(boss.form()) * (1.35D - progress * 0.85D);
+		Vec3 core = WorldInterfaceAnatomy.mouthOrigin(boss, head);
+		double radius = WorldInterfaceAnatomy.mouthRadius(boss.form(), head) * (1.35D - progress * 0.85D);
 		int samples = 6 + Math.round(progress * 10.0F);
 		for (int index = 0; index < samples; index++) {
 			double angle = Math.PI * 2.0D * index / samples + progress * 6.0D;
@@ -1190,7 +1195,7 @@ public final class WorldInterfaceAttackService {
 		// on the same schedule the ring above tightens on: the tell used to be one flat circle,
 		// which from below or from behind was a line. A cage is the same statement from every seat
 		// in the arena, and the fact that it shrinks is what says how long is left.
-		double cage = WorldInterfaceAnatomy.coreRadius(boss.form()) * (2.6D - progress * 2.0D);
+		double cage = WorldInterfaceAnatomy.mouthRadius(boss.form(), head) * (2.6D - progress * 2.0D);
 		for (int axis = 0; axis < 3; axis++) {
 			double lean = elapsed * 0.05D + axis * (Math.PI / 3.0D);
 			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), core,

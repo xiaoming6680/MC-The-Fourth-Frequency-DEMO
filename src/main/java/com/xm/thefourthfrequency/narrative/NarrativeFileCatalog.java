@@ -29,11 +29,12 @@ public final class NarrativeFileCatalog {
 			if (stream == null) throw new IllegalStateException("Missing terminal file catalog " + RESOURCE);
 			List<Definition> values = new Gson().fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8),
 					new TypeToken<List<Definition>>() { }.getType());
-			// Eight since the recovered predecessor fragment joined them. It is a catalogue entry like
-			// any other - the terminal serves it, owns whether it has been found and whether it has been
-			// read - but alone among them its body is composed on the client, because what it says is a
-			// fact about the player's own previous playthrough rather than about this world.
-			if (values == null || values.size() != 8) throw new IllegalStateException("Expected 8 terminal files");
+			// Twelve: eight narrative entries plus the four manual pages at the end. The recovered
+			// predecessor fragment is a catalogue entry like any other - the terminal serves it, owns
+			// whether it has been found and whether it has been read - but alone among them its body is
+			// composed on the client, because what it says is a fact about the player's own previous
+			// playthrough rather than about this world.
+			if (values == null || values.size() != 12) throw new IllegalStateException("Expected 12 terminal files");
 			return List.copyOf(values);
 		} catch (Exception exception) {
 			throw new IllegalStateException("Unable to load terminal file catalog", exception);

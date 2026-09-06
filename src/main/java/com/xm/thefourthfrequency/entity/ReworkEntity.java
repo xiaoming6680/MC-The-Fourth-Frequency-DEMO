@@ -393,6 +393,7 @@ public final class ReworkEntity extends Monster {
 	protected void addAdditionalSaveData(ValueOutput output) {
 		super.addAdditionalSaveData(output);
 		output.putInt("form_stage", formStage());
+		output.putInt("rework_form_schema", ReworkFormStage.SCHEMA);
 		output.putInt("morph_target_stage", morphTargetStage());
 		output.putInt("morph_ticks", morphTicks());
 		output.putBoolean("pursuit_mode", pursuitMode);
@@ -403,8 +404,8 @@ public final class ReworkEntity extends Monster {
 	@Override
 	protected void readAdditionalSaveData(ValueInput input) {
 		super.readAdditionalSaveData(input);
-		int savedStage = Math.clamp(input.getIntOr("form_stage", MIN_FORM_STAGE),
-				MIN_FORM_STAGE, MAX_FORM_STAGE);
+		int savedStage = ReworkFormStage.readStage(input.getIntOr("form_stage", MIN_FORM_STAGE),
+				input.getIntOr("rework_form_schema", 1));
 		entityData.set(FORM_STAGE, savedStage);
 		entityData.set(MORPH_TARGET_STAGE, savedStage);
 		// Reloads retain the saved pursuit form and never replay a retired construction morph.

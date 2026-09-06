@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>bbmodel viewer</title>
+<style>
+	body { margin: 0; background: #1b1b22; color: #ddd; font: 12px/1.4 monospace; }
+	#grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; }
+	.cell { position: relative; background: #2a2a33; }
+	.cell canvas { display: block; width: 100%; height: 100%; }
+	.cell span { position: absolute; left: 6px; top: 4px; color: #9cf; }
+	#status { padding: 4px 8px; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="status">loading…</div>
+<div id="grid"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Renders a Blockbench .bbmodel with Blockbench's own semantics: absolute cube from/to, group
+// pivots in absolute space, ZYX Euler rotations applied about the pivot, box-UV faces read from
+// the element's face table (v measured from the top of the project resolution).
+//
+// Query: ?model=<path>&form=<0|1|2>&views=<w>x<h>&hide=<regex>&only=<regex>&pivots=1&wire=1
+const params = new URLSearchParams(location.search);
+const modelPath = params.get('model') || '../../docs/art/world_interface/world_interface_runtime.bbmodel';
+const form = Math.max(0, Math.min(2, parseInt(params.get('form') || '0', 10)));
+const [vw, vh] = (params.get('views') || '640x480').split('x').map(Number);
+const hide = params.get('hide') ? new RegExp(params.get('hide')) : null;
+const only = params.get('only') ? new RegExp(params.get('only')) : null;
+const showPivots = params.get('pivots') === '1';
+const wire = params.get('wire') === '1';
+const FORM_SCALE = [5.8, 10.0, 12.0];
+const NECK_STRETCH = [1.91, 2.17, 2.53];
+const TENTACLES = [4, 6, 10];
+const CLEARANCE_BLOCKS = [8, 14, 18];
+const MASS_BOTTOM_JAVA = [22.4, 22.4, 24.4];
+
+function status(text) { document.getElementById('status').textContent = text; }
+
+async function main() {
+	const model = await (await fetch(modelPath)).json();
+	const res = model.resolution || { width: 64, height: 64 };
+	const texture = await loadTexture(model);
+	const elements = new Map(model.elements.map(e => [e.uuid, e]));
+	const material = new THREE.MeshLambertMaterial({ map: texture, side: THREE.DoubleSide, wireframe: wire });
+	// Untextured preview: colour by the material prefix the painter will use.
+	const MATERIAL_COLORS = {
+		endstone: 0xd8d9a8, obsidian: 0x1b1626, swallowed: 0x5a5560, plating: 0x3d3a4a, bone: 0xc9bfa2,
+		root: 0x2c2530, flesh: 0x4a3a4c, socket: 0x120e18, eye: 0xffd070, core: 0xd86cf0, glow: 0xc060f0,
+		horn: 0x8f8470, tooth: 0xe8e0c8,
+	};
+	const fallbacks = {};
+	function fallbackFor(name) {
+		const key = name.includes('.') ? name.split('.')[0] : 'plating';
+		if (!fallbacks[key]) fallbacks[key] = new THREE.MeshLambertMaterial({ color: MATERIAL_COLORS[key] || 0x8a8a96, side: THREE.DoubleSide, wireframe: wire });
+		return fallbacks[key];
+	}
+	const rootGroup = new THREE.Group();
+	let cubeCount = 0, groupCount = 0;
+	const bones = new Map();
+
+	function isVisible(name) {
+		if (only && !only.test(name)) return false;
+		if (hide && hide.test(name)) return false;
+		if (/^phase_2_accretion$/.test(name) && form < 1) return false;
+		if (/^phase_3_accretion$/.test(name) && form < 2) return false;
+		const tendril = /^tendril_(\d+)$/.exec(name);
+		if (tendril && parseInt(tendril[1], 10) >= TENTACLES[form]) return false;
+		if (name === 'weapon') return false;
+		return true;
+	}
+
+	function build(node, parent, parentPivot) {
+		if (typeof node === 'string') {
+			const e = elements.get(node);
+			if (!e || e.visibility === false) return;
+			if (!isVisible(e.name)) return;
+			parent.add(cube(e, parentPivot));
+			cubeCount++;
+			return;
+		}
+		if (!isVisible(node.name) || node.visibility === false) return;
+		const pivot = node.origin || [0, 0, 0];
+		const g = new THREE.Group();
+		g.name = node.name;
+		g.position.set(pivot[0] - parentPivot[0], pivot[1] - parentPivot[1], pivot[2] - parentPivot[2]);
+		const r = node.rotation || [0, 0, 0];
+		g.rotation.set(THREE.MathUtils.degToRad(r[0]), THREE.MathUtils.degToRad(r[1]), THREE.MathUtils.degToRad(r[2]), 'ZYX');
+		parent.add(g);
+		bones.set(node.name, g);
+		groupCount++;
+		if (showPivots) {
+			const dot = new THREE.Mesh(new THREE.SphereGeometry(0.35, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff4488 }));
+			g.add(dot);
+		}
+		for (const child of node.children || []) build(child, g, pivot);
+	}
+
+	function cube(e, pivot) {
+		const from = e.from, to = e.to, inflate = e.inflate || 0;
+		const size = [to[0] - from[0] + inflate * 2, to[1] - from[1] + inflate * 2, to[2] - from[2] + inflate * 2];
+		const geometry = new THREE.BoxGeometry(Math.max(size[0], 0.001), Math.max(size[1], 0.001), Math.max(size[2], 0.001));
+		const uv = geometry.attributes.uv;
+		const order = ['east', 'west', 'up', 'down', 'south', 'north'];
+		let textured = false;
+		order.forEach((face, index) => {
+			const f = e.faces && e.faces[face];
+			if (!f || f.texture === null || f.texture === undefined) return;
+			textured = true;
+			const [x1, y1, x2, y2] = f.uv;
+			const corners = [[x1, y1], [x2, y1], [x1, y2], [x2, y2]];
+			corners.forEach((c, k) => uv.setXY(index * 4 + k, c[0] / res.width, 1 - c[1] / res.height));
+		});
+		uv.needsUpdate = true;
+		const mesh = new THREE.Mesh(geometry, textured && texture ? material : fallbackFor(e.name));
+		const centre = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2];
+		const origin = e.origin || pivot;
+		const holder = new THREE.Group();
+		holder.position.set(origin[0] - pivot[0], origin[1] - pivot[1], origin[2] - pivot[2]);
+		const r = e.rotation || [0, 0, 0];
+		holder.rotation.set(THREE.MathUtils.degToRad(r[0]), THREE.MathUtils.degToRad(r[1]), THREE.MathUtils.degToRad(r[2]), 'ZYX');
+		mesh.position.set(centre[0] - origin[0], centre[1] - origin[1], centre[2] - origin[2]);
+		holder.add(mesh);
+		return holder;
+	}
+
+	for (const node of model.outliner) build(node, rootGroup, [0, 0, 0]);
+
+	// The form's neck growth, as the rig applies it: neck_a stretched, the skull counter-scaled.
+	for (const head of ['center', 'left', 'right']) {
+		const a = bones.get(head + '_neck_a'), skull = bones.get(head + '_skull');
+		if (a) a.scale.y = NECK_STRETCH[form];
+		if (skull) skull.scale.y = 1 / NECK_STRETCH[form];
+	}
+
+	// Player-scale reference: a 1.8 block figure standing on the arena floor under the storm.
+	const unitsPerBlock = 16 / FORM_SCALE[form];
+	const floorY = (24 - MASS_BOTTOM_JAVA[form]) - CLEARANCE_BLOCKS[form] * unitsPerBlock;
+	const player = new THREE.Mesh(new THREE.BoxGeometry(0.6 * unitsPerBlock, 1.8 * unitsPerBlock, 0.6 * unitsPerBlock),
+		new THREE.MeshBasicMaterial({ color: 0x33ddff }));
+	player.position.set(6 * unitsPerBlock, floorY + 0.9 * unitsPerBlock, -8 * unitsPerBlock);
+	const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: 0x3a3a44 }));
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.y = floorY;
+	const gridHelper = new THREE.GridHelper(400, 400 / (unitsPerBlock * 4), 0x555566, 0x444455);
+	gridHelper.position.y = floorY + 0.05;
+
+	const scene = new THREE.Scene();
+	scene.background = new THREE.Color(0x2a2a33);
+	scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+	const key = new THREE.DirectionalLight(0xffffff, 0.6);
+	key.position.set(40, 80, 60);
+	scene.add(key);
+	const fill = new THREE.DirectionalLight(0x8899ff, 0.25);
+	fill.position.set(-40, 20, -60);
+	scene.add(fill);
+	scene.add(rootGroup, player, floor, gridHelper);
+
+	const box = new THREE.Box3().setFromObject(rootGroup);
+	const size = box.getSize(new THREE.Vector3());
+	const centre = box.getCenter(new THREE.Vector3());
+	const radius = Math.max(size.x, size.y, size.z) * 0.62;
+	status(`${modelPath}\nform ${form + 1}  cubes ${cubeCount}  groups ${groupCount}  bounds x ${size.x.toFixed(1)} y ${size.y.toFixed(1)} z ${size.z.toFixed(1)} units`
+		+ `  (${(size.x / unitsPerBlock).toFixed(1)} x ${(size.y / unitsPerBlock).toFixed(1)} x ${(size.z / unitsPerBlock).toFixed(1)} blocks at form scale)`);
+
+	const views = [
+		['front (-Z)', [0, 0, -1], true], ['side (+X)', [1, 0, 0], true], ['back (+Z)', [0, 0, 1], true],
+		['top', [0, 1, 0.0001], true], ['3/4 low', [1, -0.35, -1], false], ['3/4 high', [-1, 0.6, -1], false],
+	];
+	const grid = document.getElementById('grid');
+	const single = params.get('view');
+	if (single) grid.style.gridTemplateColumns = '1fr';
+	for (const [label, dir, ortho] of views) {
+		if (single && !label.startsWith(single)) continue;
+		const cell = document.createElement('div');
+		cell.className = 'cell';
+		const canvas = document.createElement('canvas');
+		cell.appendChild(canvas);
+		const tag = document.createElement('span');
+		tag.textContent = label;
+		cell.appendChild(tag);
+		grid.appendChild(cell);
+		const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+		renderer.setSize(vw, vh, false);
+		const aspect = vw / vh;
+		let camera;
+		if (ortho) {
+			camera = new THREE.OrthographicCamera(-radius * aspect, radius * aspect, radius, -radius, 0.1, 2000);
+		} else {
+			camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 2000);
+		}
+		const d = new THREE.Vector3(...dir).normalize();
+		const distance = ortho ? 500 : radius * 2.9;
+		camera.position.copy(centre.clone().add(d.multiplyScalar(distance)));
+		camera.up.set(0, 1, 0);
+		camera.lookAt(centre);
+		renderer.render(scene, camera);
+	}
+}
+
+function loadTexture(model) {
+	return new Promise(resolve => {
+		const t = model.textures && model.textures[0];
+		// ?texture=<path> overrides the embedded sheet, so a freshly painted PNG can be checked
+		// without re-saving the bbmodel.
+		const source = params.get('texture') || (t && t.source);
+		if (!source) return resolve(null);
+		new THREE.TextureLoader().load(source, tex => {
+			tex.magFilter = THREE.NearestFilter;
+			tex.minFilter = THREE.NearestFilter;
+			resolve(tex);
+		}, undefined, () => resolve(null));
+	});
+}
+
+main().catch(err => status('error: ' + err.message + '\n' + err.stack));
+</script>
+</body>
+</html>

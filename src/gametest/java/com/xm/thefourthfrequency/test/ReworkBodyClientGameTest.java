@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.LightBlock;
 import java.util.Set;
 import java.util.UUID;
 
-/** Dedicated 15-shot visual contract for the five native Rework Body model layers. */
+/** Nine views of the three native Rework Body model layers. */
 public final class ReworkBodyClientGameTest implements FabricClientGameTest {
 	private static final double CAMERA_DISTANCE = 5.0D;
 	private static final double DARK_CAMERA_DISTANCE = 3.25D;
@@ -32,11 +32,12 @@ public final class ReworkBodyClientGameTest implements FabricClientGameTest {
 		context.waitForScreen(TitleScreen.class);
 		context.runOnClient(client -> client.options.hideGui = true);
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
+			EntityVisualFixture.finishFirstBoot(context);
 			StudioFixture fixture = singleplayer.getServer().computeOnServer(
 					ReworkBodyClientGameTest::createStudio);
 			singleplayer.getClientWorld().waitForChunksRender();
 			context.waitTicks(20);
-			for (int stage = 1; stage <= 5; stage++) {
+			for (int stage = 1; stage <= 3; stage++) {
 				capture(context, singleplayer, fixture, stage, View.FRONT);
 				capture(context, singleplayer, fixture, stage, View.BACK);
 				capture(context, singleplayer, fixture, stage, View.DARK);
@@ -56,6 +57,7 @@ public final class ReworkBodyClientGameTest implements FabricClientGameTest {
 			case BACK -> "back";
 			case DARK -> "dark";
 		};
+		EntityVisualFixture.assertVisible(context, fixture.bodyId());
 		context.takeScreenshot("rework-body-stage-" + stage + "-" + suffix);
 	}
 

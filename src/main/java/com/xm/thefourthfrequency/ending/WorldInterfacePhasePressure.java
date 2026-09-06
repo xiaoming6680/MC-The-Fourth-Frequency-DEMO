@@ -113,6 +113,11 @@ public final class WorldInterfacePhasePressure {
 		return BEAM_COUNT[clamp(form)];
 	}
 
+	/** One central mouth in forms 1/2, the two flanking mouths in form 3. */
+	public static int laserHead(int form, int beam) {
+		return laserBeamCount(form) == 1 ? 0 : 1 + Math.clamp(beam, 0, 1);
+	}
+
 	/**
 	 * The yaw this beam is rotated by around the core, in radians.
 	 *

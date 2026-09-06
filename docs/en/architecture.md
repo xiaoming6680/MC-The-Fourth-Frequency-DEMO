@@ -94,6 +94,7 @@ The old start-of-game pre-allocation (searching 256 chunks from Station Zero wit
 
 - The four damaged files' **discovery state belongs to the world**; **reading state and full-journal access belong to the terminal's owner**.
 - Roughly 50% of each file's fragments render in a scattered, explicitly non-garbled style; discovery count controls only the journal title's recovery, reading count only the 0–100% unlock.
+- **The device manual pages are outside this investigation.** Four pages are issued as their tools unlock and live in the same file store, but they are not in `HiddenFilePolicy.FILE_IDS`: they do not move the discovery count, the read percentage, or the journal's unlock condition. The roster and the issuing rule are in `narrative/DeviceManualPolicy` (a pure class).
 - Each player unlocks the full journal by reading all four themselves; unlocking **generates no extra files, blocks or world structures**.
 - After first assignment, one **idempotent rescue assignment** runs over any file still empty, so legacy or edge-case data cannot leave a permanently blank file.
 - File notices use a separate server-side unread counter, cleared by visiting `FILES`; it does not write per-file reading state.

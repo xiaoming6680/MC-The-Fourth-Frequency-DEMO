@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.entity;
 
 import net.minecraft.util.Mth;
+import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -44,6 +45,8 @@ public final class WorldInterfaceRig {
 	/** The {@code hover} bone's offset inside the layer; every storm-body coordinate is under it. */
 	public static final float HOVER_Y = 12.0F;
 	public static final int TENDRIL_COUNT = WorldInterfaceClips.TENDRIL_COUNT;
+	public static final int FLEX_JOINTS_PER_LINK = 5;
+	public static final String[] TENDRIL_LINK_SUFFIXES = {"", "_mid", "_tip"};
 	public static final String[] HEAD_PREFIX = WorldInterfaceClips.HEADS;
 
 	public static final String ROOT = "root";
@@ -205,6 +208,10 @@ public final class WorldInterfaceRig {
 			xScale = yScale = zScale = 1.0F;
 		}
 
+		public String parentName() {
+			return parent == null ? null : parent.name;
+		}
+
 		public void offsetPosition(float dx, float dy, float dz) {
 			x += dx;
 			y += dy;
@@ -315,6 +322,16 @@ public final class WorldInterfaceRig {
 					SKULL_CENTRE_Y_UNITS * headScale(head), 0.0D);
 		}
 
+		/** Aperture between the upper lip and moving mandible, in the posed skull's frame. */
+		public Vec3 mouthOffset(int index) {
+			int head = Math.clamp(index, 0, WorldInterfaceAnatomy.HEAD_COUNT - 1);
+			double scale = headScale(head);
+			String prefix = HEAD_PREFIX[head];
+			Vec3 upper = offset(prefix + "_skull", 0, 0.3D * scale, -7.4D * scale);
+			Vec3 lower = offset(prefix + "_jaw", 0, 1.0D * scale, -6.4D * scale);
+			return upper.lerp(lower, 0.5D);
+		}
+
 		/** Where a neck link starts, so a proxy can be hung on the drawn bone rather than near it. */
 		public Vec3 neckJointOffset(int index, int joint) {
 			int head = Math.clamp(index, 0, WorldInterfaceAnatomy.HEAD_COUNT - 1);
@@ -329,7 +346,9 @@ public final class WorldInterfaceRig {
 		/** Both ends of a limb's last link: the stretch that actually reaches the floor. */
 		public Vec3 tendrilTipOffset(int index, boolean far) {
 			int limb = Math.clamp(index, 0, TENDRIL_COUNT - 1);
-			return offset("tendril_" + limb + "_tip", 0.0D, far ? tendrilTipLength(limb) : 0.0D, 0.0D);
+			return far ? offset("tendril_" + limb + "_tip_flex_" + FLEX_JOINTS_PER_LINK, 0.0D,
+					tendrilTipLength(limb) / (FLEX_JOINTS_PER_LINK + 1.0D), 0.0D)
+					: offset("tendril_" + limb + "_tip", 0.0D, 0.0D, 0.0D);
 		}
 	}
 
@@ -362,10 +381,26 @@ public final class WorldInterfaceRig {
 		}
 		for (int index = 0; index < TENDRIL_COUNT; index++) {
 			Bone limb = add(bones, "tendril_" + index, body, tendrilRootPose(index));
-			Bone mid = add(bones, "tendril_" + index + "_mid", limb, tendrilMidPose(index));
-			add(bones, "tendril_" + index + "_tip", mid, tendrilTipPose(index));
+			Bone upperEnd = flexLink(bones, limb, tendrilLength(index));
+			float[] midPose = tendrilMidPose(index);
+			midPose[1] -= tendrilLength(index) * FLEX_JOINTS_PER_LINK / (FLEX_JOINTS_PER_LINK + 1.0F);
+			Bone mid = add(bones, "tendril_" + index + "_mid", upperEnd, midPose);
+			Bone midEnd = flexLink(bones, mid, tendrilLength(index) * 0.88F);
+			float[] tipPose = tendrilTipPose(index);
+			tipPose[1] -= tendrilLength(index) * 0.88F * FLEX_JOINTS_PER_LINK / (FLEX_JOINTS_PER_LINK + 1.0F);
+			Bone tip = add(bones, "tendril_" + index + "_tip", midEnd, tipPose);
+			flexLink(bones, tip, tendrilTipLength(index));
 		}
 		return new Pose(bones, form, renderScale);
+	}
+
+	private static Bone flexLink(Map<String, Bone> bones, Bone link, float length) {
+		Bone parent = link;
+		for (int joint = 1; joint <= FLEX_JOINTS_PER_LINK; joint++) {
+			parent = add(bones, link.name + "_flex_" + joint, parent,
+					0, length / (FLEX_JOINTS_PER_LINK + 1.0F), 0, 0, 0, 0);
+		}
+		return parent;
 	}
 
 	private static Bone add(Map<String, Bone> bones, String name, Bone parent, float x, float y, float z,
@@ -410,6 +445,7 @@ public final class WorldInterfaceRig {
 			clip.apply(pose, actionAgeMillis);
 		}
 		procedural(pose, clamped, ageInTicks, healthFraction, actionCharge(actionId, actionAgeMillis));
+		flexMotion(pose, clamped, ageInTicks, actionId, actionAgeMillis);
 		headGaze(pose, gazeYaw, gazePitch);
 		return pose;
 	}
@@ -427,6 +463,18 @@ public final class WorldInterfaceRig {
 	 * stated against the shape. The neck growth is included because it <em>is</em> the form: a morph
 	 * lengthening the necks is not an animation, it is what the second and third forms are.
 	 */
+	/**
+	 * The skeleton exactly as authored: bind offsets and rotations, no form, no growth, no clock.
+	 *
+	 * <p>This is the contract the Blockbench model is built against. Every animated bone in
+	 * {@code world_interface.bbmodel} has to carry this pivot and this rotation, or the geometry
+	 * drawn under it and the hit box the server hangs off it part company; the geometry contract
+	 * test compares the two directly.
+	 */
+	public static Pose bindPose() {
+		return skeleton(0, WorldInterfaceAnatomy.formScale(0));
+	}
+
 	public static Pose restPose(int form) {
 		int clamped = Math.clamp(form, 0, WorldInterfaceAnatomy.FORM_COUNT - 1);
 		Pose pose = skeleton(clamped, WorldInterfaceAnatomy.formScale(clamped));
@@ -462,12 +510,22 @@ public final class WorldInterfaceRig {
 	 */
 	public static float actionCharge(int actionId, long actionAgeMillis) {
 		if (actionId <= 0 || actionAgeMillis < 0L) return -1.0F;
-		if (actionAgeMillis <= ACTION_CHARGE_MILLIS) {
-			return Mth.clamp(actionAgeMillis / (float) ACTION_CHARGE_MILLIS, 0.0F, 1.0F);
+		long chargeMillis = switch(actionId) {
+			case 1 -> WorldInterfaceProtocol.LASER_WARNING_TICKS * 50L;
+			case 2 -> WorldInterfaceProtocol.ORB_WARNING_TICKS * 50L;
+			case 4 -> (WorldInterfaceProtocol.SKY_LANCE_LOCK_TICKS + WorldInterfaceProtocol.SKY_LANCE_CHARGE_TICKS) * 50L;
+			case 5 -> WorldInterfaceProtocol.WEAPON_WARNING_TICKS * 50L;
+			case 6 -> WorldInterfaceProtocol.GRAB_WARNING_TICKS * 50L;
+			case 7 -> WorldInterfaceProtocol.HOTBAR_WARNING_TICKS * 50L;
+			case 8 -> WorldInterfaceProtocol.TENDRIL_WARNING_TICKS * 50L;
+			default -> ACTION_CHARGE_MILLIS;
+		};
+		if (actionAgeMillis <= chargeMillis) {
+			return HorrorMotion.ease(actionAgeMillis / (float) chargeMillis);
 		}
-		long since = actionAgeMillis - ACTION_CHARGE_MILLIS;
+		long since = actionAgeMillis - chargeMillis;
 		if (since >= ACTION_CHARGE_RELEASE_MILLIS) return -1.0F;
-		return 1.0F - since / (float) ACTION_CHARGE_RELEASE_MILLIS;
+		return 1.0F - HorrorMotion.ease(since / (float) ACTION_CHARGE_RELEASE_MILLIS);
 	}
 
 	/**
@@ -650,6 +708,42 @@ public final class WorldInterfaceRig {
 			tip.xRot += Mth.sin((time - LIMB_LAG_TICKS * 2.0F) * rate + phase) * 0.30F;
 			tip.zRot += Mth.cos((time - LIMB_LAG_TICKS * 2.0F) * rate * 0.8F + phase) * 0.22F;
 		}
+	}
+
+	/** Travelling curvature reaches the distal links after the root has already braked. */
+	private static void flexMotion(Pose pose, int form, float time, int action, long actionMillis) {
+		for (int limb = 0; limb < WorldInterfaceAnatomy.tentacleCount(form); limb++) {
+			int serial = 0;
+			for (String suffix : TENDRIL_LINK_SUFFIXES) {
+				for (int joint = 1; joint <= FLEX_JOINTS_PER_LINK; joint++) {
+					serial++;
+					Bone bend = pose.bone("tendril_" + limb + suffix + "_flex_" + joint);
+					float delayed = time - serial * 1.2F;
+					float phase = limb * 1.73F;
+					float gain = 0.026F + serial * 0.004F;
+					bend.xRot += Mth.sin(delayed * 0.062F + phase) * gain;
+					bend.zRot += Mth.sin(delayed * 0.045F + phase + 1.2F) * gain;
+					bend.yRot += Mth.sin(delayed * 0.027F + phase) * gain * 0.3F;
+					if (action == 8) {
+						float seconds = actionMillis / 1000.0F;
+						for (int strike = 0; strike < 3; strike++) {
+							if (limb != strike % WorldInterfaceAnatomy.tentacleCount(form)) continue;
+							float t = seconds - ((com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_WARNING_TICKS + com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_STRIKE_TELEGRAPH_TICKS + strike * com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_STRIKE_INTERVAL_TICKS) / 20.0F) - serial * 0.018F;
+							float snap = bell(t, -0.95F, -0.20F, 0.0F) * -0.13F
+									+ bell(t, -0.14F, 0.08F, 0.32F) * 0.24F
+									- bell(t, 0.25F, 0.5F, 0.85F) * 0.10F;
+							bend.xRot += snap * (0.40F + serial * 0.026F);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private static float bell(float time, float start, float peak, float end) {
+		if (time <= start || time >= end) return 0;
+		float t = time < peak ? (time - start) / (peak - start) : (end - time) / (end - peak);
+		return t * t * (3.0F - 2.0F * t);
 	}
 
 	/** The shell remembers what it has taken: the necks stop returning to true between breaths. */

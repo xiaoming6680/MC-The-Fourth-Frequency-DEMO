@@ -57,7 +57,7 @@ public final class PursuitSessionService {
 
 		BlockPos origin = player.blockPosition();
 		String sessionId = UUID.randomUUID().toString();
-		int normalizedForm = Math.clamp(form, 1, 5);
+		int normalizedForm = Math.clamp(form, 1, PursuitProgressPolicy.FORM_COUNT);
 		FrequencyWorldData data = FrequencyWorldData.get(source.getServer());
 		data.updateTerminalRecord(player.getUUID(), record -> {
 			record.putBoolean(TerminalData.PURSUIT_ACTIVE, true);

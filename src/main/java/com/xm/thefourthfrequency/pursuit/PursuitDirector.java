@@ -31,7 +31,7 @@ public final class PursuitDirector {
 	}
 
 	public static DebugStartResult debugStart(ServerPlayer player, int requestedForm) {
-		if (requestedForm < 1 || requestedForm > 5) return DebugStartResult.INVALID_FORM;
+		if (requestedForm < 1 || requestedForm > PursuitProgressPolicy.FORM_COUNT) return DebugStartResult.INVALID_FORM;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
 		if (record == null) return DebugStartResult.NO_TERMINAL_RECORD;

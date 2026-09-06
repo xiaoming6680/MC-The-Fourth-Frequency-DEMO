@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.terminal;
 
 import com.xm.thefourthfrequency.content.TerminalData;
+import com.xm.thefourthfrequency.narrative.DeviceManualPolicy;
 import com.xm.thefourthfrequency.narrative.TerminalFileState;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
 import com.xm.thefourthfrequency.world.TerminalLifecycleService;
@@ -57,8 +58,13 @@ public final class TerminalSignalService {
 			String dimension = player.level().dimension().identifier().toString();
 			tag.putString(TerminalData.LAST_SIGNAL_DIMENSION, dimension);
 
-			if (tag.getBooleanOr(TerminalData.BOUND, false))
+			if (tag.getBooleanOr(TerminalData.BOUND, false)) {
 				ensureFile(tag, "maintenance_handoff", true, now, dayTime, fileNotifications);
+				// One manual page per unlocked tool, off the same mask the tool grid draws from, so
+				// the documentation cannot describe something the player has no way to open yet.
+				for (String page : DeviceManualPolicy.earned(TerminalToolService.availableToolsMask(player, tag)))
+					ensureFile(tag, page, true, now, dayTime, fileNotifications);
+			}
 			projectionChanged[0] |= FragmentInvestigationService.synchronizeSharedFiles(tag, player, data, sharedReceipts);
 			projectionChanged[0] |= FragmentInvestigationService.ensureSignalMarkers(tag, player);
 			projectionChanged[0] |= FragmentInvestigationService.appendCandidateLogs(tag, player, data);

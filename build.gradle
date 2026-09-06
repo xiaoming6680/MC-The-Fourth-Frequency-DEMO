@@ -169,6 +169,40 @@ def unitTest = tasks.register("unitTest", JavaExec) {
 	}
 }
 
+// Bakes the world interface's Java model and writes it out as a Blockbench project, so the
+// skeleton the server poses reaches the editor with its real bone names, pivots and bind pose.
+tasks.register("exportWorldInterfaceBbmodel", JavaExec) {
+	group = "art"
+	description = "Exports WorldInterfaceModel.createLayer() as docs/art/world_interface/world_interface_runtime.bbmodel."
+	dependsOn tasks.named("testClasses")
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "com.xm.thefourthfrequency.art.WorldInterfaceBbmodelExport"
+	workingDir = projectDir
+}
+
+tasks.register("exportEntityBbmodels", JavaExec) {
+	group = "art"
+	description = "Exports entity anatomy with animation pivots for Blockbench MCP editing."
+	dependsOn tasks.named("testClasses")
+	javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "com.xm.thefourthfrequency.art.EntityBbmodelExport"
+	workingDir = projectDir
+}
+
+tasks.register("exportEntityMotion", JavaExec) {
+	group = "art"
+	description = "Samples runtime entity animation for Blockbench MCP motion inspection."
+	dependsOn tasks.named("testClasses")
+	javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "com.xm.thefourthfrequency.art.EntityMotionExport"
+	workingDir = projectDir
+}
+
 tasks.named("compileTestJava") {
 	dependsOn tasks.named("compileGametestJava")
 }
@@ -328,7 +362,7 @@ def clientAnomaly = providers.gradleProperty("tffAnomaly").orElse("")
 tasks.named("runClientGameTest") {
 	doFirst {
 		def suite = clientTestSuite.get().trim().toLowerCase(Locale.ROOT)
-		def allowed = ["all", "default", "mainline", "tools-ui", "notice-entry", "alpha-relaunch", "anomalies", "anomaly-meta-smoke", "rework-forms", "watcher-model", "world-interface", "terminal-3d", "screen-filters"]
+		def allowed = ["all", "default", "mainline", "tools-ui", "notice-entry", "alpha-relaunch", "anomalies", "anomaly-meta-smoke", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d", "screen-filters"]
 		if (!allowed.contains(suite)) throw new GradleException("Unknown -PtffClientTestSuite=${suite}")
 		def anomaly = clientAnomaly.get().trim()
 		if (!anomaly.isEmpty() && suite != "anomalies")
@@ -358,7 +392,7 @@ tasks.named("runClientGameTest") {
 	// terminal-3d joins them because it stages the shell by writing the player's inventory from the
 	// client - six forms and an off-hand torch - which is exactly the kind of write the
 	// synchronizer refuses.
-	if (["all", "default", "rework-forms", "watcher-model", "world-interface", "terminal-3d"]
+	if (["all", "default", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d"]
 			.contains(clientTestSuite.get().trim().toLowerCase(Locale.ROOT))) {
 		jvmArgs "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
 	}

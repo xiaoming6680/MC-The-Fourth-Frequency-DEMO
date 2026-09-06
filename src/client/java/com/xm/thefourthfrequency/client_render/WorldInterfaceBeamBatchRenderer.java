@@ -82,13 +82,16 @@ public final class WorldInterfaceBeamBatchRenderer {
 	public static final int MAX_VERTICES_PER_MOTE = 4;
 	public static final int STABILITY_FIELD_SAMPLES = 24;
 	public static final int MAX_STABILITY_FIELD_HALOS = MAX_ANCHOR_TETHERS * STABILITY_FIELD_SAMPLES;
+	public static final int PRESSURE_RING_SAMPLES = 48;
+	public static final int MAX_ACTION_STROKES = 512;
 	public static final int MAX_BATCH_VERTICES = MAX_ANCHOR_TETHERS * MAX_VERTICES_PER_TETHER
 			+ MAX_ANCHOR_TETHERS * MAX_VERTICES_PER_SNAPPED_TETHER
-			+ MAX_VERTICES_PER_LASER
+			+ MAX_VERTICES_PER_LASER * 2
 			+ MAX_VERTICES_PER_LANCE
 			+ MAX_ORB_HALOS * MAX_VERTICES_PER_ORB
 			+ MAX_STABILITY_FIELD_HALOS * 4
-			+ MAX_STORM_MOTES * MAX_VERTICES_PER_MOTE;
+			+ MAX_STORM_MOTES * MAX_VERTICES_PER_MOTE
+			+ MAX_ACTION_STROKES * 4;
 	public static final double FULL_DETAIL_DISTANCE = 96.0D;
 	// Well past the arena: culling is now left to the render distance rather than a fixed cap.
 	public static final double RENDER_CUTOFF_DISTANCE = 192.0D;
@@ -186,10 +189,11 @@ public final class WorldInterfaceBeamBatchRenderer {
 					Mth.rotLerp(partialTick, boss.yBodyRotO, boss.yBodyRot));
 			extractAnchorTethers(encounter, anchors, core, gameTime, band, beams);
 			extractSnappedTethers(level, encounter, core, partialTick, band, beams, halos);
-			extractLaser(level, projection, boss, core, gameTime, partialTick, band, beams, halos);
+			extractLaser(level, projection, boss, gameTime, partialTick, band, beams, halos);
 			extractSkyLance(level, projection, gameTime, partialTick, band, beams, halos);
 			extractOrbs(level, projection, encounter, core, gameTime, partialTick, band, beams, halos);
 			extractDebrisStorm(boss, core, camera, gameTime, partialTick, band, halos);
+			extractActionAtmosphere(level, projection, boss, core, gameTime, partialTick, band, beams, halos);
 		}
 
 		state.setData(STATE_KEY, beams.isEmpty() && halos.isEmpty() ? EMPTY
@@ -198,6 +202,134 @@ public final class WorldInterfaceBeamBatchRenderer {
 				: new BeamBatch(camera, new Vector3f(context.camera().upVector()),
 						new Vector3f(context.camera().leftVector()),
 						List.copyOf(beams), List.copyOf(halos)));
+	}
+
+	/** Geometry follows the same action clock and physical sockets as the model. */
+	private static void extractActionAtmosphere(ClientLevel level, WorldInterfaceClientState.Projection projection,
+			WorldInterfaceEntity boss, Vec3 core, long tick, float partial, int band, List<Beam> beams, List<Halo> halos) {
+		BossActionS2C action = projection.action();
+		if (action == null) return;
+		float age = tick - action.startTick() + partial;
+		if (age < 0 || age > action.duration() + 24) return;
+		int r = WorldInterfacePalette.red255(band), g = WorldInterfacePalette.green255(band), b = WorldInterfacePalette.blue255(band);
+		float life = com.xm.thefourthfrequency.entity.StormVfxCurves.presence(age, action.duration() + 24);
+		Vec3 mouth = WorldInterfaceAnatomy.mouthOrigin(boss, 0, partial);
+		Player target = laserTarget(level, action);
+		Vec3 targetPoint = target == null ? mouth.add(boss.getViewVector(partial).scale(12)) : target.getPosition(partial).add(0, .8, 0);
+		float mass = (float) WorldInterfaceAnatomy.massRadius(boss.form());
+		switch (action.action()) {
+			case LASER_SWEEP, ENERGY_ORB -> {
+				float warning = action.action() == WorldInterfaceProtocol.BossAction.LASER_SWEEP
+						? WorldInterfaceProtocol.LASER_WARNING_TICKS : WorldInterfaceProtocol.ORB_WARNING_TICKS;
+				int barrels = action.action() == WorldInterfaceProtocol.BossAction.LASER_SWEEP
+						? WorldInterfacePhasePressure.laserBeamCount(boss.form()) : 1;
+				for (int barrel=0; barrel<barrels; barrel++) {
+					int head = action.action() == WorldInterfaceProtocol.BossAction.LASER_SWEEP
+							? WorldInterfacePhasePressure.laserHead(boss.form(),barrel) : 0;
+					Vec3 socket = WorldInterfaceAnatomy.mouthOrigin(boss, head, partial);
+					if(age < warning) gather(beams,socket,targetPoint.subtract(socket),age,mass*.7F,life,r,g,b);
+					else {
+						float release = age-warning;
+						pressureRing(beams,socket,targetPoint.subtract(socket),release,18,mass*.9F,r,g,b);
+						if(action.action()==WorldInterfaceProtocol.BossAction.LASER_SWEEP) {
+							Vec3 end = laserEnd(level,boss,action,tick,partial);
+							Vec3 impact = groundUnder(level,WorldInterfacePhasePressure.swingAroundY(mouth,end,
+									WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(),barrel)));
+							pressureRing(beams,impact.add(0,.17,0),new Vec3(0,1,0),release,55,11+boss.form()*3,r,g,b);
+							fractureSparks(beams,impact,release,life,r,g,b);
+						}
+					}
+				}
+			}
+			case SKY_LANCE -> {
+				if(lanceImpact==null) return;
+				float strike=WorldInterfaceProtocol.SKY_LANCE_LOCK_TICKS+WorldInterfaceProtocol.SKY_LANCE_CHARGE_TICKS;
+				if(age<strike)gather(beams,lanceImpact.add(0,SKY_LANCE_HEIGHT,0),new Vec3(0,-1,0),age,8,life,r,g,b);
+				else {
+					pressureRing(beams,lanceImpact.add(0,.2,0),new Vec3(0,1,0),age-strike,26,23,r,g,b);
+					pressureRing(beams,lanceImpact.add(0,.6,0),new Vec3(0,1,0),age-strike-4,26,17,r,g,b);
+					fractureSparks(beams,lanceImpact,age-strike,life,r,g,b);
+				}
+			}
+			case TENDRIL_LASH -> {
+				var pose=boss.rigPose();
+				for(int limb=0;limb<WorldInterfaceAnatomy.tentacleCount(boss.form());limb++) {
+					Vec3 tip=boss.getPosition(partial).add(WorldInterfaceAnatomy.rotate(pose.tendrilTipOffset(limb,true),boss.yBodyRot));
+					Vec3 base=boss.getPosition(partial).add(WorldInterfaceAnatomy.rotate(pose.tendrilTipOffset(limb,false),boss.yBodyRot));
+					stroke(beams,base,tip,.085F,r,g,b,Math.round(125*life));
+				}
+			}
+			case WEAPON_CHARGE, GRAB_THROW, HOTBAR_PURGE, FORCED_EXPULSION -> {
+				Vec3 source=action.action()==WorldInterfaceProtocol.BossAction.WEAPON_CHARGE?core:mouth;
+				Vec3 axis=targetPoint.subtract(source);
+				braid(beams,source,targetPoint,age,.35F+boss.form()*.12F,life,r,g,b);
+				gather(beams,source,axis,age,mass*.55F,life,r,g,b);
+			}
+			case SUMMONING, MORPH_TO_SECOND, MORPH_TO_THIRD, SUCCESS_DEATH, FAILURE_ESCAPE -> {
+				float duration=Math.max(1,action.duration());
+				gather(beams,core,new Vec3(0,1,0),age,mass*2,life,r,g,b);
+				for(int ring=0;ring<3;ring++)pressureRing(beams,core.add(0,(ring-1)*mass*.35,0),
+						new Vec3(.12*(ring-1),1,.17),age-duration*.48F-ring*5,42,mass*(2.5F+ring*.45F),r,g,b);
+			}
+			case NONE -> { }
+		}
+	}
+
+	private static Vec3 perpendicular(Vec3 direction) {
+		Vec3 axis=direction.lengthSqr()<1e-8?new Vec3(0,1,0):direction.normalize();
+		return axis.cross(Math.abs(axis.y)>.9?new Vec3(1,0,0):new Vec3(0,1,0)).normalize();
+	}
+	private static void pressureRing(List<Beam> out,Vec3 center,Vec3 normal,float age,float duration,float reach,int r,int g,int b) {
+		float alpha=com.xm.thefourthfrequency.entity.StormVfxCurves.presence(age,duration);
+		if(alpha<=.001F)return;
+		float radius=com.xm.thefourthfrequency.entity.StormVfxCurves.shockRadius(age,duration,reach);
+		Vec3 u=perpendicular(normal),v=normal.normalize().cross(u);
+		Vec3 previous=center.add(u.scale(radius));
+		for(int i=1;i<=PRESSURE_RING_SAMPLES;i++) {
+			double theta=i*Math.PI*2/PRESSURE_RING_SAMPLES;
+			Vec3 point=center.add(u.scale(Math.cos(theta)*radius)).add(v.scale(Math.sin(theta)*radius));
+			stroke(out,previous,point,.10F+alpha*.16F,r,g,b,Math.round(175*alpha));previous=point;
+		}
+	}
+	private static void gather(List<Beam> out,Vec3 socket,Vec3 direction,float age,float radius,float life,int r,int g,int b) {
+		Vec3 axis=direction.normalize(),u=perpendicular(direction),v=axis.cross(u);
+		for(int strand=0;strand<12;strand++) {
+			float phase=com.xm.thefourthfrequency.entity.StormVfxCurves.strandPhase(age,strand);
+			float alpha=(float)Math.sin(phase*Math.PI)*life;
+			Vec3 previous=null;
+			for(int step=0;step<7;step++) {
+				float t=Math.clamp(phase-step*.025F,0,1),distance=(1-t)*radius;
+				double angle=strand*2.399963+age*.018+t*2.5;
+				Vec3 point=socket.add(u.scale(Math.cos(angle)*distance)).add(v.scale(Math.sin(angle)*distance))
+						.add(axis.scale(distance*.45));
+				if(previous!=null)stroke(out,previous,point,.035F+phase*.035F,r,g,b,Math.round(alpha*(160-step*18)));
+				previous=point;
+			}
+		}
+	}
+	private static void braid(List<Beam> out,Vec3 a,Vec3 b,float age,float radius,float life,int r,int g,int blue) {
+		Vec3 axis=b.subtract(a),u=perpendicular(axis),v=axis.normalize().cross(u);
+		for(int thread=0;thread<3;thread++) {
+			Vec3 previous=a;
+			for(int i=1;i<=24;i++) {
+				float t=i/24F;double angle=t*13-age*.10+thread*Math.PI*2/3;
+				double width=Math.sin(t*Math.PI)*radius;
+				Vec3 point=a.lerp(b,t).add(u.scale(Math.cos(angle)*width)).add(v.scale(Math.sin(angle)*width));
+				stroke(out,previous,point,.045F,r,g,blue,Math.round(105*life));previous=point;
+			}
+		}
+	}
+	private static void fractureSparks(List<Beam> out,Vec3 center,float age,float life,int r,int g,int b) {
+		for(int i=0;i<18;i++) {
+			float t=(age+i*1.73F)%19/19F,alpha=(float)Math.sin(t*Math.PI)*life;
+			double theta=i*2.399963,radius=t*(4+i%5);
+			Vec3 p=center.add(Math.cos(theta)*radius,Math.sin(t*Math.PI)*(1.5+i%4),Math.sin(theta)*radius);
+			Vec3 tail=p.add(-Math.cos(theta)*.65,-.25,-Math.sin(theta)*.65);
+			stroke(out,tail,p,.045F,r,g,b,Math.round(210*alpha));
+		}
+	}
+	private static void stroke(List<Beam> out,Vec3 a,Vec3 b,float width,int r,int g,int blue,int alpha) {
+		if(alpha>0)out.add(new Beam(a.x,a.y,a.z,b.x,b.y,b.z,width,r,g,blue,Math.clamp(alpha,0,255)));
 	}
 
 	/**
@@ -286,7 +418,7 @@ public final class WorldInterfaceBeamBatchRenderer {
 	}
 
 	private static void extractLaser(ClientLevel level, WorldInterfaceClientState.Projection projection,
-			WorldInterfaceEntity boss, Vec3 core, long gameTime, float partialTick, int band,
+			WorldInterfaceEntity boss, long gameTime, float partialTick, int band,
 			List<Beam> beams, List<Halo> halos) {
 		BossActionS2C action = projection.action();
 		if (action == null || action.action() != WorldInterfaceProtocol.BossAction.LASER_SWEEP) return;
@@ -296,18 +428,22 @@ public final class WorldInterfaceBeamBatchRenderer {
 		if (age < 0.0F || age > LASER_FIRE_TICKS) return;
 
 		Vec3 primaryEnd = laserEnd(level, boss, action, gameTime, partialTick);
+		Vec3 aimOrigin = WorldInterfaceAnatomy.mouthOrigin(boss, 0, partialTick);
 		int red = WorldInterfacePalette.red255(band);
 		int green = WorldInterfacePalette.green255(band);
 		int blue = WorldInterfacePalette.blue255(band);
-		double muzzle = WorldInterfaceAnatomy.coreRadius(boss.form());
 		// The third form fires two, swung symmetrically about the aim. Derived from the same offsets
 		// the server uses rather than sent, so the two halves cannot drift apart.
 		int barrels = WorldInterfacePhasePressure.laserBeamCount(boss.form());
 		float widthScale = (float) WorldInterfacePhasePressure.beamScale(boss.form());
 		for (int barrel = 0; barrel < barrels; barrel++) {
-			Vec3 end = groundUnder(level, WorldInterfacePhasePressure.swingAroundY(core, primaryEnd,
+			double muzzle = WorldInterfaceAnatomy.mouthRadius(boss.form(),
+					WorldInterfacePhasePressure.laserHead(boss.form(), barrel));
+			Vec3 mouth = WorldInterfaceAnatomy.mouthOrigin(boss,
+					WorldInterfacePhasePressure.laserHead(boss.form(), barrel), partialTick);
+			Vec3 end = groundUnder(level, WorldInterfacePhasePressure.swingAroundY(aimOrigin, primaryEnd,
 					WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(), barrel)));
-			extractLaserBarrel(boss, core, end, action, age, muzzle, widthScale,
+			extractLaserBarrel(boss, mouth, end, action, age, muzzle, widthScale,
 					red, green, blue, beams, halos);
 		}
 	}

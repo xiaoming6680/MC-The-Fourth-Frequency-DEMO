@@ -41,33 +41,19 @@ public final class WorldInterfaceVfx {
 	private WorldInterfaceVfx() {
 	}
 
-	/**
-	 * The arena's violet, as a rune rather than as a dot.
-	 *
-	 * <p>This used to be a tinted {@code ENTITY_EFFECT} - the potion swirl - which is the smallest,
-	 * flattest particle in the game and the one every player's eye has been trained to ignore for
-	 * ten years. Sixty rings drawn out of it read as haze. {@code WITCH} is the same violet at
-	 * several times the size, with a shape that survives being seen at fifty blocks, which is the
-	 * distance most of this fight is watched from.</p>
-	 */
+	/** Short-lived violet filaments with a dedicated angular sprite. */
 	public static ParticleOptions violet() {
-		return ParticleTypes.WITCH;
+		return com.xm.thefourthfrequency.content.ModParticles.STORM_FILAMENT;
 	}
 
-	/**
-	 * The hot core, as flame rather than as a dot.
-	 *
-	 * <p>{@code SOUL_FIRE_FLAME} draws a trail behind itself, so a ring of it is a ring that has
-	 * <em>turned</em> and a helix of it is visibly travelling. That motion is most of what makes the
-	 * beams and the shells read as energy instead of as geometry.</p>
-	 */
+	/** Bright shard-shaped embers with a short fading trail. */
 	public static ParticleOptions core() {
-		return ParticleTypes.SOUL_FIRE_FLAME;
+		return com.xm.thefourthfrequency.content.ModParticles.STORM_EMBER;
 	}
 
 	/** Sigils, for the rings that are supposed to look written rather than drawn. */
 	public static ParticleOptions sigil() {
-		return ParticleTypes.ENCHANT;
+		return com.xm.thefourthfrequency.content.ModParticles.STORM_SIGIL;
 	}
 
 	/** The colour-carrying mote, for the few places that genuinely need an arbitrary tint. */

@@ -4,7 +4,7 @@ import com.xm.thefourthfrequency.world.SurvivalMilestone;
 
 /** Pure progression rules shared by the director, terminal and persistence tests. */
 public final class PursuitProgressPolicy {
-	public static final int FORM_COUNT = 5;
+	public static final int FORM_COUNT = com.xm.thefourthfrequency.correction.ReworkFormStage.MAX_STAGE;
 	public static final int REQUIRED_EYE_SAMPLES = 3;
 	/** Upper bound for the stored encounter counter, which is now a record rather than a gate. */
 	public static final int MAX_TRACKED_ENCOUNTERS = 99;
@@ -27,10 +27,8 @@ public final class PursuitProgressPolicy {
 	}
 
 	public static int allowedForm(int milestones, int eyeSamples, boolean earlyFormEligible) {
-		if (SurvivalMilestone.FOUND_STRONGHOLD.present(milestones)) return 5;
-		if (Math.max(0, eyeSamples) >= REQUIRED_EYE_SAMPLES) return 4;
-		if (SurvivalMilestone.RETURNED_NETHER.present(milestones)
-				&& SurvivalMilestone.COLLECTED_BLAZE_RODS.present(milestones)) return 3;
+		if (SurvivalMilestone.FOUND_STRONGHOLD.present(milestones)
+				|| Math.max(0, eyeSamples) >= REQUIRED_EYE_SAMPLES) return 3;
 		if (SurvivalMilestone.ENTERED_NETHER.present(milestones)) return 2;
 		return earlyFormEligible ? 1 : 0;
 	}
@@ -112,7 +110,7 @@ public final class PursuitProgressPolicy {
 	}
 
 	public static int terminalVisualStage(int resolvedChases, int allowedForm, int anomalyStage) {
-		if (resolvedChases >= 3 && allowedForm >= 4 && anomalyStage >= 4) return 2;
+		if (resolvedChases >= 2 && allowedForm >= 3 && anomalyStage >= 4) return 2;
 		return resolvedChases >= 1 ? 1 : 0;
 	}
 }

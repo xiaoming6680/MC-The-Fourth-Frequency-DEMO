@@ -1,5 +1,7 @@
 package com.xm.thefourthfrequency.ending;
 
+import com.xm.thefourthfrequency.entity.WorldInterfaceRig;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -49,19 +51,17 @@ final class WorldInterfaceBoneBindingTest {
 	private static final String[] HEADS = {"center", "left", "right"};
 	private static final int TENDRILS = 10;
 
-	/** Bone names declared by {@code createLayer}, with every loop expanded. */
+	/**
+	 * Bone names in the exported geometry.
+	 *
+	 * <p>The model used to declare its bones in Java, and this parsed {@code createLayer} for them.
+	 * They are authored in Blockbench now and exported to {@code world_interface.json}, which is
+	 * what the client bakes - so it is the JSON, not any source file, that has to carry every bone
+	 * a clip addresses. Synthetic bones the exporter makes for rotated cubes are named
+	 * {@code <bone>/<cube>} and can never collide with an authored name.
+	 */
 	private static List<String> modelBones() throws Exception {
-		String model = Files.readString(CLIENT.resolve("WorldInterfaceModel.java"), StandardCharsets.UTF_8);
-		Matcher matcher = Pattern.compile(
-				"addOrReplaceChild\\(\\s*(.*?),\\s*CubeListBuilder", Pattern.DOTALL).matcher(model);
-		List<String> bones = new ArrayList<>();
-		int declarations = 0;
-		while (matcher.find()) {
-			declarations++;
-			bones.addAll(expand(matcher.group(1).replaceAll("\\s+", " ").trim()));
-		}
-		assertTrue(declarations >= 20, "parsed too few bone declarations: " + declarations);
-		return bones;
+		return new ArrayList<>(WorldInterfaceGeometryContractTest.bones().keySet());
 	}
 
 	/** Bone names addressed by clips in {@code WorldInterfaceClips}. */
@@ -216,16 +216,27 @@ final class WorldInterfaceBoneBindingTest {
 	@Test
 	void theAdvertisedBoneCountMatchesTheSkeleton() throws Exception {
 		Set<String> declared = new LinkedHashSet<>(modelBones());
-		// Structural bones plus the three head chains plus the four-link limbs, and the layer root,
-		// which createLayer is handed rather than declaring.
-		// expand() already drops bake-time clutter, so everything left is addressable. The +1 is the
-		// layer root, which createLayer is handed rather than declaring.
-		long addressable = declared.size() + 1;
+		// The addressable skeleton: structural bones, the three six-link head chains and the ten
+		// four-link limbs, plus the layer root, which createLayer is handed rather than declaring.
+		Set<String> addressable = new LinkedHashSet<>(List.of("hover", "storm_body", "shell_base",
+				"phase_2_accretion", "phase_3_accretion", "interface_kernel", "kernel_glow", "weapon"));
+		for (String head : HEADS) {
+			for (String link : HEAD_LINKS) addressable.add(head + link);
+			addressable.add(head + "_eye_0");
+		}
+		for (int index = 0; index < TENDRILS; index++) {
+			for (String link : LIMB_LINKS) addressable.add("tendril_" + index + link);
+			for (String link : List.of("", "_mid", "_tip")) {
+				for (int joint = 1; joint <= WorldInterfaceRig.FLEX_JOINTS_PER_LINK; joint++) {
+					addressable.add("tendril_" + index + link + "_flex_" + joint);
+				}
+			}
+		}
+		for (String bone : addressable) assertTrue(declared.contains(bone), "missing bone: " + bone);
 		String model = Files.readString(CLIENT.resolve("WorldInterfaceModel.java"), StandardCharsets.UTF_8);
 		Matcher stated = Pattern.compile("ANIMATED_BONE_COUNT = (\\d+)").matcher(model);
 		assertTrue(stated.find(), "the model no longer states its bone count");
-		assertEquals(Integer.parseInt(stated.group(1)), (int) addressable,
-				"ANIMATED_BONE_COUNT has drifted from the skeleton the model actually builds");
+		assertEquals(Integer.parseInt(stated.group(1)), addressable.size() + 1,
+				"ANIMATED_BONE_COUNT has drifted from the skeleton the model actually addresses");
 	}
-
 }

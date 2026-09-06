@@ -124,12 +124,11 @@ public final class HimEntity extends Monster {
 		double dz = player.getZ() - getZ();
 		if (dx * dx + dz * dz < 1.0E-6D) return;
 		float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
-		setYRot(yaw);
-		setYBodyRot(yaw);
-		setYHeadRot(yaw);
-		yRotO = yaw;
-		yBodyRotO = yaw;
-		yHeadRotO = yaw;
+		// The head finds the player first; the pinned body catches up without a one-frame spin.
+		setYHeadRot(Mth.approachDegrees(getYHeadRot(), yaw, 8.0F));
+		float bodyYaw = Mth.approachDegrees(yBodyRot, yaw, 2.5F);
+		setYRot(bodyYaw);
+		setYBodyRot(bodyYaw);
 	}
 
 	@Override

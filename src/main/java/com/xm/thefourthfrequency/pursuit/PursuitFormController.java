@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** Server-side five-form chase mechanics and authoritative resolution. */
+/** Server-side three-form chase mechanics and authoritative resolution. */
 public final class PursuitFormController {
 	private static final long RESOLUTION_TICKS = 60L;
 	private static final double MIN_PLAYER_MAX_HEALTH = 2.0D;
@@ -81,8 +81,8 @@ public final class PursuitFormController {
 		ReworkEntity entity = spawn(level, player, sessionId, form);
 		if (entity == null) return false;
 		long now = level.getGameTime();
-		int normalizedForm = Math.clamp(form, 1, 5);
-		ACTIVE.put(player.getUUID(), new Runtime(player.getUUID(), sessionId, Math.clamp(form, 1, 5),
+		int normalizedForm = Math.clamp(form, 1, PursuitProgressPolicy.FORM_COUNT);
+		ACTIVE.put(player.getUUID(), new Runtime(player.getUUID(), sessionId, Math.clamp(form, 1, PursuitProgressPolicy.FORM_COUNT),
 				entity.getUUID(), now + PursuitFormPolicy.forForm(normalizedForm).durationTicks(),
 				player.position(), debugSession));
 		PursuitVisibilityService.isolate(player);
@@ -233,24 +233,12 @@ public final class PursuitFormController {
 			}
 			case 2 -> {
 				rework.setPursuitTracking(true);
-			}
-			case 3 -> {
-				rework.setPursuitTracking(true);
 				if (level.getGameTime() % 100L == 0L && movement.horizontalDistanceSqr() > 0.01D) {
 					Vec3 direction = movement.multiply(1.0D, 0.0D, 1.0D).normalize();
 					reposition(level, rework, player.position().add(direction.scale(10.0D)), runtime);
 				}
 			}
-			case 4 -> {
-				rework.setPursuitTracking(true);
-				long cycle = level.getGameTime() % 140L;
-				if (cycle == 130L) {
-					Vec3 behind = player.getLookAngle().multiply(-4.0D, 0.0D, -4.0D)
-							.add(player.position()).add(0.0D, 2.5D, 0.0D);
-					reposition(level, rework, behind, runtime);
-				}
-			}
-			case 5 -> {
+			case 3 -> {
 				rework.setPursuitTracking(true);
 			}
 			default -> rework.setPursuitTracking(true);

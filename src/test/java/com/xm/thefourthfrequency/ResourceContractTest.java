@@ -136,10 +136,10 @@ final class ResourceContractTest {
 	}
 
 	@Test
-	void reworkBodyUsesFiveDistinctOpaqueBasesAndTwoSparseEmissiveMasks() throws Exception {
+	void reworkBodyUsesThreeDistinctOpaqueBasesAndTwoSparseEmissiveMasks() throws Exception {
 		Path entityTextures = ASSETS.resolve("textures/entity");
 		Set<Integer> baseHashes = new HashSet<>();
-		for (int stage = 1; stage <= 5; stage++) {
+		for (int stage = 1; stage <= 3; stage++) {
 			Path path = entityTextures.resolve("rework_body_stage_" + stage + ".png");
 			assertTrue(Files.isRegularFile(path), path.toString());
 			var image = ImageIO.read(path.toFile());
@@ -152,10 +152,10 @@ final class ResourceContractTest {
 			assertTrue(baseHashes.add(java.util.Arrays.hashCode(Files.readAllBytes(path))),
 					"duplicate base texture at stage " + stage);
 		}
-		assertEquals(5, baseHashes.size());
+		assertEquals(3, baseHashes.size());
 
 		Set<Integer> emissiveHashes = new HashSet<>();
-		for (int stage = 4; stage <= 5; stage++) {
+		for (int stage = 2; stage <= 3; stage++) {
 			Path path = entityTextures.resolve("rework_body_stage_" + stage + "_emissive.png");
 			assertTrue(Files.isRegularFile(path), path.toString());
 			var image = ImageIO.read(path.toFile());
@@ -174,8 +174,8 @@ final class ResourceContractTest {
 				visible++;
 				maxAlpha = Math.max(maxAlpha, alpha);
 				boolean faceOrMouth = x >= 140 && x < 246 && y >= 0 && y < 66;
-				boolean torsoCrack = stage == 5 && x >= 0 && x < 54 && y >= 0 && y < 48;
-				boolean exposedSpine = stage == 5 && x >= 198 && x < 252 && y >= 128 && y < 202;
+				boolean torsoCrack = stage == 3 && x >= 0 && x < 54 && y >= 0 && y < 48;
+				boolean exposedSpine = stage == 3 && x >= 198 && x < 252 && y >= 128 && y < 202;
 				assertTrue(faceOrMouth || torsoCrack || exposedSpine,
 						"emissive escaped approved UV islands at stage " + stage + ":" + x + "," + y);
 			}
@@ -799,6 +799,155 @@ final class ResourceContractTest {
 		assertTrue(markReadStart >= 0 && markReadEnd > markReadStart);
 		assertFalse(runtime.substring(markReadStart, markReadEnd).contains("synchronizeProjection"),
 				"Opening RECORDS must not rewrite the held terminal and restart its equip animation");
+	}
+
+	/** How many times {@code needle} appears in {@code source}. */
+	private static int countOccurrences(String source, String needle) {
+		int count = 0;
+		for (int at = source.indexOf(needle); at >= 0; at = source.indexOf(needle, at + needle.length())) count++;
+		return count;
+	}
+
+	/**
+	 * Whether {@code call} appears in the handful of lines right after {@code site} - close enough
+	 * that it is answering that statement rather than merely existing somewhere in the same file.
+	 */
+	private static boolean answers(String source, String site, String call) {
+		int at = source.indexOf(site);
+		if (at < 0) return false;
+		int end = Math.min(source.length(), at + site.length() + 200);
+		return source.substring(at, end).contains(call);
+	}
+
+	/**
+	 * The summon is the one press in the mod that nothing can take back, and it is now a hold.
+	 *
+	 * <p>{@code SummonHoldPolicyTest} pins the travel; what it cannot see is that the plate is
+	 * still wired to it. Collapsing this back into an ordinary button is a two-line edit that
+	 * compiles, runs, and silently returns a party's point of no return to the cost of a page tab -
+	 * and every test but this one would stay green.
+	 */
+	@Test
+	void theSummonPlateCommitsOnlyAtTheEndOfItsTravel() throws Exception {
+		String altar = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/ResonanceAltarScreen.java"),
+				StandardCharsets.UTF_8);
+		// The press starts the travel and does nothing else. If the vanilla handler ever runs the
+		// commit again, the hold becomes decoration in front of a button that still fires on click.
+		assertTrue(altar.contains("pressed -> ((SummonPlate) pressed).startHold()"),
+				"The press must start the travel, not perform the summon");
+		assertTrue(answers(altar, "if (SummonHoldPolicy.complete(held))", "commit.run()"),
+				"The request may only be sent once the plate is at the bottom of its stroke");
+		// Exactly one call site. A second one is how "held" quietly becomes "clicked" again.
+		assertEquals(1, countOccurrences(altar, "commit.run()"),
+				"The summon must be sent from one place and that place is the completed hold");
+		// Letting go anywhere lets it go. A release does not always reach the widget the press
+		// started on, and a plate that kept filling after the button came up would commit on an
+		// input the player had already ended.
+		assertTrue(answers(altar, "public boolean mouseReleased(MouseButtonEvent event)",
+				"summonButton.releaseHold()"));
+		assertTrue(answers(altar, "public boolean keyReleased(KeyEvent event)",
+				"summonButton.releaseHold()"));
+		assertTrue(altar.contains("if (committed || !active) return;"),
+				"A plate that has gone inactive mid-hold must not be able to start again");
+		// The label has to say what the control wants, or the first press reads as a dead button.
+		JsonObject zh = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/zh_cn.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		JsonObject en = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/en_us.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		String key = "button.thefourthfrequency.resonance_altar.summon";
+		assertTrue(zh.get(key).getAsString().contains("按住"),
+				"A hold that looks like a click is a button that appears broken");
+		assertTrue(en.get(key).getAsString().toLowerCase().contains("hold"),
+				"A hold that looks like a click is a button that appears broken");
+	}
+
+	/**
+	 * The short power-on check runs on every open for the rest of the run, which makes one property
+	 * load-bearing in a way the pure policy cannot express: it must never take anything away.
+	 *
+	 * <p>The world bible allows exactly one thing in this mod to hold the exit, and that is the
+	 * one-shot first-boot walkthrough. Half a second is a trivial cost once and an intolerable one
+	 * four hundred times, so the ways out have to keep working through it - and "keep working" is a
+	 * statement about which lines exist in the screen, not about any number in a policy class.
+	 */
+	@Test
+	void theEveryOpenSelfTestNeverHoldsTheWayOut() throws Exception {
+		String screen = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"),
+				StandardCharsets.UTF_8);
+		String overlay = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalSelfTestOverlay.java"),
+				StandardCharsets.UTF_8);
+		int escStart = screen.indexOf("public boolean shouldCloseOnEsc()");
+		assertTrue(escStart >= 0);
+		assertFalse(screen.substring(escStart, escStart + 400).contains("selfTest"),
+				"Only the one-shot walkthrough may hold the exit; a per-open check never can");
+		// Any key ends it and is then handled normally, Escape included.
+		int keyStart = screen.indexOf("public boolean keyPressed(KeyEvent event) {");
+		int firstBranch = screen.indexOf("if (profileActive())", keyStart);
+		assertTrue(keyStart >= 0 && firstBranch > keyStart);
+		assertTrue(screen.substring(keyStart, firstBranch).contains("selfTestSkipped = true;"),
+				"The first key must end the check before anything else in keyPressed looks at it");
+		// The page area is the only thing it owns, and the only clicks it eats are the ones aimed
+		// at that empty area.
+		assertTrue(answers(screen, "selfTestSkipped = true;",
+				"TerminalUiLayout.PAGE_BODY.contains(local[0], local[1])"),
+				"A click outside the hidden page area must still reach the control it was aimed at");
+		assertTrue(screen.contains("if (selfTestRunning()) return;"),
+				"The page body must stay unrendered while the machine is still reporting");
+		// The clock starts when the screen is first drawn, not when it is constructed.
+		assertTrue(screen.contains("if (selfTestArmed && selfTestStartedAtMillis < 0L) selfTestStartedAtMillis = renderNowMillis;"));
+		// The baseline line is read off the pitch table rather than restated.
+		assertTrue(overlay.contains("TerminalSelfTest.baselineDriftPercent(stage)"),
+				"The printed drift must come from the constant that pitches the presses");
+		assertFalse(overlay.contains("graphics.fill(body"),
+				"The check draws on the display glass, never on a plate laid over the device");
+	}
+
+	/**
+	 * The panel answers different kinds of press differently, and the only thing holding that
+	 * together is which method each call site reaches for. {@link
+	 * com.xm.thefourthfrequency.terminal.TerminalContactVoice} pins the table apart; this pins the
+	 * wiring, because collapsing six voices back into one generic click is a one-word edit at each
+	 * site that compiles, runs, and simply undoes the feature.
+	 */
+	@Test
+	void everyKindOfPressOnTheTerminalHasItsOwnVoice() throws Exception {
+		String audio = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalClientAudio.java"),
+				StandardCharsets.UTF_8);
+		String screen = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"),
+				StandardCharsets.UTF_8);
+		// The generic click is gone on purpose. Anything reaching for it again is a site that has
+		// not decided what kind of event it is.
+		assertFalse(screen.contains("TerminalClientAudio.click()"),
+				"Every press must name the kind of event it is, not fall back to one click");
+		assertFalse(audio.contains("public static void click()"));
+		for (String voice : new String[] {"tab", "openLevel", "backLevel", "commit", "acknowledge"}) {
+			assertTrue(audio.contains("public static void " + voice + "()"),
+					"TerminalClientAudio lost the " + voice + " voice");
+			assertTrue(screen.contains("TerminalClientAudio." + voice + "()"),
+					"Nothing plays the " + voice + " voice any more");
+		}
+		// The three that carry the meaning, checked at the site rather than by name alone.
+		assertTrue(answers(screen, "TerminalControlPayload.REQUEST_RESCAN", "TerminalClientAudio.commit()"),
+				"Ordering a rescan is a committed order and must sound like one");
+		assertTrue(answers(screen, "recordsScrollRow = next == TerminalPage.RECORDS", "TerminalClientAudio.tab()"),
+				"A page actually changing must use the page voice");
+		assertTrue(answers(screen, "next == TerminalPage.RECORDS && snapshot.unreadCount() > 0",
+				"TerminalClientAudio.acknowledge()"),
+				"Clearing an unread marker without navigating anywhere is the lamp, not a page turn");
+		// The bolt sample is shared with the receiver lock, which the first-run notice tests count
+		// and require to be zero. Routing a commit through lock() would make that count wrong.
+		assertFalse(answers(audio, "public static void commit()", "lock();"),
+				"A committed order must not be counted as a receiver lock");
+		// The panel wears with the holder's stage, and it learns the stage from the one call that
+		// is already fed it every tick.
+		assertTrue(audio.contains("panelStage = Math.clamp(stage, 0, TerminalContactVoice.MAX_STAGE)"));
+		assertTrue(audio.contains("voice.pitchAt(panelStage)"),
+				"The press voices must age with the holder instead of staying factory-fresh");
 	}
 
 	@Test
@@ -1952,16 +2101,14 @@ final class ResourceContractTest {
 
 	@Test
 	void worldInterfaceSheetsAreIslandPaintedAtUniformDensityWithContainedGlow() throws Exception {
-		String uv = Files.readString(Path.of(
-				"src/client/java/com/xm/thefourthfrequency/client_render/WorldInterfaceUv.java"),
-				StandardCharsets.UTF_8);
-		// Hand-editing the offsets points the model at rectangles the generator never painted.
-		assertTrue(uv.contains("GENERATED by {@code tools/world_interface_uv.py --emit-java}"));
-		var widthMatch = java.util.regex.Pattern.compile("UV_WIDTH = (\\d+)").matcher(uv);
-		var heightMatch = java.util.regex.Pattern.compile("UV_HEIGHT = (\\d+)").matcher(uv);
-		assertTrue(widthMatch.find() && heightMatch.find());
-		int uvWidth = Integer.parseInt(widthMatch.group(1));
-		int uvHeight = Integer.parseInt(heightMatch.group(1));
+		// The model is authored in Blockbench and exported to JSON; the sheets are painted from the
+		// same file. What has to hold is that the two were generated together: every UV offset the
+		// geometry samples is an island the painter painted, at one texel density on both axes.
+		var geometry = com.google.gson.JsonParser.parseString(Files.readString(Path.of(
+				"src/main/resources/assets/thefourthfrequency/models/entity/world_interface.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		int uvWidth = geometry.getAsJsonArray("texture").get(0).getAsInt();
+		int uvHeight = geometry.getAsJsonArray("texture").get(1).getAsInt();
 
 		String[] bases = {"world_interface_form_1", "world_interface_form_2",
 				"world_interface_form_3", "world_interface_form_3_black"};
@@ -1984,57 +2131,62 @@ final class ResourceContractTest {
 				assertEquals(255, image.getRGB(x, y) >>> 24, name + " alpha at " + x + "," + y);
 			}
 		}
-		// A non-square texel would stretch every island along one axis; the generator scales both
+		// A non-square texel would stretch every island along one axis; the painter scales both
 		// canvas dimensions by one factor, and this is what keeps a hand-resized PNG from shipping.
-		assertEquals(sheetWidth / uvWidth, sheetHeight / uvHeight,
-				"texel density must match on both axes");
+		assertEquals(sheetWidth / uvWidth, sheetHeight / uvHeight, "texel density must match on both axes");
 		assertEquals(0, sheetWidth % uvWidth);
 		assertEquals(0, sheetHeight % uvHeight);
-		// The third form is scaled sixteen times; at the old one-texel-per-unit a texel covered a
-		// whole block, which is what made the body read as untextured from anywhere close to it.
+		// The third form is scaled twelve times; at one texel per unit a texel covered most of a
+		// block, which is what made the body read as untextured from anywhere close to it.
 		assertTrue(sheetWidth / uvWidth >= 4, "texel density=" + sheetWidth / uvWidth);
 
-		int packedRows = sheetHeight * 3 / 4;
+		// The glow and the flash carry no fine detail and are read at arena distance, so they ship
+		// at a lower density than the base - but on the same canvas, at one density of their own.
+		int overlayWidth = -1;
+		int overlayHeight = -1;
 		for (String name : overlays) {
 			Path path = ASSETS.resolve("textures/entity/" + name + ".png");
 			assertTrue(Files.isRegularFile(path), name);
 			var image = ImageIO.read(path.toFile());
-			assertEquals(sheetWidth, image.getWidth(), name);
-			assertEquals(sheetHeight, image.getHeight(), name);
+			if (overlayWidth < 0) {
+				overlayWidth = image.getWidth();
+				overlayHeight = image.getHeight();
+				assertEquals(overlayWidth / uvWidth, overlayHeight / uvHeight, "overlay texel density");
+				assertEquals(0, overlayWidth % uvWidth);
+				assertTrue(overlayWidth / uvWidth >= 2, "overlay density=" + overlayWidth / uvWidth);
+			}
+			assertEquals(overlayWidth, image.getWidth(), name);
+			assertEquals(overlayHeight, image.getHeight(), name);
 			assertTrue(image.getColorModel().hasAlpha(), name);
 			boolean glow = name.endsWith("_emissive");
 			int nonTransparent = 0;
-			for (int y = 0; y < sheetHeight; y++) for (int x = 0; x < sheetWidth; x++) {
-				if ((image.getRGB(x, y) >>> 24) == 0) continue;
-				nonTransparent++;
-				// The old generator sprayed glow specks at random across the whole canvas, which
-				// put unexplained lit patches on whichever parts happened to sample them.
-				assertTrue(y < packedRows, name + " overlay pixel below the packed islands at "
-						+ x + "," + y);
+			for (int y = 0; y < overlayHeight; y++) for (int x = 0; x < overlayWidth; x++) {
+				if ((image.getRGB(x, y) >>> 24) != 0) nonTransparent++;
 			}
 			assertTrue(nonTransparent > 0, name + " is entirely transparent");
-			double coverage = nonTransparent / (double) (sheetWidth * sheetHeight);
-			// Both ceilings were raised deliberately rather than to make a red test pass, and the
-			// reasons differ.
-			//
-			// Glow: the old 2% cap held the emissive sheet to 2.4KB, which is why the boss did not
-			// visibly light. The shell now carries a fracture network across the mass and plate
-			// islands, and because those islands are shared by every body slab that samples them, a
-			// canvas figure understates it badly - 2.2% of the sheet is roughly 70% of the drawn
-			// hull. The constraint that actually prevents stray glow is the generator's whitelist
-			// (glow may only land on a declared emissive island), and that is unchanged.
-			//
-			// Impact: the flash was a sparse scribble, invisible past about sixty blocks, which is
-			// most of this fight. It is a rim plus an interior wash on every island now.
-			assertTrue(coverage <= (glow ? 0.04 : 0.40), name + " coverage=" + coverage);
-			// And a floor, so neither sheet can quietly regress to the thing this replaced.
-			assertTrue(coverage >= (glow ? 0.008 : 0.15),
+			double coverage = nonTransparent / (double) (overlayWidth * overlayHeight);
+			// Glow is confined by the painter to the eye, kernel, node and socket islands - a few
+			// shared islands lighting every aperture and node on the body - so it is a sliver of
+			// the canvas. The flash covers every island. Both bounded so neither regresses to the
+			// sprayed specks or the invisible scribble this replaced.
+			assertTrue(coverage <= (glow ? 0.04 : 0.60), name + " coverage=" + coverage);
+			if (glow) assertTrue(coverage >= 0.0005,
 					name + " coverage=" + coverage + " is too faint to read in the arena");
+			// Atlas padding grows with fine geometry. Measure flash on occupied UV islands,
+			// including one-pixel faces, rather than requiring unused atlas space to light up.
+			if (!glow) for (String line : Files.readAllLines(Path.of("docs/art/world_interface/layout.txt"))) {
+				if (line.startsWith("#") || line.isBlank()) continue;
+				String[] fields = line.split(" ");
+				int x = Integer.parseInt(fields[3]) * overlayWidth / sheetWidth;
+				int y = Integer.parseInt(fields[4]) * overlayHeight / sheetHeight;
+				assertTrue((image.getRGB(x, y) >>> 24) >= 108,
+						name + " has no damage flash on " + fields[0] + " at " + x + "," + y);
+			}
 		}
 
-		// The offset table and the painted sheets are produced by one script but checked in
+		// The exported geometry and the painted sheets come from one bbmodel but are checked in
 		// separately, so regenerating either alone leaves parts sampling rectangles nothing was
-		// drawn into. Nothing else here would notice: both halves stay individually well-formed.
+		// painted into. layout.txt is written by the exporter with a probe texel per island.
 		var manifest = Files.readAllLines(Path.of("docs/art/world_interface/layout.txt"),
 				StandardCharsets.UTF_8).stream().filter(line -> !line.startsWith("#")).toList();
 		assertFalse(manifest.isEmpty());
@@ -2044,7 +2196,7 @@ final class ResourceContractTest {
 		for (String line : manifest) {
 			String[] fields = line.split(" ");
 			assertEquals(5, fields.length, line);
-			manifestOffsets.add("{" + fields[1] + ", " + fields[2] + "}");
+			manifestOffsets.add(fields[1] + "," + fields[2]);
 			int probeX = Integer.parseInt(fields[3]);
 			int probeY = Integer.parseInt(fields[4]);
 			// Unpainted sheet is a per-column constant, so the bottom row is the dead value for
@@ -2053,34 +2205,27 @@ final class ResourceContractTest {
 					baseSheet.getRGB(probeX, probeY),
 					fields[0] + " samples unpainted sheet at " + probeX + "," + probeY);
 		}
-		String uvOffsets = uv.substring(uv.indexOf("private static int[] pick"));
 		int checked = 0;
-		// Bucketed parts carry {u, v} pairs; single-island parts carry a _U/_V constant each.
-		var pairMatcher = java.util.regex.Pattern.compile("\\{(\\d+), (\\d+)\\}").matcher(uvOffsets);
-		while (pairMatcher.find()) {
-			assertTrue(manifestOffsets.contains(pairMatcher.group()),
-					"WorldInterfaceUv offset " + pairMatcher.group() + " is not in layout.txt");
-			checked++;
+		var sampled = new java.util.HashSet<String>();
+		for (var bone : geometry.getAsJsonArray("bones")) {
+			for (var cube : bone.getAsJsonObject().getAsJsonArray("cubes")) {
+				var uv = cube.getAsJsonObject().getAsJsonArray("uv");
+				String offset = uv.get(0).getAsInt() + "," + uv.get(1).getAsInt();
+				assertTrue(manifestOffsets.contains(offset),
+						cube.getAsJsonObject().get("name").getAsString() + " samples " + offset
+								+ ", which is not an island in layout.txt");
+				sampled.add(offset);
+				checked++;
+			}
 		}
-		var singleMatcher = java.util.regex.Pattern
-				.compile("(\\w+)_U = (\\d+);\\s*+static final int \\1_V = (\\d+);").matcher(uvOffsets);
-		while (singleMatcher.find()) {
-			String offset = "{" + singleMatcher.group(2) + ", " + singleMatcher.group(3) + "}";
-			assertTrue(manifestOffsets.contains(offset),
-					"WorldInterfaceUv " + singleMatcher.group(1) + " offset " + offset
-							+ " is not in layout.txt");
-			checked++;
-		}
-		assertEquals(manifest.size(), checked, "every island must be reachable from the model");
+		assertTrue(checked >= 300, "the model samples only " + checked + " cubes");
+		assertEquals(manifestOffsets, sampled, "every island must be reachable from the model");
 
 		String model = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_render/WorldInterfaceModel.java"),
 				StandardCharsets.UTF_8);
-		assertTrue(model.contains(
-				"LayerDefinition.create(mesh, WorldInterfaceUv.UV_WIDTH, WorldInterfaceUv.UV_HEIGHT)"));
-		// Every offset has to come from the generated table, or that part samples unpainted sheet.
-		assertFalse(java.util.regex.Pattern.compile("texOffs\\(\\d").matcher(model).find(),
-				"WorldInterfaceModel must take every texOffs from WorldInterfaceUv");
+		assertTrue(model.contains("WorldInterfaceGeometry.load().layer()"));
+		assertFalse(model.contains("texOffs("), "WorldInterfaceModel must not carry UV offsets of its own");
 		assertTrue(model.contains("void submitEmissive("));
 
 		String renderer = Files.readString(Path.of(
@@ -2095,11 +2240,9 @@ final class ResourceContractTest {
 		String beams = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_render/WorldInterfaceBeamBatchRenderer.java"),
 				StandardCharsets.UTF_8);
-		// Two copies of the scatter drifted the drawn storm off the modelled body when one changed.
+		// The beam scatter stays in its one shared class rather than being copied into the renderer.
 		assertTrue(beams.contains("WorldInterfaceScatter.hash(seed)"));
-		assertTrue(model.contains("WorldInterfaceScatter.hash(seed)"));
 		assertFalse(beams.contains("374761393"), "beam renderer must not carry its own scatter");
-		assertFalse(model.contains("374761393"), "model must not carry its own scatter");
 		assertTrue(Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_render/WorldInterfaceScatter.java"),
 				StandardCharsets.UTF_8).contains("374761393"));

@@ -28,6 +28,7 @@ public final class WatcherModelClientGameTest implements FabricClientGameTest {
 		context.waitForScreen(TitleScreen.class);
 		context.runOnClient(client -> client.options.hideGui = true);
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
+			EntityVisualFixture.finishFirstBoot(context);
 			StudioFixture fixture = singleplayer.getServer().computeOnServer(
 					WatcherModelClientGameTest::createStudio);
 			singleplayer.getClientWorld().waitForChunksRender();
@@ -52,6 +53,7 @@ public final class WatcherModelClientGameTest implements FabricClientGameTest {
 			case BACK -> "back";
 			case DARK_CLOSEUP -> "dark-closeup";
 		};
+		EntityVisualFixture.assertVisible(context, fixture.watcherId());
 		context.takeScreenshot("watcher-model-" + suffix);
 	}
 

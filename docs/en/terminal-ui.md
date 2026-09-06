@@ -53,6 +53,70 @@ The resident overlay is drawn by `client_ui/TerminalChrome` and covers only `DIS
 
 Per-frame cost: the CRT layer plus structural decoration is about **105 quads/frame** (59 scanlines + 24 vignette + ~20 corner marks and title bar), still within one GUI batch. Check against that number before adding a layer.
 
+## The short check on every open
+
+Besides the one-shot six-line first boot (see "First-boot walkthrough" below), **every open of the terminal runs a four-line check of about 0.6 s first**. The timing and the reading rules are in `terminal/TerminalSelfTest` (**main source set**, a pure class tested directly by `TerminalSelfTestTest`); the drawing is `client_ui/TerminalSelfTestOverlay`.
+
+| Line | Reading | Source |
+|---|---|---|
+| `POWER` | POWER OK | The device is on, so the line is true |
+| `STORE` | ARCHIVE %s ITEMS | `snapshot.files().size()`, the same number the FILES page shows |
+| `LINK` | LINK %s/3 / UNAUTHORISED | `bandStage`, the same number the status bar prints |
+| `BASELINE` | CONTACT BASELINE CALIBRATED / -%s%% | **Not a restatement** - see below |
+
+The first three are the control group: they repeat figures already visible on the panel, which is what makes the fourth one mean something.
+
+### The fourth line is about itself
+
+`BASELINE` prints a percentage read straight off `TerminalContactVoice.WEAR_PER_STAGE` - the constant that pitches every press on the device down. So the machine has been answering a touch duller than factory for hours, under the threshold where anyone notices a sound changing, and then one day it states the figure. **The reading is old news that has never been said out loud.**
+
+At stage zero it reads as calibrated, because at stage zero it is.
+
+### It may not take anything away
+
+- **It does not hold the exit.** `shouldCloseOnEsc` knows nothing about it, and `ResourceContractTest` asserts that it never will. The world bible allows exactly one thing to take the way out, and that is the **one-shot** first-boot walkthrough; something that runs on every open would take it hundreds of times a run.
+- **Any key ends it**, and that key is then handled normally - Escape included.
+- **Only a click inside `PAGE_BODY` is eaten** - that is the area standing empty, where a press would reach a control the player cannot see. The tabs, the status bar and the hardware column **draw and take input throughout**.
+- **It stands down for the walkthrough**: that boot already has a six-line self test of its own.
+- **The clock starts on the first frame**, not in the constructor. A screen can be built and then sit before it is shown, and half a second is short enough to run out unseen.
+
+`TerminalSelfTest.TOTAL_MILLIS` is the single number to tune; the unit test pins it under a second and shorter than the first-boot check.
+
+## The sound of a press: six grades
+
+What a press *sounds* like is as much an appearance contract as what it looks like. The table lives in `terminal/TerminalContactVoice` (**main source set**, a plain enum, tested directly by `TerminalContactVoiceTest`); playback is `client_ui/TerminalClientAudio#contact`.
+
+Everything except "move the highlight" used to share one `click()` at one weight - changing page, opening a tool, backing out of one, ordering the server about, clearing an unread marker. That is a device with one button on it: the player could hear that *something* was pressed and never hear *what kind* of thing had happened.
+
+| Voice | Sample family | Base pitch | Relative volume | When |
+|---|---|---|---|---|
+| `MOVE` | `password` (key) | 1.00 | 0.34 | Moving a highlight through a list |
+| `TAB` | `click` (contact) | 0.68 | 0.48 | A page actually changed |
+| `OPEN` | `click` | 1.18 | 0.44 | One level in: a tool detail, a file body |
+| `BACK` | `click` | 0.84 | 0.36 | One level out; un-pinning a tool |
+| `COMMIT` | `lock` (bolt) | 1.14 | 0.52 | **The server was told to do something**: rescan, start/stop guidance, choose a destination |
+| `ACKNOWLEDGE` | `tune` (detent) | 0.60 | 0.22 | The unread lamp going out - the machine finishing, not the player starting |
+
+Three audible rules, each asserted by `TerminalContactVoiceTest`:
+
+- **Weight rises with consequence.** `MOVE` is the lightest, `COMMIT` the heaviest, everything else in between.
+- **Direction is audible.** `OPEN` sits above `BACK` in both pitch and volume, so going in and coming out are not one click with different pixels.
+- **The bolt is reserved.** `COMMIT` is the only contact using the `lock` sample, and it deliberately does **not** route through `lock()` - that one is the receiver finding a band, and the first-run notice client GameTest asserts it plays zero times there.
+
+No new recordings are needed: the four existing sample families carry most of the distinction on texture alone, and two voices sharing a family are held at least **0.10 apart in pitch**.
+
+### The panel ages with the stage
+
+Contact pitch drops with the **terminal's visual stage**, `WEAR_PER_STAGE = 0.03` per step - 6% end to end, about a semitone, over three steps.
+
+**That is 0-2, not 0-5.** What the client is handed is `TerminalSnapshot.visualStage`, i.e. `PursuitProgressPolicy.terminalVisualStage` - a three-step tier computed from resolved chases, the allowed form and the anomaly stage, and clamped to 0-2 on the way in. There are five anomaly stages, but the panel is never told which one it is in; writing the bound as five would leave two thirds of the range unreachable and the wear per step three times smaller than it reads.
+
+Still well under the carrier loop (0.05 per step of the same tier): the noise floor is one continuous sound the ear settles into, while these are transients heard dozens of times a session. Wide enough to survive a side-by-side recording, narrow enough that nobody catches it happening - and it cannot be caught in any case, because the stage only ever moves between sessions, so there is no press where the sound steps.
+
+The device states the resulting figure once per open; see [The short check on every open](#the-short-check-on-every-open) above.
+
+The stage is latched in passing by `carrierOn(stage)`, the one call fed the visual stage every tick. Closing the screen does **not** clear it: a stale value is only ever the stage this same player had a moment ago.
+
 ## Animation
 
 Timing constants and easing live in `terminal/TerminalMotion` (main, pure, tested directly by `TerminalMotionTest`); runtime state in `client_ui/TerminalMotionState`.

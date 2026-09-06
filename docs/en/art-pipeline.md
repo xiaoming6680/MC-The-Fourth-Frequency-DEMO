@@ -24,13 +24,14 @@ Paths under `docs/art/**` are referenced directly by tests and scripts (`Resourc
 
 | Script | Output |
 |---|---|
-| `world_interface_uv.py` | The single source of truth for the World Interface UV layout; `--emit-java` also writes the model-side offset table |
-| `prepare_world_interface_textures.py` | Base, emissive and impact sheets for all three forms, plus the blackened base for the failure ending |
+| `export_world_interface_model.py` | Re-packs the UV islands of `world_interface.bbmodel` and exports the runtime geometry JSON and `layout.txt` |
+| `paint_world_interface_textures.py` | Paints the three forms' base, emissive and impact sheets from the bbmodel's materials and islands, plus the blackened base for the failure ending |
+| `build_world_interface_model.py` | One-shot scaffold: generates a first bbmodel on the runtime skeleton; re-running overwrites hand edits |
 | `generate_world_interface_textures.py` | Block textures used by the encounter |
 | `prepare_world_interface_wallpaper.py` | The failure-ending wallpaper, exact 16:10 |
 | `generate_world_interface_audio.py` | The World Interface sound library (44.1 kHz), validated against `docs/art/world_interface/audio_manifest.json` |
 | `prepare_stability_anchor_textures.py` | Stability anchor entity sheets and sparse emissive mask |
-| `prepare_rework_body_art.py` | Rework Body's five stage bases and two emissive sheets |
+| `prepare_rework_body_art.py` | Rework Body's three stage bases and two emissive sheets |
 | `prepare_watcher_textures.py` | The Watcher's base, eye mask and numbered UV export |
 | `prepare_him_textures.py` | HIM's 64×64 skin and eyes-only emissive mask |
 | `prepare_entity_textures.py` | The general pipeline from high-resolution material masters to entity textures |
@@ -48,65 +49,53 @@ Paths under `docs/art/**` are referenced directly by tests and scripts (`Resourc
 
 ## World Interface
 
-`WorldInterfaceModel.createLayer()` declares a **256×128** canvas and the PNGs are **1024×512**, so density is **4×** — one texel to a quarter block even at the third form's 16× scale. The canvas is wide and short because that is the shape the packer actually fills: the islands shelf out to 89 rows, and a square canvas would have been two thirds dead sheet paid for in every PNG.
+The boss's geometry is edited in **Blockbench**; the runtime no longer bakes cuboids from Java generators. The editing source is `docs/art/world_interface/world_interface.bbmodel` (Modded Entity format, box UV), and three steps carry it into the game:
 
-The model bakes several hundred cuboids from procedural generators, so a hand-written island table would go stale the moment a generator parameter moved. Instead `world_interface_uv.py` **re-derives every cuboid the model will build** — mirroring the generators and their scatter hash exactly — buckets them by size, packs one island per bucket, and emits the model's offset table. Both the model and the painter read that one module.
+| Step | Command | Output |
+|---|---|---|
+| Export geometry | `python tools/export_world_interface_model.py` | Re-packs the UV islands and writes them back into the bbmodel; emits `assets/thefourthfrequency/models/entity/world_interface.json` (bones and cubes in Java model space) and `docs/art/world_interface/layout.txt` |
+| Paint sheets | `python tools/paint_world_interface_textures.py` | Base, emissive and impact sheets for all three forms, the blackened base for the failure ending, and the `world_interface_uv_template.png` guide |
+| Round-trip check | `gradlew exportWorldInterfaceBbmodel` | Writes the model the client actually bakes back out as `world_interface_runtime.bbmodel`, for checking the conversion chain |
 
-- **69 islands, 59.4% canvas utilisation.**
-- **All three forms share one layout.** The parts are the same materials at every stage; what changes between forms is the palette, and the three separate PNGs already carry that.
-- **Size bucketing.** A class whose members span 6× in size (mass runs from 5 units across to nearly 28) gets several islands, and each cuboid picks one by the same scalar the generator bucketed on. Sharing one island across the class would leave the small members sampling a corner of the large members' material.
-- **Buckets must be contiguous.** The script refuses to run if a bucket band is empty, because the Java table would then be shorter than its bounds array and the model would index past the end.
+`WorldInterfaceGeometry` reads the JSON on the client and bakes a `LayerDefinition`; `WorldInterfaceModel` only owns which bones the rig poses, which layer a form reveals, and which bones carry light.
 
-Regenerate both halves together — an offset table that disagrees with the painted sheet points parts at rectangles nothing was drawn into:
+### Bone contract
 
-```bash
-python tools/world_interface_uv.py --emit-java && python tools/prepare_world_interface_textures.py
-```
+- **Bones the server poses must be kept as they are.** `hover`, `storm_body`, `interface_kernel`, `weapon`, the three `{center,left,right}_head_mount → _neck_a → _neck_b → _skull → _jaw` chains and the ten `tendril_N → _mid → _tip` chains must carry the pivot and bind rotation of `WorldInterfaceRig.bindPose()`; `WorldInterfaceGeometryContractTest` compares them bone by bone and axis by axis (tolerance 0.002). Moving one of these pivots moves the hit box off the part a player can see.
+- The renderer resolves `shell_base`, `phase_2_accretion`, `phase_3_accretion`, `kernel_glow`, each head's `_eye_0` and each limb's `_glow` by name; the emissive pass submits only those bones, so anything meant to glow has to hang under them.
+- Cubes may carry their own rotation in Blockbench; the exporter wraps each one in a synthetic bone named `<bone>/<cube>`, because a `ModelPart` cube cannot rotate. Every rotated cube therefore costs a part of its own; parts drawn per form are bounded by `WorldInterfaceModel.MAX_VISIBLE_PARTS`, which the contract test counts against the JSON.
+- The coordinate convention is Blockbench's own Modded Entity export: a Blockbench pivot relative to its parent becomes `(-dx, -dy, dz)` (root-level bones also drop the 24-unit lift), rotations become `(-rx, -ry, rz)`, and a cube's `from..to` becomes `addBox(pivot.x - to.x, pivot.y - to.y, from.z - pivot.z, size)`. `tools/world_interface_model.py` and `WorldInterfaceBbmodelExport` are the two directions of that one convention.
 
-### Materials and relief
+### Materials and UV
 
-The reference is the vanilla ender dragon: near-black hide carrying almost no hue, soft blotching rather than linework, and one lit eye as the only saturated thing on the sheet. An earlier pass went the other way — block seams on a grid, brushed metal on the plating, outlines around the bone, strong baked lighting — and at boss scale that turned the body into a technical drawing. **Materials separate by value and by the shape of their blotching, never by drawn lines.**
+Every cube is named `material.label` (`bone.center_cranium`, `endstone.chunk_3`). Cubes of one material and one size share a box-UV island, and the exporter shelf-packs the islands on whole UV units. The canvas is **512×256**; base sheets are **2048×1024** (4× density), emissive and impact overlays **1024×512** (2×, same canvas). The reference is still the vanilla ender dragon: near-black hide carrying almost no hue, blotching rather than linework, and the only saturated thing on the sheet is what glows.
 
 | Material | Used by | Treatment |
 |---|---|---|
-| `swallowed` | mass, debris | Hide blotching plus sparse single-texel mineral flecks, barely off the base value — all that is left of the terrain it ate |
-| `plating` | plating, halo, shutters, weapon, core socket | Blotching only, a shade darker than the mass |
-| `bone` | cranium, brow, maw, horns, vertebrae, ribs, jaws, teeth | Palest material on the sheet, one soft top highlight, no outline |
-| `root` | roots | Blotch cells stretched three-to-one along the strand, so the fibre runs its length |
-| `flesh` | tentacle links | Blotching with occasional short darker striations |
-| `socket` | skull eye sockets | Darkest under the brow, opening toward the bottom of the orbit |
-| `core` | pupils, slit, inner halo, tentacle nodes | Cool shell only on the base sheet; the emissive sheet is what makes it burn |
-| `sclera` | eyeballs | Pale, faint diagonal veins |
+| `swallowed` | swallowed ground, core mass | Hide blotching plus sparse mineral flecks |
+| `endstone` | embedded end-stone chunks and strata | Palest rock, finer blotch cells |
+| `obsidian` | dark strata, conduits | Darkest rock, occasional cold fracture veins |
+| `plating` | plates, kernel frame, weapon | Blotching only, a shade darker than the mass |
+| `bone` / `tooth` | crania, jaws, vertebrae, ribs / teeth | Palest material on the sheet, one top highlight, an occasional hairline crack on large faces, no outline |
+| `horn` | horns, crests, tentacle barbs | Growth rings along the length |
+| `root` | roots | Blotch cells stretched three-to-one along the strand |
+| `flesh` | neck cores, tentacle links | Blotching with short darker striations |
+| `socket` | eye sockets, nasal cavities | The deepest recess |
+| `eye` / `core` / `glow` | apertures / kernel lattice, irises / tentacle nodes | Cool shell on the base sheet; the emissive sheet makes them burn |
 
-Relief is applied on top of the material. The dragon bakes almost no directional value at all, but going that flat does not survive here — the dragon is a dozen large parts and this is several hundred small ones, which merge into one silhouette without some split. So the range is compressed hard rather than removed:
-
-- **Directional parts** (mass, ribs, roots, skulls, eyes, jaws, weapon) get a per-face factor — up 1.16, north 1.00, west/east 0.90, south 0.82, down 0.74 — and a 1.05 → 0.92 top-to-bottom falloff on the four upright faces.
-- **Isotropic parts** (plating, debris, halo, tentacle nodes) get a flat 0.94 instead. The model tumbles these on all three axes, and a baked "top is bright" is worse than no shading at all once the box is upside down.
-- **Every face** gets a one-texel ×0.74 ambient-occlusion border. This is the cheapest thing that separates a hundred touching boxes into a hundred readable boxes, and for the isotropic parts it is the only relief they get.
+Tumbled parts (`plating`, `endstone`, `obsidian`, `swallowed`, `glow`, `horn`) are painted isotropically; everything else gets directional face shading. Every face gets the one-texel ×0.74 ambient-occlusion border.
 
 ### Emissive contract
 
-Only these islands may carry glow, and `validate()` fails the build if a lit pixel lands anywhere else: `eye_{1,2,3}_pupil`, `eye_3_slit`, `socket`, `tendril_glow`, `ring_inner`.
-
-- Each emissive sheet is **2,220 non-transparent pixels — 0.42%** of the canvas, confined to the packed island rows.
-- **Front-facing parts glow on their north face only.** Parts seen from every angle (sockets, tentacle nodes, inner halo) glow on the four upright faces but never on up/down, because a box lit on all six sides just advertises that it is a box.
-- Sockets get a shallow pool along the lower rim rather than a filled rectangle, so the skulls read as sockets with something behind them instead of cubes with lamps in them.
-- The inner halo band is the only ring on an emissive island. At the third form the halo is large enough that lighting all of it would drown the core it exists to frame.
-
-`WorldInterfaceRenderer` submits **only the bones that carry glow** — the core, the halo, the six skull sockets and the active tentacle nodes — rather than the whole model a second time. At 0.42% coverage, walking the third form's several hundred parts meant nearly every vertex went through a translucent pass to draw nothing and paid for the sort on the way. The impact overlay is the exception: it has to reach plating and debris the glow never touches, so the damage flash still costs a full second submission for a few ticks.
+Only islands of the `eye`, `core`, `glow` and `socket` materials may carry glow, and `validate()` fails the script if a lit pixel lands anywhere else. Apertures glow on their north face only and brighten toward the centre; sockets keep a shallow pool along the lower rim; the kernel is a lattice; tentacle nodes get one band on each of the four upright faces and never on up or down. The impact overlay covers every island and is the only pass that still submits the whole model a second time.
 
 ### Palettes
 
-The forms separate by value and by how much cold violet has crept into the grey — not by turning progressively more purple. The hide stays charcoal at every stage; escalation is carried by the core and by the emissive palette bands in `WorldInterfacePalette`, which is where a player actually reads phase from.
+The forms separate by value and by how much cold violet has crept in. The hide stays charcoal at every stage, end stone fades from grey-yellow to cold grey and the bone goes cold with it; escalation is carried by the apertures, the kernel and the emissive bands in `WorldInterfacePalette`. The failure ending swaps in a blackened base over the same geometry; impact overlays are magenta `(255, 42, 88)` on every form.
 
-| Form | Reading | Hide value |
-|---|---|---|
-| 1 — Nascent | Still mostly the world it ate. Stone grey, bone not yet gone dark | `(52, 50, 55)` |
-| 2 — Grown | The grey has gone cold and the bone is going with it | `(44, 41, 50)` |
-| 3 — Terminal | Hide black enough that the core is the only thing on it with a colour | `(34, 31, 40)` |
-| Black | Failure ending: same geometry, all the light gone out of it | `(15, 14, 17)` |
+### Preview
 
-Impact overlays are magenta `(255, 42, 88)` on every form.
+`tools/preview/bbmodel_viewer.html` renders any bbmodel with Blockbench semantics in three.js (six views, form switch, a player-scale reference, `?texture=` to override the sheet). Serve the repository root statically, e.g. `python -m http.server 8765`, then open `tools/preview/bbmodel_viewer.html?model=../../docs/art/world_interface/world_interface.bbmodel&form=2`.
 
 ## The Watcher
 
@@ -120,31 +109,15 @@ Impact overlays are magenta `(255, 42, 88)` on every form.
 
 ## HIM
 
-Standard 64×64 player layout, so vanilla's humanoid mesh maps onto it unchanged and `HimModel` needs no custom geometry at all. **The silhouette being exactly Steve's is the point**: inside the fifth of a second the figure is on screen, anything with its own proportions resolves as a custom mob rather than as a person.
+The final atlas is 256×256 with the standard 64-unit humanoid UV layout. A sunken pale face, stained clothing and small eye highlights replace the former flat skin. The source artwork was repacked through Blockbench MCP; the final atlas and mask are docs/art/entities/textures/him_atlas.png and him_atlas_emissive.png.
 
-The obvious shortcut is not available. The classic look is the default player skin with the eyes painted out — but that default skin is Mojang's own asset, and the fan-made variants of it are third-party work. Neither can be shipped in a mod. So this skin is generated from scratch in the same deterministic way as every other entity in the project, and reads as the legend without being anybody's file.
-
-| Part | UV | Materials |
-|---|---|---|
-| head | `(0, 0)` 8×8×8 | hair on the top two rows of the upright faces, skin below |
-| body | `(16, 16)` 8×12×4 | shirt |
-| arms | `(40, 16)` / `(32, 48)` 4×12×4 | sleeve down to row 8, skin below |
-| legs | `(0, 16)` / `(16, 48)` 4×12×4 | trousers down to row 10, shoe below |
-
-**Emissive is eight pixels**: two 2×2 blank rectangles on the head's north face and nothing else; `validate()` fails the build if a lit pixel lands anywhere outside them. They are **empty on purpose** — a pupil makes it a character looking at you; two lit slots with nothing in them make it something that has no eyes and is facing you anyway, which is the read the legend actually has.
-
-The palette is deliberately muted. At the distance this thing is placed, saturated clothing reads as a player in a costume, and a costume invites a second look — which is exactly what must not happen, because a second look is going to find nothing there.
-
-Unlike the Watcher's eye, this one is not gated on being looked at. That figure ramps its glow in over a two-second stare; this one is given a fifth of a second in total, and a reveal spread over that window would never finish arriving.
+prepare_him_textures.py validates opaque body faces and eye-only emission before installing the files unchanged. The current mask contains five nontransparent pixels. Animation keeps the limbs rigid while adding a head-first turn and a prolonged listening tilt.
 
 ## Rework Body
 
-The two source boards under `docs/art/rework_body/` are production references, not runtime textures. `prepare_rework_body_art.py` samples the material board into the model's semantic UV islands, adds stage-specific bruising, fascia, necrosis, bone and facial details, and writes the seven 256×256 runtime PNGs.
+There are three stages, with three opaque 256×256 base maps and sparse emissive maps for stages 2 and 3. The logical UV canvas remains 128×128. Obsolete stage 4/5 runtime maps have been removed.
 
-- Five base maps are RGB/opaque 256×256 PNGs.
-- Stage 4 and 5 emissive maps are sparse RGBA 256×256 PNGs with a transparent background.
-- The model has a 128×128 virtual UV canvas, so each model texel maps to 2×2 resource pixels.
-- `rework_body_uv_guide.png` records the semantic island envelopes used by the finishing script.
+prepare_rework_body_art.py samples the boards in docs/art/rework_body/. See the [editable entity projects](../art/entities/README.md) for the detailed geometry and runtime motion studies.
 
 ## Frozen assets
 
@@ -159,7 +132,8 @@ Manifest files under `docs/art/` are contract inputs in the same way:
 | File | Read by |
 |---|---|
 | `world_interface/audio_manifest.json` | `WorldInterfaceAudioManifestTest` · `WorldInterfaceSummonTimelineTest` · `generate_world_interface_audio.py` |
-| `world_interface/layout.txt` | `ResourceContractTest` · `world_interface_uv.py` |
+| `world_interface/layout.txt` | `ResourceContractTest` · `export_world_interface_model.py` |
+| `world_interface/world_interface.bbmodel` | `WorldInterfaceGeometryContractTest` · `export_world_interface_model.py` · `paint_world_interface_textures.py` (editable Blockbench source) |
 | `analog_filter/filter_manifest.json` | `PostFilterContractTest` · `generate_analog_filter_textures.py` |
 | `terminal/old_terminal_shell.bbmodel` | `generate_terminal_3d_assets.py` (Blockbench-editable source) |
 

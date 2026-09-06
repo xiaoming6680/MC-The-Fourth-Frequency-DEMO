@@ -2,6 +2,7 @@ package com.xm.thefourthfrequency.test;
 
 import com.xm.thefourthfrequency.content.ModItems;
 import com.xm.thefourthfrequency.content.TerminalData;
+import com.xm.thefourthfrequency.narrative.DeviceManualPolicy;
 import com.xm.thefourthfrequency.narrative.HiddenFilePolicy;
 import com.xm.thefourthfrequency.narrative.TerminalFileState;
 import com.xm.thefourthfrequency.networking.TerminalControlPayload;
@@ -12,7 +13,10 @@ import com.xm.thefourthfrequency.terminal.TerminalAnomalyLogService;
 import com.xm.thefourthfrequency.terminal.TerminalProfileQuestionnaire;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.terminal.TerminalSignalLog;
+import com.xm.thefourthfrequency.terminal.TerminalSignalService;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
+import com.xm.thefourthfrequency.world.SurvivalMilestone;
+import com.xm.thefourthfrequency.world.SurvivalProgressService;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -222,6 +226,74 @@ public final class TerminalBackfillAndProfileGameTests {
 		CompoundTag cleared = data.terminalRecord(player.getUUID()).orElseThrow();
 		helper.assertFalse(TerminalFileState.discovered(cleared, HiddenFilePolicy.RECOVERED_FILE_ID),
 				"A reset machine must not leave the fragment standing");
+		helper.succeed();
+	}
+
+	/**
+	 * A manual page arrives with the tool it documents, and never before it.
+	 *
+	 * <p>{@code DeviceManualPolicyTest} pins the mask-to-page table; this is the half that table
+	 * cannot see. The delivery runs inside the once-a-second signal update, off a mask that is
+	 * recomputed from the record and the player's inventory, and writes into the same file store the
+	 * investigation uses. What has to hold here is that the pages appear in step with the unlocks,
+	 * that arriving is idempotent across repeated updates, and that four new files do not move any
+	 * of the numbers the four investigation records own.
+	 */
+	@GameTest
+	public void manualPagesArriveWithTheirToolsAndCountForNothingElse(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		// Binding is what opens the file store at all - it is the last beat of the first boot, and
+		// the maintenance memo is gated on it too. A mock player is issued a terminal without ever
+		// answering the profile, so the flag is set here rather than left to a questionnaire.
+		data.updateTerminalRecord(player.getUUID(), tag -> tag.putBoolean(TerminalData.BOUND, true));
+		TerminalSignalService.updatePlayerForTesting(player);
+
+		CompoundTag atBinding = data.terminalRecord(player.getUUID()).orElseThrow();
+		helper.assertTrue(TerminalFileState.discovered(atBinding, "maintenance_handoff"),
+				"This test only proves anything once binding has opened the file store");
+		int readPercentBefore = HiddenFilePolicy.readPercent(atBinding);
+		int discoveredBefore = HiddenFilePolicy.discoveredCount(atBinding);
+		helper.assertTrue(TerminalFileState.discovered(atBinding, "manual_sky_monitor"),
+				"The sky monitor page arrives at binding; its instrument is available from the start");
+		for (String later : new String[] {"manual_mineral_probe", "manual_structure_navigator",
+				"manual_stronghold_estimate"}) {
+			helper.assertFalse(TerminalFileState.discovered(atBinding, later),
+					later + " documents a tool the player cannot open yet");
+		}
+
+		// Twelve logs open the probe and the navigator together, so their two pages arrive together.
+		data.updateTerminalRecord(player.getUUID(), tag -> tag.putInt(
+				TerminalData.SURVIVAL_MILESTONE_MASK, SurvivalMilestone.MINED_LOGS.mask()));
+		TerminalSignalService.updatePlayerForTesting(player);
+		CompoundTag afterLogs = data.terminalRecord(player.getUUID()).orElseThrow();
+		helper.assertTrue(TerminalFileState.discovered(afterLogs, "manual_mineral_probe")
+				&& TerminalFileState.discovered(afterLogs, "manual_structure_navigator"),
+				"Both pages must land on the update that opens their tools");
+		helper.assertFalse(TerminalFileState.discovered(afterLogs, "manual_stronghold_estimate"),
+				"The stronghold page waits for the eyes, not for the logs");
+
+		data.updateTerminalRecord(player.getUUID(), tag -> tag.putInt(TerminalData.CRAFTED_EYE_COUNT,
+				SurvivalProgressService.REQUIRED_STRONGHOLD_UNLOCK_EYES));
+		TerminalSignalService.updatePlayerForTesting(player);
+		int filesAfterAll = TerminalRuntimeService.visibleFiles(
+				data.terminalRecord(player.getUUID()).orElseThrow()).size();
+		for (String id : DeviceManualPolicy.ids()) {
+			helper.assertTrue(TerminalFileState.discovered(
+					data.terminalRecord(player.getUUID()).orElseThrow(), id), id + " must have arrived");
+		}
+
+		// The update runs every second for the whole game. Arriving has to be something that
+		// happens once, not something that happens again on every tick of the rest of the run.
+		TerminalSignalService.updatePlayerForTesting(player);
+		TerminalSignalService.updatePlayerForTesting(player);
+		CompoundTag settled = data.terminalRecord(player.getUUID()).orElseThrow();
+		helper.assertValueEqual(TerminalRuntimeService.visibleFiles(settled).size(), filesAfterAll,
+				"Repeated updates must not file the same page twice");
+		helper.assertValueEqual(HiddenFilePolicy.discoveredCount(settled), discoveredBefore,
+				"A manual page must not count as one of the four investigation records");
+		helper.assertValueEqual(HiddenFilePolicy.readPercent(settled), readPercentBefore,
+				"A manual page must not move the read percentage");
 		helper.succeed();
 	}
 

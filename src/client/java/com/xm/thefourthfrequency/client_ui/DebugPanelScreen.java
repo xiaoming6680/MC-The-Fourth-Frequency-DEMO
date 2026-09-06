@@ -102,7 +102,7 @@ public final class DebugPanelScreen extends Screen {
 			new ActionSpec("重置主线", "progress_reset", "", 0, true));
 
 	private static final List<ActionSpec> TESTS = List.of(
-			new ActionSpec("追逐 第5形态", "pursuit_test", "", 5, false),
+			new ActionSpec("追逐 第3形态", "pursuit_test", "", 3, false),
 			new ActionSpec("BOSS 战", "boss_test", "", 0, true));
 
 	private static final List<ActionSpec> FILE_ACTIONS = List.of(

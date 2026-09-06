@@ -1,0 +1,14 @@
+{
+  "purpose": "Detailed art prototype; not runtime model",
+  "elements": 1886,
+  "groups": 499,
+  "heads": 3,
+  "mainTentacles": 4,
+  "minorFeelers": 7,
+  "texture": [
+    384,
+    32
+  ],
+  "unit": "Blockbench units; 16 units per block before any future runtime scale",
+  "generator": "tools/build_world_interface_storm_detail.cjs"
+}

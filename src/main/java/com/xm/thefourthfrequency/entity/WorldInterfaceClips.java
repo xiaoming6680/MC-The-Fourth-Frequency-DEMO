@@ -2,6 +2,7 @@ package com.xm.thefourthfrequency.entity;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 
 import static com.xm.thefourthfrequency.entity.WorldInterfaceClip.rotation;
 import static com.xm.thefourthfrequency.entity.WorldInterfaceClip.scale;
@@ -46,9 +47,9 @@ public final class WorldInterfaceClips {
 	// keeping the clips on those clocks is what makes the body read as driving the attack rather
 	// than as playing over it.
 	public static final WorldInterfaceClip LASER_AIM = headAim(6.5F, 58.0F);
-	public static final WorldInterfaceClip LASER_APERTURE = jawOpen(6.5F, 3.575F, -46.0F);
-	public static final WorldInterfaceClip ORB_CHARGE = coreCharge(3.0F, 0.5F, 24.0F);
-	public static final WorldInterfaceClip ORB_RELEASE = headLunge(3.0F, 0.5F, 1.42);
+	public static final WorldInterfaceClip LASER_APERTURE = jawOpen(6.5F, WorldInterfaceProtocol.LASER_WARNING_TICKS / 20.0F, 46.0F);
+	public static final WorldInterfaceClip ORB_CHARGE = coreCharge(8.0F, WorldInterfaceProtocol.ORB_WARNING_TICKS / 20.0F, 16.0F);
+	public static final WorldInterfaceClip ORB_RELEASE = headLunge(8.0F, WorldInterfaceProtocol.ORB_WARNING_TICKS / 20.0F, 1.12);
 	public static final WorldInterfaceClip LANCE_FOCUS = headHold(5.5F, 3.0F, -38.0F);
 	public static final WorldInterfaceClip LANCE_DESCENT = lanceDescent(5.5F, 3.0F, 4.5F);
 	public static final WorldInterfaceClip WEAPON_REACH = tendrilHold(10.8F, 2.75F, 74.0F);
@@ -58,8 +59,10 @@ public final class WorldInterfaceClips {
 			-118.0F, true);
 	public static final WorldInterfaceClip HOTBAR_GAZE = headHold(6.65F, 3.0F, 96.0F);
 	public static final WorldInterfaceClip HOTBAR_PURGE = flankSweep(6.65F, 3.0F);
-	public static final WorldInterfaceClip TENDRIL_REAR = tendrilRear(6.75F, 2.25F);
-	public static final WorldInterfaceClip TENDRIL_LASH = tendrilFlurry(6.75F, 3.25F, 1.5F, 3);
+	public static final WorldInterfaceClip TENDRIL_REAR = tendrilRear(9.0F, WorldInterfaceProtocol.TENDRIL_WARNING_TICKS / 20.0F);
+	public static final WorldInterfaceClip TENDRIL_LASH = tendrilFlurry(9.0F,
+			(WorldInterfaceProtocol.TENDRIL_WARNING_TICKS + WorldInterfaceProtocol.TENDRIL_STRIKE_TELEGRAPH_TICKS) / 20.0F,
+			WorldInterfaceProtocol.TENDRIL_STRIKE_INTERVAL_TICKS / 20.0F, WorldInterfaceProtocol.TENDRIL_STRIKE_COUNT);
 	public static final WorldInterfaceClip EVICTION_CORRUPTION = headHold(6.0F, 2.0F, 180.0F);
 	public static final WorldInterfaceClip FORCED_EXPULSION = expulsionPulse(6.0F, 1.72);
 	public static final WorldInterfaceClip SUMMON_CORE = summonCore(5.0F, 3.8F);
@@ -85,9 +88,9 @@ public final class WorldInterfaceClips {
 	public static final WorldInterfaceClip LASER_RECOVER = WorldInterfaceClip.builder(6.5F)
 			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 5.60F, 0, 0, 0,
 					5.86F, 14, -9, 0, 6.16F, -5, 3, 0, 6.5F, 0, 0, 0)).build();
-	public static final WorldInterfaceClip ORB_RECOVER = WorldInterfaceClip.builder(3.0F)
-			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 0.50F, -26, 0, 0,
-					0.76F, 12, 0, 0, 1.20F, -6, 0, 0, 3.0F, 0, 0, 0)).build();
+	public static final WorldInterfaceClip ORB_RECOVER = WorldInterfaceClip.builder(8.0F)
+			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 2.0F, 0, 0, 0,
+					2.30F, -12, 0, 0, 2.65F, 5, 0, 0, 3.30F, 0, 0, 0, 8.0F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip LANCE_RECOVER = WorldInterfaceClip.builder(5.5F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 4.44F, -34, 0, 0,
 					4.60F, 15, 0, 0, 5.5F, 0, 0, 0)).build();
@@ -100,9 +103,9 @@ public final class WorldInterfaceClips {
 	public static final WorldInterfaceClip HOTBAR_RECOVER = WorldInterfaceClip.builder(6.65F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 6.50F, -20, 0, 0,
 					6.56F, 9, 0, 0, 6.61F, -4, 0, 0, 6.65F, 0, 0, 0)).build();
-	public static final WorldInterfaceClip TENDRIL_RECOVER = WorldInterfaceClip.builder(6.75F)
-			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 3.25F, -22, 0, 0,
-					4.75F, -8, 0, 0, 6.25F, -22, 0, 0, 6.75F, 0, 0, 0)).build();
+	public static final WorldInterfaceClip TENDRIL_RECOVER = WorldInterfaceClip.builder(9.0F)
+			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 3.85F, -22, 0, 0,
+					4.50F, -8, 0, 0, 6.10F, -22, 0, 0, 6.75F, -8, 0, 0, 8.35F, -22, 0, 0, 9.0F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip EXPULSION_RECOVER = WorldInterfaceClip.builder(6.0F)
 			.addAnimation("center_neck_b", rotation(0.0F, 0, 0, 0, 3.30F, 0, 0, 0,
 					4.10F, 0, -46, 0, 5.10F, 0, 18, 0, 6.0F, 0, 0, 0)).build();
@@ -285,14 +288,15 @@ public final class WorldInterfaceClips {
 		return clipSeconds - Math.min(wanted, available * MAX_SETTLE_SHARE);
 	}
 
-	/** The centre head's jaw drops through the charge and closes under its own weight. */
+	/** All three jaws open through the charge, including the flank emitters used in form three. */
 	private static WorldInterfaceClip jawOpen(float seconds, float peakSeconds, float openDegrees) {
-		return WorldInterfaceClip.builder(seconds)
-				.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0,
+		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(seconds);
+		for (String head : HEADS) builder.addAnimation(head + "_jaw", rotation(0.0F, 0, 0, 0,
 						peakSeconds, openDegrees, 0, 0,
 						Math.max(peakSeconds, releaseAt(seconds, peakSeconds, openDegrees * 0.88F)),
 						openDegrees * 0.88F, 0, 0,
-						seconds, 0, 0, 0)).build();
+						seconds, 0, 0, 0));
+		return builder.build();
 	}
 
 	private static WorldInterfaceClip coreCharge(float seconds, float chargeSeconds, float yaw) {
@@ -304,13 +308,17 @@ public final class WorldInterfaceClips {
 
 	/** The centre head rears back and drives forward: the bolt is spat, not emitted. */
 	private static WorldInterfaceClip headLunge(float seconds, float chargeSeconds, double peakScale) {
-		float release = Math.max(chargeSeconds, releaseAt(seconds, chargeSeconds, 26.0F));
+		float launch = chargeSeconds, settle = launch + 1.3F;
 		return WorldInterfaceClip.builder(seconds)
-				.addAnimation("center_neck_b", rotation(0.0F, 0, 0, 0,
-						chargeSeconds, -34, 0, 0, release, 26, 0, 0, seconds, 0, 0, 0))
-				.addAnimation("center_skull", scale(0.0F, 1, 1, 1, chargeSeconds,
-						peakScale, peakScale, peakScale, release, peakScale, peakScale, peakScale,
-						seconds, 1, 1, 1)).build();
+				.addAnimation("center_jaw", rotation(0, 0, 0, 0,
+						launch - .5F, 16, 0, 0, launch, 42, 0, 0, launch + .24F, 26, 0, 0,
+						settle, 0, 0, 0, seconds, 0, 0, 0))
+				.addAnimation("center_neck_b", rotation(0, 0, 0, 0,
+						launch - .55F, -22, 0, 0, launch + .10F, 18, 0, 0,
+						launch + .52F, -7, 0, 0, settle, 0, 0, 0, seconds, 0, 0, 0))
+				.addAnimation("center_skull", scale(0, 1, 1, 1,
+						launch - .35F, peakScale, peakScale, peakScale,
+						launch + .22F, .96, .96, .96, settle, 1, 1, 1, seconds, 1, 1, 1)).build();
 	}
 
 	/** A head locked onto one player and held there, which is what being singled out looks like. */
@@ -451,8 +459,8 @@ public final class WorldInterfaceClips {
 				.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0,
 						lockSeconds, -52, 0, 0, strikeSeconds, -8, 0, 0, seconds, 0, 0, 0))
 				.addAnimation("storm_body", rotation(0.0F, 0, 0, 0,
-						strikeSeconds - 0.1F, -9, 0, 0,
-						strikeSeconds + 0.08F, 17, 0, 0,
+						strikeSeconds - 0.22F, -9, 0, 0,
+						strikeSeconds + 0.18F, 17, 0, 0,
 						seconds, 0, 0, 0)).build();
 	}
 
@@ -474,10 +482,10 @@ public final class WorldInterfaceClips {
 			float rise = -58.0F - phase * 34.0F;
 			float splay = 8.0F + phase * 22.0F;
 			float release = releaseAt(seconds, arrival, rise * 0.92F);
-			builder.addAnimation("tendril_" + index, rotation(0.0F, 0, 0, side * 18,
+			builder.addAnimation("tendril_" + index, rotation(0.0F, 0, 0, 0,
 					arrival, rise, side * splay, side * (18.0F + phase * 16.0F),
 					release, rise * 0.92F, side * (splay + 6.0F), side * 22,
-					seconds, 0, 0, side * 18));
+					seconds, 0, 0, 0));
 			builder.addAnimation("tendril_" + index + "_mid", rotation(0.0F, 0, 0, 0,
 					arrival + 0.14F, rise * 0.34F, 0, side * 18,
 					release, rise * 0.30F, 0, side * 16, seconds, 0, 0, 0));
@@ -500,41 +508,31 @@ public final class WorldInterfaceClips {
 			float intervalSeconds, int strikes) {
 		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(seconds);
 		for (int index = 0; index < TENDRIL_COUNT; index++) {
-			float side = index % 2 == 0 ? 1.0F : -1.0F;
-			float phase = index / (float) TENDRIL_COUNT;
-			// Which strike, if any, this limb leads; its partner is the next one round the ring.
-			int lead = index % strikes;
-			boolean partner = (index + 1) % strikes == lead % strikes && index % strikes != lead;
-			List<float[]> frames = new ArrayList<>();
-			List<float[]> tipFrames = new ArrayList<>();
-			frames.add(new float[]{0.0F, -58.0F - phase * 34.0F, side * (8.0F + phase * 22.0F),
-					side * (18.0F + phase * 16.0F)});
-			tipFrames.add(new float[]{0.0F, 0.0F, 0.0F, 0.0F});
+			float side = index % 2 == 0 ? 1 : -1;
+			List<float[]> root = new ArrayList<>(), tip = new ArrayList<>();
+			root.add(new float[]{0,0,0,0}); tip.add(new float[]{0,0,0,0});
 			for (int strike = 0; strike < strikes; strike++) {
 				float at = firstStrikeSeconds + intervalSeconds * strike;
-				boolean leads = strike == lead;
-				// Every limb reacts to every strike; only the one that leads it actually commits.
-				float windup = leads ? -78.0F : -62.0F - phase * 10.0F;
-				float swingYaw = leads ? side * 34.0F : side * (12.0F + phase * 10.0F);
-				float lash = leads ? 64.0F : 6.0F + phase * 10.0F;
-				float lashYaw = leads ? side * -52.0F : side * (-8.0F - phase * 12.0F);
-				float lashRoll = leads ? side * -58.0F : side * (14.0F + phase * 12.0F);
-				// The partner trails the lead by a fraction of the interval, so a strike lands as a
-				// pair of limbs arriving slightly apart rather than as a single flat swipe.
-				float delay = partner ? intervalSeconds * 0.16F : 0.0F;
-				frames.add(new float[]{Math.max(0.05F, at - 0.26F + delay), windup, swingYaw,
-						side * (20.0F + phase * 14.0F)});
-				frames.add(new float[]{at + delay, lash, lashYaw, lashRoll});
-				// The tip lags the root by an eighth of a second, then overshoots it.
-				tipFrames.add(new float[]{Math.max(0.06F, at - 0.14F + delay),
-						leads ? -42.0F : -14.0F, 0.0F, side * (leads ? -24.0F : -8.0F)});
-				tipFrames.add(new float[]{at + delay + 0.12F, leads ? 78.0F : 18.0F, 0.0F,
-						side * (leads ? -46.0F : -12.0F)});
+				boolean lead = index == strike;
+				// The striking root moves first; the distal tip arrives on the damage tick.
+				// Supporting limbs counterbalance with delayed, smaller responses.
+				float gain = lead ? 1 : .12F;
+				float lag = lead ? 0 : .08F + index * .012F;
+				root.add(new float[]{at-.95F+lag, -16*gain, side*12*gain, side*8*gain});
+				root.add(new float[]{at-.58F+lag, -24*gain, side*18*gain, side*12*gain});
+				root.add(new float[]{at-.18F+lag, 105*gain, -side*42*gain, -side*44*gain});
+				root.add(new float[]{at+.28F+lag, 55*gain, -side*18*gain, -side*12*gain});
+				root.add(new float[]{at+.58F+lag, 0,0,0});
+				tip.add(new float[]{at-.62F+lag, -28*gain,0,side*14*gain});
+				tip.add(new float[]{at+lag, 66*gain,0,-side*24*gain});
+				tip.add(new float[]{at+.25F+lag, 28*gain,0,-side*8*gain});
+				tip.add(new float[]{at+.56F+lag, 0,0,0});
 			}
-			frames.add(new float[]{seconds, 0.0F, 0.0F, side * 18.0F});
-			tipFrames.add(new float[]{seconds, 0.0F, 0.0F, 0.0F});
-			builder.addAnimation("tendril_" + index, rotation(flatten(frames)));
-			builder.addAnimation("tendril_" + index + "_tip", rotation(flatten(tipFrames)));
+			// Last settling key must precede clip end, including the last support limb's lag.
+			root.removeIf(f -> f[0] >= seconds); tip.removeIf(f -> f[0] >= seconds);
+			root.add(new float[]{seconds,0,0,0}); tip.add(new float[]{seconds,0,0,0});
+			builder.addAnimation("tendril_"+index,rotation(flatten(root)));
+			builder.addAnimation("tendril_"+index+"_tip",rotation(flatten(tip)));
 		}
 		return builder.build();
 	}

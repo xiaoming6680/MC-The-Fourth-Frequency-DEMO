@@ -6,7 +6,7 @@ import java.util.Optional;
 
 /** Strict parser for the Gradle-to-client-GameTest selection contract. */
 public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
-	public enum Suite { ALL, MAINLINE, TOOLS_UI, NOTICE_ENTRY, ALPHA_RELAUNCH, ANOMALIES, ANOMALY_META_SMOKE, REWORK_FORMS, WATCHER_MODEL, WORLD_INTERFACE, TERMINAL_HANDHELD, SCREEN_FILTERS }
+	public enum Suite { ALL, MAINLINE, TOOLS_UI, NOTICE_ENTRY, ALPHA_RELAUNCH, ANOMALIES, ANOMALY_META_SMOKE, REWORK_FORMS, WATCHER_MODEL, HORROR_ENTITIES, WORLD_INTERFACE, TERMINAL_HANDHELD, SCREEN_FILTERS }
 
 	public ClientGameTestSelection {
 		anomalyId = anomalyId == null ? Optional.empty() : anomalyId;
@@ -31,6 +31,7 @@ public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
 			case "anomaly-meta-smoke" -> Suite.ANOMALY_META_SMOKE;
 			case "rework-forms" -> Suite.REWORK_FORMS;
 			case "watcher-model" -> Suite.WATCHER_MODEL;
+			case "horror-entities" -> Suite.HORROR_ENTITIES;
 			case "world-interface" -> Suite.WORLD_INTERFACE;
 			case "terminal-3d" -> Suite.TERMINAL_HANDHELD;
 			case "screen-filters" -> Suite.SCREEN_FILTERS;
@@ -59,6 +60,7 @@ public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
 	public boolean runsAnomalies() { return suite == Suite.ALL || suite == Suite.ANOMALIES; }
 	public boolean runsMetaSmoke() { return suite == Suite.ANOMALY_META_SMOKE; }
 	public boolean runsReworkForms() { return suite == Suite.ALL || suite == Suite.REWORK_FORMS; }
+	public boolean runsHorrorEntities() { return suite == Suite.ALL || suite == Suite.HORROR_ENTITIES; }
 	public boolean runsWatcherModel() { return suite == Suite.ALL || suite == Suite.WATCHER_MODEL; }
 	public boolean runsWorldInterface() { return suite == Suite.ALL || suite == Suite.WORLD_INTERFACE; }
 	/**

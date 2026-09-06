@@ -35,23 +35,26 @@ class WorldInterfaceClientFidelityContractTest {
 	@Test
 	void formsAccumulateOntoOneSharedBodyWithinAnEnforcedBudget() throws Exception {
 		String model = read("client_render/WorldInterfaceModel.java");
+		var bones = WorldInterfaceGeometryContractTest.bones();
 		for (String layer : new String[]{"shell_base", "phase_2_accretion", "phase_3_accretion"}) {
-			assertTrue(model.contains("\"" + layer + "\""), "missing shell layer: " + layer);
+			assertTrue(bones.containsKey(layer), "missing shell layer: " + layer);
+			assertEquals("storm_body", bones.get(layer).parent(), layer + " must hang off the body");
 		}
-		assertFalse(model.contains("\"form_1_core\""),
+		assertFalse(bones.containsKey("form_1_core"),
 				"per-form trees are retired: a morph must not swap the model out");
 		assertTrue(model.contains("shellBase.visible = true"),
 				"the first form's body must survive into the third");
 		assertTrue(model.contains("accretions[layer].visible = form > layer"),
 				"each morph reveals one more layer over what is already drawn");
 
-		assertTrue(model.contains("ANIMATED_BONE_COUNT = 67"));
-		assertTrue(model.contains("MAX_VISIBLE_STATIC_PARTS = 320"));
-		assertTrue(model.contains("STATIC_PART_BUDGET = {160, 224, MAX_VISIBLE_STATIC_PARTS}"));
-		// The budget used to be dead: nothing called it, so it constrained nothing at runtime and
-		// existed only to be matched by this assertion. It has to be spent to mean anything.
-		assertTrue(model.contains("accretionBudget(") && model.contains("staticPartBudget(form)"),
-				"the part budget must actually clamp geometry, not just be declared");
+		assertTrue(model.contains("ANIMATED_BONE_COUNT = 217"));
+		// The geometry is authored in Blockbench and baked from JSON; the part ceiling is enforced
+		// against that export by WorldInterfaceGeometryContractTest rather than by clamping
+		// generators, and the model must load the export rather than build cubes of its own.
+		assertTrue(model.contains("MAX_VISIBLE_PARTS = "));
+		assertTrue(model.contains("WorldInterfaceGeometry.load().layer()"),
+				"the model must bake the exported Blockbench geometry");
+		assertFalse(model.contains("addBox("), "geometry belongs in the bbmodel, not in Java");
 		String setup = model.substring(model.indexOf("public void setupAnim"));
 		assertFalse(setup.contains("addOrReplaceChild"), "form geometry must remain bake-time static");
 	}
@@ -67,14 +70,12 @@ class WorldInterfaceClientFidelityContractTest {
 	@Test
 	void theOnlyEyesAreOnTheThreeHeadsAndTheKernelStaysBuried() throws Exception {
 		String model = read("client_render/WorldInterfaceModel.java");
+		var bones = WorldInterfaceGeometryContractTest.bones();
 		for (String head : new String[]{"center", "left", "right"}) {
-			for (String bone : new String[]{"_head_mount", "_neck_a", "_neck_b", "_skull", "_jaw", "_eye_"}) {
-				assertTrue(model.contains("\"" + head + bone + "\"")
-								|| model.contains("prefix + \"" + bone + "\"")
-								|| model.contains("prefix + \"" + bone + "\" + index")
-								|| model.contains("HEAD_PREFIX[head] + \"" + bone + "\""),
-						"missing head bone: " + head + bone);
+			for (String bone : new String[]{"_head_mount", "_neck_a", "_neck_b", "_skull", "_jaw", "_eye_0"}) {
+				assertTrue(bones.containsKey(head + bone), "missing head bone: " + head + bone);
 			}
+			assertFalse(bones.containsKey(head + "_eye_1"), "one aperture per skull, as in the reference");
 		}
 		assertTrue(model.contains("EYES_PER_HEAD = 1"), "one aperture per skull, as in the reference");
 		// The retired central eye and its halo. Both were explicitly ruled out of the final look.
@@ -82,11 +83,11 @@ class WorldInterfaceClientFidelityContractTest {
 				"form_1_eye", "form_3_ring", "EYE_3_BALL_U", "RING_OUTER_U", "addSpires", "addOrbital"}) {
 			assertFalse(model.contains(retired), "retired geometry is back: " + retired);
 		}
-		assertTrue(model.contains("interface_kernel") && model.contains("kernel_glow"),
+		assertTrue(bones.containsKey("interface_kernel") && bones.containsKey("kernel_glow"),
 				"the interface kernel stays, as a buried secondary detail");
-		// Head placement is the anatomy's, not the model's: the server boxes the heads with the same
-		// call, so what a player swings at is what they can see.
-		assertTrue(model.contains("WorldInterfaceAnatomy.headLocalUnits("),
+		// Head placement is the rig's, not the model's: the server boxes the heads off the same bind
+		// pose the exported geometry is checked against, so what a player swings at is what they see.
+		assertTrue(readCommon("entity/WorldInterfaceRig.java").contains("WorldInterfaceAnatomy.headLocalUnits("),
 				"drawn heads and hittable heads must come from one source");
 		// Posing moved to the shared rig, which is what lets the server put the boxes on the bones.
 		// The model must read that pose rather than compute a second one.

@@ -72,6 +72,8 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 	private final ModelPart abdomen;
 	private final ModelPart[] legs = new ModelPart[LEGS_PER_SIDE * 2];
 	private final ModelPart[] shins = new ModelPart[LEGS_PER_SIDE * 2];
+	private final ModelPart[] feet = new ModelPart[LEGS_PER_SIDE * 2];
+	private final ModelPart[] plates = new ModelPart[6];
 
 	public BacteriaModel(ModelPart root) {
 		super(root);
@@ -80,7 +82,9 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 		for (int index = 0; index < legs.length; index++) {
 			legs[index] = body.getChild(legName(index));
 			shins[index] = legs[index].getChild("shin");
+			feet[index] = shins[index].getChild("tarsus");
 		}
+		for (int i = 0; i < plates.length; i++) plates[i] = abdomen.getChild("carapace_" + i);
 	}
 
 	private static String legName(int index) {
@@ -88,6 +92,10 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 	}
 
 	public static LayerDefinition createBodyLayer() {
+		return WorldInterfaceGeometry.loadEntity("bacteria").layer();
+	}
+
+	public static LayerDefinition createAuthoringLayer() {
 		MeshDefinition mesh = new MeshDefinition();
 		PartDefinition root = mesh.getRoot();
 		// Slung low between the legs rather than perched on them. A body carried high reads as an
@@ -144,7 +152,8 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 		// The body drops slightly and pitches forward as it drives, which is what stops a fast spider
 		// from looking like a model being slid along the floor.
 		body.xRot = 0.04F + state.walkSurge * 0.10F;
-		body.y = 14.5F - Mth.abs(Mth.sin(walk * STEP_RATE * 2.0F)) * amount * 0.8F;
+		float bodyLift = Mth.abs(Mth.sin(walk * STEP_RATE * 2.0F)) * amount * 0.35F;
+		body.y = 14.5F - bodyLift;
 		abdomen.xRot = -0.18F + Mth.sin(walk * STEP_RATE * 2.0F) * amount * 0.06F;
 
 		for (int index = 0; index < legs.length; index++) {
@@ -155,18 +164,23 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 			// Diagonal gait: the four legs that are down are never all on one side, which is what
 			// makes eight limbs read as one animal rather than as two sets of four.
 			float phase = ((pair + (right ? 0 : 2)) % 4) * Mth.HALF_PI;
-			float swing = Mth.cos(walk * STEP_RATE + phase) * 0.42F * amount;
-			float lift = Mth.abs(Mth.sin(walk * STEP_RATE + phase)) * 0.38F * amount;
+			var step = com.xm.thefourthfrequency.entity.HorrorMotion.spiderLeg(walk * STEP_RATE + phase, amount, bodyLift);
 			// A slow wander that never lines up with the step, so a stationary spider still moves.
 			float drift = Mth.sin(age * DRIFT_PERIOD + index * 1.31F) * 0.05F;
 
 			ModelPart femur = legs[index];
-			femur.yRot = yaw + swing * side + drift;
-			femur.zRot = (FEMUR_LIFT - lift) * side;
+			femur.yRot = yaw + step.yaw() * side;
+			femur.zRot = step.hip() * side;
 			// The knee closes as the leg lifts and opens as it plants, which is the difference
 			// between a leg that is walking and a leg being waved.
-			shins[index].zRot = (KNEE_BEND + lift * 0.75F) * side;
-			shins[index].yRot = drift * 0.6F;
+			shins[index].zRot = step.knee() * side;
+			shins[index].yRot = 0;
+			feet[index].zRot = -(step.hip() + step.knee()) * side + side * step.lift() * .055F;
+			feet[index].xRot += step.planted() ? 0 : drift;
+		}
+		for (int i = 0; i < plates.length; i++) {
+			plates[i].xRot += Mth.sin(age * .055F - i * .65F) * .028F;
+			plates[i].y += Mth.sin(age * .055F - i * .65F) * .065F;
 		}
 	}
 }

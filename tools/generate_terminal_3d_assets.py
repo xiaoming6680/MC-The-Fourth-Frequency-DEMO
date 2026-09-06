@@ -383,6 +383,52 @@ ELEMENTS = [
 ]
 
 
+def detail_shell():
+    """Machined relief around the original screen plane; all six states retain its exact pose."""
+    def add(name, box, uv=BRASS_DARK_UV):
+        ELEMENTS.append((name, box, faces(uv, uv, uv)))
+
+    # Deep CRT hood. Its inner opening lies outside the painted glass, so the final zoom
+    # still meets the same screen rectangle before the UI takes over.
+    x0, y0, x1, y1 = CRT
+    # The north face reverses U relative to model X.
+    left, right = 15 - (x1 + 1) / 8, 15 - x0 / 8
+    top, bottom = 11.5 - y0 / 8, 11.5 - (y1 + 1) / 8
+    add('crt_hood_upper', [left-.16, top, 6.28, right+.16, top+.17, 6.77])
+    add('crt_hood_lower', [left-.16, bottom-.17, 6.38, right+.16, bottom, 6.77])
+    add('crt_hood_left', [left-.17, bottom, 6.28, left, top, 6.77])
+    add('crt_hood_right', [right, bottom, 6.28, right+.17, top, 6.77])
+    # A recessed seam between screen casting and instrument housing.
+    add('control_partition', [5.42, 4.73, 6.48, 5.57, 11.25, 6.78], EDGE_UV)
+    for index, (px, py) in enumerate(SCREWS):
+        x, y = 15 - (px+.5)/8, 11.5-(py+.5)/8
+        add(f'fastener_{index}', [x-.13,y-.13,6.31,x+.13,y+.13,6.55], BRASS_UV)
+        add(f'fastener_slot_{index}', [x-.08,y-.022,6.29,x+.08,y+.022,6.32])
+    # Stepped shoulder bumpers protect the brass rim, with a narrower raised centre.
+    for side, x in (('left', .24), ('right', 15.1)):
+        for row, y in enumerate((4.08, 10.93)):
+            add(f'bumper_{side}_{row}', [x,y,6.37,x+.66,y+.96,9.55], EDGE_UV)
+            add(f'bumper_ridge_{side}_{row}', [x+.12,y+.1,6.19,x+.54,y+.86,9.65], BRASS_DARK_UV)
+    # Thick rear battery bay, retaining ribs and physical recessed ventilation channels.
+    add('battery_pan', [2.1,5.25,9.24,10.45,10.75,9.6], EDGE_UV)
+    add('battery_latch', [5.25,5.1,9.58,7.3,5.7,9.78], BRASS_DARK_UV)
+    for i in range(8):
+        x=2.5+i*.9
+        add(f'battery_fin_{i}', [x,5.9,9.59,x+.35,10.1,9.77], EDGE_UV)
+    for i in range(7):
+        y=5.6+i*.68
+        add(f'rear_vent_{i}', [11.1,y,9.26,14.1,y+.3,9.61], BRASS_DARK_UV)
+    # Knurled edge grips are outside the CRT and outside the state-dependent unread lamp.
+    for side, x in (('left',.37),('right',15.0)):
+        for i in range(9):
+            y=5.1+i*.59
+            add(f'grip_{side}_{i}', [x,y,7.0,x+.6,y+.27,9.2], EDGE_UV)
+    add('serial_plate', [5.0,10.15,9.6,9.6,10.55,9.76], BRASS_DARK_UV)
+
+
+detail_shell()
+
+
 def build_model(form: int) -> dict:
     texture = f"thefourthfrequency:item/old_terminal_shell_{form}"
     return {

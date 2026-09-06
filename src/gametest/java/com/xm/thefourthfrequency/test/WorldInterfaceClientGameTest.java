@@ -89,6 +89,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 			client.options.hideGui = false;
 		});
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
+			EntityVisualFixture.finishFirstBoot(context);
 			singleplayer.getClientWorld().waitForChunksRender();
 			context.waitTicks(20);
 			assertLockedRenderDistance(context, Level.OVERWORLD,
@@ -230,6 +231,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 	private static void captureFormAngles(ClientGameTestContext context,
 			TestSingleplayerContext singleplayer, Fixture fixture, String screenshot) {
 		String[] labels = {"front", "side", "rear"};
+		context.runOnClient(client -> client.options.hideGui = true);
 		int[][] offsets = {{0, 38}, {38, 0}, {0, -38}};
 		float[] yaws = {180.0F, 90.0F, 0.0F};
 		for (int index = 0; index < labels.length; index++) {
@@ -242,8 +244,10 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 						Set.of(), yaws[view], -24.0F, true);
 			});
 			context.waitTicks(6);
+			EntityVisualFixture.assertVisible(context, fixture.bodyId());
 			context.takeScreenshot(screenshot + "-" + labels[index]);
 		}
+		context.runOnClient(client -> client.options.hideGui = false);
 	}
 
 	private static void captureResolutionCoverage(ClientGameTestContext context) {
@@ -351,21 +355,49 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 			return sendAction(server, fixture, action, 100);
 		});
 		waitForAction(context, fixture, sequence, action);
-		context.waitTicks(10);
-		context.takeScreenshot(screenshot);
+		for (int tick : new int[]{10, 35, 65}) {
+			context.waitFor(client -> client.level != null && java.util.stream.StreamSupport
+					.stream(client.level.entitiesForRendering().spliterator(), false)
+					.anyMatch(e -> e.getUUID().equals(fixture.bodyId()) && e instanceof WorldInterfaceEntity body
+							&& body.actionAgeMillis() >= tick * 50L), 100);
+			EntityVisualFixture.assertVisible(context, fixture.bodyId());
+			context.takeScreenshot(screenshot + "-tick-" + tick);
+		}
 	}
 
 	private static void captureCombatAction(ClientGameTestContext context, TestSingleplayerContext singleplayer,
 			Fixture fixture, WorldInterfaceProtocol.BossAction action) {
-		int duration = action == WorldInterfaceProtocol.BossAction.FORCED_EXPULSION ? 30 : 90;
+		int duration = 0;
+		for (var clip : com.xm.thefourthfrequency.entity.WorldInterfaceClips.clipsForAction(action.wireId()))
+			duration = Math.max(duration, Math.round(clip.lengthSeconds() * 20));
+		final int ticks = duration;
 		long sequence = singleplayer.getServer().computeOnServer(server -> {
-			WorldInterfaceEntity body = body(requireEnd(server), fixture.bodyId());
+			var end = requireEnd(server);
+			BlockPos camera = surfaceAir(end, fixture.center().getX(), fixture.center().getZ() + 38);
+			firstPlayer(server).teleportTo(end,camera.getX()+.5,camera.getY(),camera.getZ()+.5,Set.of(),180,-24,true);
+			WorldInterfaceEntity body = body(end, fixture.bodyId());
 			body.setForm(formForAction(action).wireId() - 1);
-			return sendAction(server, fixture, action, duration);
+			return sendAction(server, fixture, action, ticks);
 		});
 		waitForAction(context, fixture, sequence, action);
-		context.waitTicks(action == WorldInterfaceProtocol.BossAction.FORCED_EXPULSION ? 12 : 6);
-		context.takeScreenshot("world-interface-action-" + action.name().toLowerCase(Locale.ROOT));
+		int[] samples = switch (action) {
+			case LASER_SWEEP -> new int[]{60,86,94,112,125};
+			case ENERGY_ORB -> new int[]{25,38,43,55};
+			case SKY_LANCE -> new int[]{48,82,92,103};
+			case TENDRIL_LASH -> new int[]{40,65,77,84,111,122,167,174};
+			default -> new int[]{Math.max(1,ticks/3),Math.max(2,ticks*2/3),Math.max(3,ticks-5)};
+		};
+		for(int targetAge:samples){
+			context.waitFor(client -> {
+				if(client.level==null)return false;
+				for(var e:client.level.entitiesForRendering())
+					if(e.getUUID().equals(fixture.bodyId()) && e instanceof WorldInterfaceEntity b)
+						return b.actionAgeMillis() >= targetAge*50L;
+				return false;
+			},ticks+40);
+			EntityVisualFixture.assertVisible(context,fixture.bodyId());
+			context.takeScreenshot("world-interface-action-"+action.name().toLowerCase(Locale.ROOT)+"-t"+targetAge);
+		}
 	}
 
 	private static void captureGateway(ClientGameTestContext context, TestSingleplayerContext singleplayer,

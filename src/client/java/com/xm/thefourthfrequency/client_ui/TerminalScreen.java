@@ -14,6 +14,7 @@ import com.xm.thefourthfrequency.terminal.TerminalControlPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalGlyphSettle;
 import com.xm.thefourthfrequency.terminal.TerminalMotion;
 import com.xm.thefourthfrequency.terminal.TerminalOnboardingPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalSelfTest;
 import com.xm.thefourthfrequency.terminal.TerminalOnboardingTransition;
 import com.xm.thefourthfrequency.terminal.OscilloscopeWaveformPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalPage;
@@ -162,6 +163,12 @@ public final class TerminalScreen extends Screen {
 	private final TerminalMotionState motion = new TerminalMotionState();
 	private final TerminalOnboardingOverlay onboardingOverlay = new TerminalOnboardingOverlay();
 	private TerminalOnboardingPolicy.Phase onboardingPhase = TerminalOnboardingPolicy.Phase.DONE;
+	private final TerminalSelfTestOverlay selfTestOverlay = new TerminalSelfTestOverlay();
+	/** Whether this open runs the short power-on check at all. */
+	private boolean selfTestArmed;
+	/** When it started, or -1 while it is armed and has not been drawn a first frame yet. */
+	private long selfTestStartedAtMillis = -1L;
+	private boolean selfTestSkipped;
 	private int profileQuestionShown = -1;
 	private long profileQuestionStartedAtMillis;
 	private int profileHeldTicks;
@@ -275,10 +282,37 @@ public final class TerminalScreen extends Screen {
 		// Kept for the ending, which happens long after every terminal has been surrendered to the core.
 		PreviousRunClient.rememberProfile(snapshot);
 		this.onboardingStartedAtMillis = nowMillis();
+		// The walkthrough opens with a self test of its own, six lines long. Running the short one
+		// as well would put two power-on checks back to back on the one boot that already has one.
+		this.selfTestArmed = TerminalSelfTest.playsOnOpen(onboardingLocksExit());
 	}
 
 	private boolean onboardingLocksExit() {
 		return TerminalOnboardingPolicy.locksExit(onboardingPhase);
+	}
+
+	/**
+	 * Whether the short power-on check still owns the page area.
+	 *
+	 * <p>It owns nothing else. The tabs, the status bar and the hardware column keep drawing and
+	 * keep taking input throughout, and the exit is never held - {@link #shouldCloseOnEsc} is not
+	 * consulted here and must never learn about this. The first-boot walkthrough is the only thing
+	 * in this mod allowed to take the way out, and it is allowed because it happens once; a check
+	 * that runs on every open would take it hundreds of times.
+	 */
+	private boolean selfTestRunning() {
+		if (!selfTestArmed || selfTestSkipped) return false;
+		// Armed but never drawn: the clock starts on the first frame, not in the constructor. A
+		// screen can be built and then sit behind something before it is ever shown, and half a
+		// second is short enough that it would simply run out unseen.
+		if (selfTestStartedAtMillis < 0L) return true;
+		return !TerminalSelfTest.finished(selfTestElapsedMillis());
+	}
+
+	private long selfTestElapsedMillis() {
+		if (selfTestStartedAtMillis < 0L) return 0L;
+		long now = renderNowMillis > 0L ? renderNowMillis : nowMillis();
+		return now - selfTestStartedAtMillis;
 	}
 
 	/**
@@ -734,6 +768,7 @@ public final class TerminalScreen extends Screen {
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
 		renderNowMillis = nowMillis();
+		if (selfTestArmed && selfTestStartedAtMillis < 0L) selfTestStartedAtMillis = renderNowMillis;
 		renderAge = age + partialTick;
 		motion.beginFrame(renderNowMillis);
 		// The objective bar advanced once per client tick, so it climbed in twenty steps a second on
@@ -813,6 +848,8 @@ public final class TerminalScreen extends Screen {
 		// has no holder to show a task card to, and no tab is reachable from there anyway.
 		if (onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT
 				|| onboardingPhase == TerminalOnboardingPolicy.Phase.PROFILE) return;
+		// Same reason, half a second long: the machine has not said it is up yet.
+		if (selfTestRunning()) return;
 		var body = TerminalUiLayout.PAGE_BODY;
 		double progress = motion.pageProgress(renderNowMillis);
 		if (progress >= 1.0D) {
@@ -890,6 +927,11 @@ public final class TerminalScreen extends Screen {
 
 	/** The self test, the step pointer, or the brief "setup complete" note - whichever applies. */
 	private void drawOnboarding(GuiGraphics graphics) {
+		if (selfTestRunning()) {
+			selfTestOverlay.prepare(snapshot, snapshot.files().size());
+			selfTestOverlay.draw(graphics, font, selfTestElapsedMillis());
+			return;
+		}
 		if (onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT) {
 			onboardingOverlay.prepareBootText(holderName());
 			onboardingOverlay.drawBoot(graphics, font,
@@ -2209,6 +2251,13 @@ public final class TerminalScreen extends Screen {
 		// buttons look like they promise.
 		if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(event, doubled);
 		double[] local = local(event.x(), event.y());
+		// A press ends the check. Only one aimed at the page area is eaten with it: that is the part
+		// standing empty, and a click there would otherwise reach a control the player cannot see.
+		// The tabs and the hardware column were drawn the whole time and answer normally.
+		if (selfTestRunning()) {
+			selfTestSkipped = true;
+			if (TerminalUiLayout.PAGE_BODY.contains(local[0], local[1])) return true;
+		}
 		// Before the action rather than after it, so a press the boundary below refuses - a locked
 		// tool cell, a dial the receiver is not offering - still acknowledges the click. Feedback is
 		// about the input arriving, not about it being granted.
@@ -2308,7 +2357,7 @@ public final class TerminalScreen extends Screen {
 				if (TerminalUiLayout.TOOL_ACTION_PRIMARY.contains(x, y)
 						&& !tools.mineralScanning() && tools.mineralProbeReady()) {
 					send(TerminalControlPayload.REQUEST_RESCAN, 0);
-					TerminalClientAudio.click();
+					TerminalClientAudio.commit();
 					return true;
 				}
 			}
@@ -2369,7 +2418,7 @@ public final class TerminalScreen extends Screen {
 		if (tools.guidanceTool() == selectedTool) {
 			send(TerminalControlPayload.STOP_GUIDANCE, 0);
 			if (homeLiveTool == selectedTool) homeLiveTool = null;
-			TerminalClientAudio.click();
+			TerminalClientAudio.commit();
 			return;
 		}
 		send(TerminalControlPayload.START_GUIDANCE, selectedTool.slot());
@@ -2380,7 +2429,7 @@ public final class TerminalScreen extends Screen {
 	private void togglePinnedTool() {
 		if (homeLiveTool == selectedTool) {
 			homeLiveTool = null;
-			TerminalClientAudio.click();
+			TerminalClientAudio.backLevel();
 			return;
 		}
 		if (tools.guidanceTool() != null) send(TerminalControlPayload.STOP_GUIDANCE, 0);
@@ -2392,13 +2441,14 @@ public final class TerminalScreen extends Screen {
 		clearSelectedTool(false);
 		enterPage(TerminalPage.HOME);
 		setMode(TerminalPage.HOME.wireMode());
-		TerminalClientAudio.click();
+		// The order reaching the server outranks the page move it happens to end with.
+		TerminalClientAudio.commit();
 	}
 
 	private void closeHomeLiveTool() {
 		if (tools.guidanceTool() != null) send(TerminalControlPayload.STOP_GUIDANCE, 0);
 		homeLiveTool = null;
-		TerminalClientAudio.click();
+		TerminalClientAudio.backLevel();
 	}
 
 	private boolean backFromToolDetail() {
@@ -2418,7 +2468,7 @@ public final class TerminalScreen extends Screen {
 			localNavigationTargetChosen = true;
 			navigationNeedleFlashStartedAt = renderAge;
 			send(hit.action(), hit.value());
-			TerminalClientAudio.click();
+			TerminalClientAudio.commit();
 			return true;
 		}
 		return false;
@@ -2448,7 +2498,7 @@ public final class TerminalScreen extends Screen {
 			int hiddenIndex = HiddenFilePolicy.indexOf(file.id());
 			if (hiddenIndex >= 0) send(TerminalControlPayload.READ_HIDDEN_FILE, hiddenIndex);
 		}
-		TerminalClientAudio.click();
+		TerminalClientAudio.openLevel();
 	}
 
 	private void openDetail(TerminalFilePayload file) {
@@ -2508,6 +2558,10 @@ public final class TerminalScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
+		// Any key ends the power-on check, and is then handled as though it had never run. Escape
+		// included: a player who opened the terminal to read a pursuit warning must not be made to
+		// watch a status line finish printing, and must not lose the way out to it either.
+		selfTestSkipped = true;
 		// Swallows everything the walkthrough is not asking for, Escape included. shouldCloseOnEsc
 		// already refuses vanilla's own Escape path; this stops the key reaching anything else on
 		// the way there.
@@ -2611,12 +2665,12 @@ public final class TerminalScreen extends Screen {
 			if (next == TerminalPage.RECORDS && snapshot.unreadCount() > 0) {
 				send(TerminalControlPayload.MARK_RECORDS_READ, 0);
 				recordsAcknowledged = true;
-				TerminalClientAudio.click();
+				TerminalClientAudio.acknowledge();
 			}
 			if (next == TerminalPage.FILES && snapshot.unreadFileCount() > 0) {
 				send(TerminalControlPayload.MARK_FILES_SEEN, 0);
 				filesAcknowledged = true;
-				TerminalClientAudio.click();
+				TerminalClientAudio.acknowledge();
 			}
 			if (selectedTool != null && (next == TerminalPage.TOOLS || next == TerminalPage.HOME)) {
 				clearSelectedTool(true);
@@ -2638,7 +2692,7 @@ public final class TerminalScreen extends Screen {
 			if (previous != TerminalPage.FILES) resetLogView();
 		}
 		recordsScrollRow = next == TerminalPage.RECORDS ? recordsScrollRow : 0;
-		TerminalClientAudio.click();
+		TerminalClientAudio.tab();
 		setMode(next.wireMode());
 		return true;
 	}
@@ -2652,7 +2706,7 @@ public final class TerminalScreen extends Screen {
 		send(TerminalControlPayload.SELECT_TOOL, tool.slot());
 		enterPage(TerminalPage.TOOLS);
 		setMode(TerminalControlPolicy.Mode.SIGNAL.ordinal());
-		TerminalClientAudio.click();
+		TerminalClientAudio.openLevel();
 	}
 
 	private void clearSelectedTool(boolean audio) {
@@ -2661,7 +2715,7 @@ public final class TerminalScreen extends Screen {
 		toolDetailScroll = 0;
 		toolOpenedFromHome = false;
 		navigationHits.clear();
-		if (audio) TerminalClientAudio.click();
+		if (audio) TerminalClientAudio.backLevel();
 	}
 
 	private void setMode(int value) {

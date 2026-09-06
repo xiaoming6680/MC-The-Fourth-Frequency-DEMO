@@ -38,6 +38,10 @@ public final class DebugNames {
 			case "encrypted_witness_file" -> "前任留下的日记";
 			case "body_mapping_warning" -> "进入祭坛前";
 			case "recovered_predecessor_record" -> "上一局的残篇";
+			case "manual_sky_monitor" -> "手册·天空";
+			case "manual_mineral_probe" -> "手册·探针";
+			case "manual_structure_navigator" -> "手册·导航";
+			case "manual_stronghold_estimate" -> "手册·要塞";
 			default -> "未知文件";
 		};
 	}

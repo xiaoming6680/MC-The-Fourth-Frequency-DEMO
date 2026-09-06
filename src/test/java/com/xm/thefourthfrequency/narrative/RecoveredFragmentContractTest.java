@@ -44,7 +44,7 @@ final class RecoveredFragmentContractTest {
 				NarrativeFileCatalog.require(HiddenFilePolicy.RECOVERED_FILE_ID);
 		assertFalse(definition.lineKeys().isEmpty());
 		assertEquals(STEM + "title", definition.titleKey());
-		assertEquals(8, NarrativeFileCatalog.definitions().size());
+		assertEquals(12, NarrativeFileCatalog.definitions().size());
 	}
 
 	/**

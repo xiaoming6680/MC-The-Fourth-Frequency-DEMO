@@ -209,8 +209,8 @@ def paint_face(base: Image.Image, stage: int) -> None:
 
 
 def create_emissive(stage: int) -> Image.Image:
-    if stage not in (4, 5):
-        raise ValueError("Only stages 4 and 5 have emissive masks")
+    if stage not in (3, 5):
+        raise ValueError("Only middle and final anatomy profiles have emissive masks")
     coords = face_coordinates(stage)
     core = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(core, "RGBA")
@@ -273,18 +273,18 @@ def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     GUIDE.parent.mkdir(parents=True, exist_ok=True)
     reference = Image.open(REFERENCE).convert("RGB")
-    for stage in range(1, 6):
+    for form, stage in enumerate((1, 3, 5), start=1):
         panel = material_panel(reference, stage)
         texture = material_atlas(panel, stage)
         for index, (name, rect) in enumerate(UV_REGIONS.items()):
             decorate_region(texture, stage, name, rect, 17011 + stage * 571 + index * 43)
         paint_face(texture, stage)
-        if stage >= 4:
+        if stage >= 3:
             emissive = create_emissive(stage)
             texture = merge_emissive_hint(texture, emissive)
-            emissive.save(OUTPUT / f"rework_body_stage_{stage}_emissive.png", optimize=True)
+            emissive.save(OUTPUT / f"rework_body_stage_{form}_emissive.png", optimize=True)
         # Base textures are intentionally fully opaque; transparency belongs only to emissive masks.
-        texture.convert("RGB").save(OUTPUT / f"rework_body_stage_{stage}.png", optimize=True)
+        texture.convert("RGB").save(OUTPUT / f"rework_body_stage_{form}.png", optimize=True)
     create_uv_guide()
 
 

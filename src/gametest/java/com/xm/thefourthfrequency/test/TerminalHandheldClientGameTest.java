@@ -116,7 +116,7 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 	}
 
 	/** Waits for Relay Station Zero to hand this player their bound terminal. */
-	private static void awaitIssuedTerminal(ClientGameTestContext context) {
+	static void awaitIssuedTerminal(ClientGameTestContext context) {
 		for (int attempt = 0; attempt < 120; attempt++) {
 			boolean[] issued = {false};
 			context.runOnClient(client -> {
@@ -208,7 +208,7 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 	}
 
 	/** Spends the one-time first-boot walkthrough, which holds the terminal open until it is done. */
-	private static void completeWalkthrough(ClientGameTestContext context) {
+	static void completeWalkthrough(ClientGameTestContext context) {
 		rightClickTerminal(context);
 		context.waitForScreen(TerminalScreen.class);
 		for (int attempt = 0; attempt < 120; attempt++) {

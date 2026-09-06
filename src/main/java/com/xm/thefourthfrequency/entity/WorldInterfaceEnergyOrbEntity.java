@@ -134,9 +134,8 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 		}
 		orb.bind(encounterId, owner.getUUID(), target.getUUID());
 		orb.power = Math.clamp(owner.form(), 0, WorldInterfaceAnatomy.FORM_COUNT - 1);
-		// Born at the glowing core, which is where the client draws the launch flash. Spawned at the
-		// collision-box centre it appeared out of the plating a dozen blocks off the feed.
-		Vec3 core = WorldInterfaceAnatomy.coreOrigin(owner);
+		// Spawn and launch flash follow the same mouth socket as the charged laser.
+		Vec3 core = WorldInterfaceAnatomy.mouthOrigin(owner, 0);
 		orb.setPos(core.x, core.y, core.z);
 		// Aimed once, at the launch. Everything after this is the player's to read and step out of.
 		orb.setDeltaMovement(target.getEyePosition().subtract(core).normalize().scale(SPEED));
@@ -222,10 +221,8 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 		}
 
 		setPos(to.x, to.y, to.z);
-		level.sendParticles(BREATH_PARTICLE, getX(), getY(), getZ(),
-				6, 0.22D, 0.22D, 0.22D, 0.01D);
-		level.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY(), getZ(),
-				3, 0.18D, 0.18D, 0.18D, 0.02D);
+		level.sendParticles(WorldInterfaceVfx.core(), getX(), getY(), getZ(),
+				3, 0.16D, 0.16D, 0.16D, 0.01D);
 		// The bolt crosses most of the arena in a couple of seconds, so what a player has to read is
 		// not the ball - it is the line the ball is on. The wake is wound around the step it just
 		// took and a collar is left standing across it: a helix has a direction and a ring across

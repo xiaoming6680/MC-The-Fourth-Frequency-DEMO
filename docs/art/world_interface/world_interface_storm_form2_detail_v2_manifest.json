@@ -1,0 +1,43 @@
+{
+  "phase": 2,
+  "cubes": 2876,
+  "groups": 651,
+  "heads": 3,
+  "mainTentacles": 6,
+  "inheritedBaseCubes": 1886,
+  "baseGeometryUnchanged": true,
+  "animations": [
+    {
+      "name": "animation.world_interface.form2.idle",
+      "length": 6,
+      "loop": "loop",
+      "animatedBones": 37
+    },
+    {
+      "name": "animation.world_interface.form2.charge",
+      "length": 3,
+      "loop": "once",
+      "animatedBones": 13
+    },
+    {
+      "name": "animation.world_interface.form2.tentacle_sweep",
+      "length": 2.4,
+      "loop": "once",
+      "animatedBones": 2
+    },
+    {
+      "name": "animation.world_interface.form2.hit_reaction",
+      "length": 1.1,
+      "loop": "once",
+      "animatedBones": 4
+    },
+    {
+      "name": "animation.world_interface.form2.accretion",
+      "length": 4,
+      "loop": "once",
+      "animatedBones": 3
+    }
+  ],
+  "format": "free",
+  "runtimeIntegrated": false
+}
