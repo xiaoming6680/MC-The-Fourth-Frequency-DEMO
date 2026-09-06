@@ -1,5 +1,6 @@
 package com.xm.thefourthfrequency.networking;
 
+import com.xm.thefourthfrequency.ending.WorldInterfacePolicy;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -22,11 +23,12 @@ final class WorldInterfaceProtocolPersistenceTest {
 
 	@Test
 	void everyFinalePayloadRoundTripsAboveTheSignedIntBoundary() {
-		assertEquals(2, WorldInterfaceProtocol.VERSION);
+		assertEquals(3, WorldInterfaceProtocol.VERSION);
 		AltarSnapshotS2C altar = new AltarSnapshotS2C(WorldInterfaceProtocol.VERSION, ENCOUNTER_ID,
 				ABOVE_SIGNED_INT_MAX, 91L, WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(),
 				new BlockPos(0, 65, 0), List.of(ENCOUNTER_ID), List.of("player"), 1, true,
-				WorldInterfaceProtocol.AltarStatus.READY.wireId());
+				WorldInterfaceProtocol.AltarStatus.READY.wireId(),
+				WorldInterfacePolicy.RITUAL_WINDOW_TICKS, true);
 		WorldInterfaceSnapshotS2C snapshot = new WorldInterfaceSnapshotS2C(WorldInterfaceProtocol.VERSION,
 				ENCOUNTER_ID, ABOVE_SIGNED_INT_MAX + 1L, WorldInterfaceProtocol.Stage.PHASE_3.wireId(),
 				WorldInterfaceProtocol.Form.WORLD_INTERFACE.wireId(), UUID.fromString(
@@ -74,7 +76,7 @@ final class WorldInterfaceProtocolPersistenceTest {
 		assertThrows(IllegalArgumentException.class, () -> new AltarSnapshotS2C(
 				WorldInterfaceProtocol.VERSION - 1, ENCOUNTER_ID, 0L, 0L,
 				WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(), BlockPos.ZERO,
-				List.of(), List.of(), 0, false, Integer.MAX_VALUE));
+				List.of(), List.of(), 0, false, Integer.MAX_VALUE, 0, false));
 		assertEquals(WorldInterfaceProtocol.AltarStatus.SACRIFICE_NOT_READY,
 				WorldInterfaceProtocol.AltarStatus.fromReason("sacrifice_not_ready"));
 		assertEquals(WorldInterfaceProtocol.AltarStatus.INVALID_MUTATION_ROSTER_CHANGED,

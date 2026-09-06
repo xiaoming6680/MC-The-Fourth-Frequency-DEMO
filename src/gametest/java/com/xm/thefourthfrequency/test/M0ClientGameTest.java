@@ -7,6 +7,7 @@ import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.pursuit.PursuitProgressPolicy;
 import com.xm.thefourthfrequency.state.NavigationState;
 import com.xm.thefourthfrequency.terminal.TerminalControlPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalPage;
 import com.xm.thefourthfrequency.terminal.TerminalResource;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
@@ -31,6 +32,7 @@ import com.xm.thefourthfrequency.client_ui.AlphaResourcePackPlan;
 import com.xm.thefourthfrequency.client_ui.DimensionViewDistanceController;
 import com.xm.thefourthfrequency.client_ui.DimensionViewDistancePolicy;
 import com.xm.thefourthfrequency.terminal.AnomalyCatalog;
+import com.xm.thefourthfrequency.terminal.DebugNames;
 import com.xm.thefourthfrequency.terminal.TerminalAnomalyLogService;
 import com.xm.thefourthfrequency.terminal.TerminalSignalService;
 import com.xm.thefourthfrequency.narrative.NarrativeFileCatalog;
@@ -100,7 +102,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			}
 		});
 		context.runOnClient(DimensionViewDistanceController::resetForTesting);
-		assertInitialOverworldRenderDistance(context);
+		assertRenderDistanceIsUntouchedOutsideAModWorld(context);
 		if (Boolean.getBoolean("thefourthfrequency.realMetaSmoke")) {
 			context.runOnClient(client -> {
 				var awakened = MetaController.dispatchForTesting(MetaEvent.FINAL_BODY_AWAKENED);
@@ -139,6 +141,10 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			singleplayer.getClientWorld().waitForChunksRender();
 			context.waitTicks(30);
 			assertAlphaSessionLoaded(context);
+			// Inside a world the lock is this mod's to apply, and everything the title-screen check
+			// just refused - the pinned value, the rejected setter, the greyed-out slider - is now
+			// required. Same assertions, opposite verdict, which is the whole scoping change.
+			assertInitialOverworldRenderDistance(context);
 			save = singleplayer.getWorldSave();
 			stationPosition = singleplayer.getServer().computeOnServer(server -> {
 				FrequencyWorldData data = FrequencyWorldData.get(server);
@@ -154,6 +160,9 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			openTerminalThroughClientCallback(context);
 			context.waitForScreen(TerminalScreen.class);
 			context.waitTicks(2);
+			// The profile comes first now: it holds the exit and points at no tab, so a step capture
+			// placed ahead of it would be polling for a pointer that cannot appear yet.
+			completeFirstBootProfile(context);
 			captureOnboardingStep(context);
 			completeFirstBootWalkthrough(context);
 			assertFirstTaskCompletionIsShown(context);
@@ -224,10 +233,16 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				terminal.openLogDirectoryForTesting();
-				if (terminal.fileCountForTesting() != 1 || terminal.selectedFileForTesting() != -1
-						|| !terminal.fileIdForTesting(0).equals("encrypted_witness_file")
+				// Two, not one. Binding moved to the end of the profile - it is what the five questions
+				// and "user preferences recorded" were always building to - and binding is what reveals
+				// the maintenance handoff. By the time the walkthrough hands the terminal back, this
+				// player is bound, so a first look at FILES finds the handoff above the locked diary.
+				// It used to be one because binding waited for the first logs, several minutes later.
+				if (terminal.fileCountForTesting() != 2 || terminal.selectedFileForTesting() != -1
+						|| !terminal.fileIdForTesting(0).equals("maintenance_handoff")
+						|| !terminal.fileIdForTesting(1).equals("encrypted_witness_file")
 						|| !"FILES".equals(terminal.pageForTesting())) {
-					throw new AssertionError("A new terminal must expose only the locked complete diary in FILES");
+					throw new AssertionError("A freshly bound terminal must expose the handoff and the locked diary");
 				}
 			});
 			context.takeScreenshot("r86-file-directory-initial-locked-diary");
@@ -409,6 +424,59 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 					}
 				});
 				context.takeScreenshot("r-terminal-unread-top-bar-settled");
+
+				// Everything above happened while the terminal sat on HOME, which is what proves an
+				// unread marker survives when the player is not looking at the page. On RECORDS the
+				// opposite has to hold: a record whose text is on screen acknowledges itself, without
+				// asking for a click on the tab the player is already on.
+				context.runOnClient(client ->
+						((TerminalScreen) client.screen).selectPageForTesting(TerminalPage.RECORDS.ordinal()));
+				context.waitTicks(5);
+				recordSignal(singleplayer, "pursuit_return_instability");
+				context.waitTicks(10);
+				context.runOnClient(client -> {
+					if (((TerminalScreen) client.screen).unreadCountForTesting() != 0) {
+						throw new AssertionError(
+								"A record arriving on the open RECORDS page must acknowledge itself without a tab click");
+					}
+				});
+
+				// The newest record is row 0, so a list scrolled to its bottom is the state where the
+				// player demonstrably is not being shown what just arrived.
+				for (int filler = 0; filler < 24; filler++) recordSignal(singleplayer, "pursuit_return_instability");
+				context.waitTicks(10);
+				context.runOnClient(client -> {
+					TerminalScreen terminal = (TerminalScreen) client.screen;
+					terminal.scrollRowsForTesting(64);
+					if (terminal.recordsScrollRowForTesting() <= 0) {
+						throw new AssertionError("Fixture must build a RECORDS list long enough to scroll");
+					}
+					if (terminal.unreadCountForTesting() != 0) {
+						throw new AssertionError("Records read at the top of the list must already be acknowledged");
+					}
+				});
+				recordSignal(singleplayer, "continuity");
+				context.waitTicks(10);
+				context.runOnClient(client -> {
+					TerminalScreen terminal = (TerminalScreen) client.screen;
+					if (terminal.unreadCountForTesting() < 1) {
+						throw new AssertionError(
+								"A record must stay unread while the list is scrolled away from it");
+					}
+					terminal.scrollRowsForTesting(-64);
+				});
+				context.waitTicks(10);
+				context.runOnClient(client -> {
+					if (((TerminalScreen) client.screen).unreadCountForTesting() != 0) {
+						throw new AssertionError("Scrolling the new record back into view must acknowledge it");
+					}
+				});
+				context.takeScreenshot("r-terminal-records-self-acknowledged");
+				// Leave the remembered page as it was found, or the pursuit-warning redirect checks
+				// below would start from RECORDS and stop proving anything.
+				context.runOnClient(client ->
+						((TerminalScreen) client.screen).selectPageForTesting(TerminalPage.HOME.ordinal()));
+				context.waitTicks(5);
 				closeTerminal(context);
 				singleplayer.getServer().runOnServer(server -> {
 					var player = server.getPlayerList().getPlayers().getFirst();
@@ -433,7 +501,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 					}
 				});
 				closeTerminal(context);
-				return;
+				if (selection.stopsAfterToolsUi()) return;
 			}
 			closeTerminal(context);
 			singleplayer.getServer().runOnServer(server -> {
@@ -462,11 +530,16 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				// they hold is pinned by AnomalyCatalogTest and TerminalFileStateTest, which is where a
 				// change to either belongs. The literal 16 here had been stale since the catalogue
 				// reached nineteen, so this assertion was failing for a reason it was not about.
-				if (debug.sectionCountForTesting() != 4
+				if (debug.tabCountForTesting() != 3
 						|| debug.anomalyCountForTesting() != AnomalyCatalog.definitions().size()
 						|| debug.fileCountForTesting() != NarrativeFileCatalog.definitions().size()
-						|| debug.liveRefreshTicksForTesting() != 10)
-					throw new AssertionError("M debug workbench must live-refresh four sections, every anomaly and every file");
+						|| debug.milestoneCountForTesting() != SurvivalMilestone.values().length)
+					throw new AssertionError("M debug workbench must list every anomaly, file and milestone across its three tabs");
+				// Nothing may be built outside the frame. The right column used to run off the bottom
+				// on any window where the panel came out shorter than its 520-pixel maximum, and no
+				// screenshot taken at one resolution would ever have shown it.
+				String stray = debug.firstWidgetOutsidePanelForTesting();
+				if (!stray.isEmpty()) throw new AssertionError("Debug panel widget outside its frame: " + stray);
 				debug.triggerAnomalyForTesting("local_rule_collapse");
 			});
 			context.waitFor(client -> client.screen == null, 100);
@@ -476,14 +549,15 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			context.waitTicks(4);
 			context.runOnClient(client -> {
 				if (!(client.screen instanceof DebugPanelScreen debug)
-						|| !debug.statusMessageForTesting().contains("已有异象正在发生：附近材质丢失"))
+						|| !debug.statusMessageForTesting().contains(
+								"已有异象正在发生：" + DebugNames.anomaly("local_rule_collapse")))
 					throw new AssertionError("Rejected anomaly request must keep the menu open and explain the active conflict");
 			});
 			context.takeScreenshot("r74-debug-panel-specific-anomaly-failure");
-			// The anomaly page is the only one with a toolbar that reflows, and HIM lives on it.
-			// Nothing here can assert that the row looks right - this is the frame a human checks.
+			// The anomaly tab carries the toolbar HIM and the dark watcher live on. Nothing here can
+			// assert that the row looks right - this is the frame a human checks.
 			context.runOnClient(client -> ((DebugPanelScreen) client.screen)
-					.selectSectionForTesting(DebugPanelScreen.anomalySectionIndexForTesting()));
+					.selectTabForTesting(DebugPanelScreen.anomalyTabIndexForTesting()));
 			context.waitTicks(4);
 			context.runOnClient(client -> {
 				DebugPanelScreen debug = (DebugPanelScreen) client.screen;
@@ -813,6 +887,13 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				terminal.scrollRowsForTesting(20);
 			});
 			context.waitTicks(2);
+			// The recovered fragment is the one catalogue entry that is served conditionally - it only
+			// exists for a machine that has finished a run before. Asking for it here keeps "every file
+			// there is" true, and makes this the longest list the column ever has to lay out.
+			context.runOnClient(client -> {
+				((TerminalScreen) client.screen).reportPreviousRunForTesting(true);
+			});
+			context.waitTicks(4);
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				terminal.openLogDirectoryForTesting();
@@ -842,6 +923,47 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				if (fragmentFiles != 4) throw new AssertionError("The FILES list did not include all four damaged files");
 			});
 			context.waitTicks(2);
+
+			// The Records rule again, on the file directory: being on the page is not enough, the file
+			// the badge counts has to be on screen.
+			//
+			// Which file that is gets recovered from unlock times, and in this fixture it is the last
+			// row - the one row the six-row window cannot show from the top of the list. So the badge
+			// must survive at the top and clear itself once scrolled down. The first assertion below
+			// also guards that premise: if the catalogue ever reorders so the newest unlock starts in
+			// view, it fails there rather than quietly testing nothing.
+			context.runOnClient(client -> ((TerminalScreen) client.screen)
+					.moveFileSelectionForTesting(-NarrativeFileCatalog.definitions().size()));
+			context.waitTicks(2);
+			singleplayer.getServer().runOnServer(server -> {
+				var player = server.getPlayerList().getPlayers().getFirst();
+				FrequencyWorldData.get(server).updateTerminalRecord(player.getUUID(),
+						TerminalFileState::notifyUnread);
+				TerminalRuntimeService.refresh(player);
+			});
+			context.waitTicks(10);
+			context.runOnClient(client -> {
+				TerminalScreen terminal = (TerminalScreen) client.screen;
+				if (terminal.fileScrollRowForTesting() != 0) {
+					throw new AssertionError("Fixture must start from the top of the file directory");
+				}
+				if (terminal.unreadFileCountForTesting() < 1) {
+					throw new AssertionError("A file below the fold must stay unread; if the acknowledgement"
+							+ " is otherwise healthy, check whether the catalogue moved the newest unlock into view");
+				}
+				terminal.moveFileSelectionForTesting(NarrativeFileCatalog.definitions().size());
+			});
+			context.waitTicks(10);
+			context.runOnClient(client -> {
+				TerminalScreen terminal = (TerminalScreen) client.screen;
+				if (terminal.fileScrollRowForTesting() <= 0) {
+					throw new AssertionError("Fixture must scroll the file directory down to its last row");
+				}
+				if (terminal.unreadFileCountForTesting() != 0) {
+					throw new AssertionError("Scrolling the unread file into view must acknowledge it");
+				}
+			});
+			context.takeScreenshot("m4-file-directory-self-acknowledged");
 			context.takeScreenshot("m7-file-directory-grid-current");
 			closeTerminal(context);
 
@@ -873,6 +995,12 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 		}
 
 		context.waitForScreen(TitleScreen.class);
+		// The world that justified the lock is closed, so the option goes back to the number the
+		// player had before it. Without the hand-back nothing here would fail either - the locked
+		// six would simply stay in options.txt and be written to disk on the next quit, which is the
+		// lock outliving its world by the least visible route available.
+		context.waitFor(client -> client.options.renderDistance().get()
+				.equals(TITLE_SCREEN_RENDER_DISTANCE), 100);
 		context.waitFor(client -> !AlphaLoadSessionController.activeForTesting(), 100);
 		int[] legacyScreensBeforeReopen = {-1};
 		context.runOnClient(client -> {
@@ -970,6 +1098,10 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 	 */
 	private static void acknowledgeFirstRunNoticeForFocusedSuite(ClientGameTestContext context) {
 		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen, 120);
+		// The audio page comes first and is audited by the notice-entry suite; here it is one press.
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& notice.advanceAvailableForTesting(), 160);
+		context.runOnClient(client -> ((FirstRunNoticeScreen) client.screen).advanceForTesting());
 		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
 				&& notice.acknowledgementAvailableForTesting(), 160);
 		context.runOnClient(client -> ((FirstRunNoticeScreen) client.screen).acknowledgeForTesting());
@@ -1001,7 +1133,10 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 					.filter(OptionsList.class::isInstance)
 					.map(OptionsList.class::cast)
 					.findFirst()
-					.orElseThrow(() -> new AssertionError("Video settings did not expose its option list"));
+					.orElseThrow(() -> new AssertionError("Video settings did not expose its option list;"
+							+ " screen=" + client.screen.getClass().getName() + ", children="
+							+ client.screen.children().stream().map(child -> child.getClass().getSimpleName())
+									.toList()));
 			AbstractWidget renderDistance = optionsList.findOption(client.options.renderDistance());
 			if (renderDistance == null) {
 				throw new AssertionError("Video settings did not contain the render-distance control");
@@ -1019,8 +1154,54 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 		context.waitTicks(2);
 		context.takeScreenshot("render-distance-locked-overworld-chunks");
 		context.runOnClient(client -> client.screen.onClose());
+		// Runs inside the world now rather than on the title screen, so closing the settings returns
+		// to the game rather than to a menu. See assertRenderDistanceIsUntouchedOutsideAModWorld for
+		// why it moved: the lock is scoped to worlds this mod is running in, and the title screen is
+		// not one of them.
+		context.waitFor(client -> client.screen == null, 100);
+	}
+
+	/**
+	 * On the title screen the render distance is the player's again, and visibly so.
+	 *
+	 * <p>This assertion is the other half of the one above, and it exists because for a long time
+	 * there was no other half: {@code enforce} ran on every client tick with no world test at all, so
+	 * installing this mod pinned the option to six chunks on the menu, in unrelated single-player
+	 * saves and on other people's servers, with the slider greyed out and nothing anywhere to explain
+	 * it. The value set here is deliberately left in place - the world entry that follows locks it,
+	 * and the hand-back is checked against this number once that world closes.
+	 */
+	private static void assertRenderDistanceIsUntouchedOutsideAModWorld(ClientGameTestContext context) {
+		context.runOnClient(client -> {
+			if (DimensionViewDistanceController.isLocked()) {
+				throw new AssertionError("The render-distance lock reached the title screen, where "
+						+ "there is no world for it to be about");
+			}
+			client.options.renderDistance().set(TITLE_SCREEN_RENDER_DISTANCE);
+			if (!client.options.renderDistance().get().equals(TITLE_SCREEN_RENDER_DISTANCE)) {
+				throw new AssertionError("A render-distance change outside a mod world was overwritten");
+			}
+			client.setScreen(new VideoSettingsScreen(client.screen, client, client.options));
+		});
+		context.waitForScreen(VideoSettingsScreen.class);
+		context.waitTicks(2);
+		context.runOnClient(client -> {
+			OptionsList optionsList = client.screen.children().stream()
+					.filter(OptionsList.class::isInstance)
+					.map(OptionsList.class::cast)
+					.findFirst()
+					.orElseThrow(() -> new AssertionError("Video settings did not expose its option list"));
+			AbstractWidget renderDistance = optionsList.findOption(client.options.renderDistance());
+			if (renderDistance == null || !renderDistance.active) {
+				throw new AssertionError("The render-distance control must stay usable outside a mod world");
+			}
+			client.screen.onClose();
+		});
 		context.waitForScreen(TitleScreen.class);
 	}
+
+	/** Comfortably above every locked value, so "unchanged" cannot be confused with "locked". */
+	private static final int TITLE_SCREEN_RENDER_DISTANCE = DimensionViewDistancePolicy.END_CHUNKS + 4;
 
 	private static void assertLockedRenderDistance(ClientGameTestContext context,
 			net.minecraft.resources.ResourceKey<Level> dimension, int expected) {
@@ -1035,6 +1216,81 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				throw new AssertionError("Render-distance setter bypassed the dimension lock for "
 						+ dimension.identifier() + " (expected=" + expected + ")");
 			}
+		});
+	}
+
+	/**
+	 * The audio page: it is the first thing the player meets, it owns the mod's master volume, and
+	 * the only way off it is the button at the bottom.
+	 *
+	 * <p>The volume is put back before leaving. The page writes the config file on the way out, and
+	 * a suite that left the mod at forty percent would be quietly changing what every later run of
+	 * every other client test hears.</p>
+	 */
+	private static void assertAndLeaveFirstRunAudioPage(ClientGameTestContext context) {
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& notice.presentationPhaseForTesting() == FirstRunNoticeScreen.PresentationPhase.NOTICE
+				&& notice.advanceAvailableForTesting()
+				&& client.getLanguageManager().getSelected().equals("zh_cn"), 160);
+		context.runOnClient(client -> {
+			FirstRunNoticeScreen notice = (FirstRunNoticeScreen) client.screen;
+			if (notice.pageForTesting() != FirstRunNoticeScreen.Page.AUDIO)
+				throw new AssertionError("First-run flow did not open on the audio page");
+			if (notice.acknowledgementAvailableForTesting())
+				throw new AssertionError("The disclosure's acknowledgement must not exist on the audio page");
+			if (!notice.advanceLabelForTesting().getString().equals("下一步"))
+				throw new AssertionError("Audio page advance label changed: "
+						+ notice.advanceLabelForTesting().getString());
+			if (!notice.previewLabelForTesting().getString().equals("试听"))
+				throw new AssertionError("Audio page audition label changed: "
+						+ notice.previewLabelForTesting().getString());
+			if (!notice.audioPageLayoutFitsForTesting() || !notice.allTextInsideGlassForTesting())
+				throw new AssertionError("Audio page does not fit inside the terminal glass");
+
+			double original = notice.volumeForTesting();
+			int previewsBefore = notice.volumePreviewPlayCountForTesting();
+			notice.previewVolumeForTesting();
+			if (notice.volumePreviewPlayCountForTesting() != previewsBefore + 1)
+				throw new AssertionError("The audition button did not play the mod's own cue");
+
+			notice.setVolumeForTesting(0.4D);
+			if (Math.abs(notice.volumeForTesting() - 0.4D) > 1.0E-6D)
+				throw new AssertionError("Moving the slider did not move the live mod volume");
+			if (!notice.volumeLabelForTesting().getString().equals("MOD 总音量 40%"))
+				throw new AssertionError("Slider readout disagrees with the stored volume: "
+						+ notice.volumeLabelForTesting().getString());
+			notice.setVolumeForTesting(0.0D);
+			if (!notice.volumeLabelForTesting().getString().equals("MOD 总音量 静音"))
+				throw new AssertionError("Silence is not named on the slider: "
+						+ notice.volumeLabelForTesting().getString());
+			notice.setVolumeForTesting(original);
+			if (Math.abs(notice.volumeForTesting() - original) > 1.0E-6D)
+				throw new AssertionError("Audio page could not be restored to the volume it opened with");
+		});
+		context.takeScreenshot("m1-first-run-audio-page-zh-cn");
+		switchFirstRunNoticeLanguage(context, "en_us");
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& client.getLanguageManager().getSelected().equals("en_us")
+				&& notice.advanceLabelForTesting().getString().equals("Next"), 160);
+		context.runOnClient(client -> {
+			FirstRunNoticeScreen notice = (FirstRunNoticeScreen) client.screen;
+			if (!notice.audioPageLayoutFitsForTesting() || !notice.allTextInsideGlassForTesting())
+				throw new AssertionError("English audio page does not fit the compact window");
+			if (!notice.previewLabelForTesting().getString().equals("Test"))
+				throw new AssertionError("English audition label changed");
+		});
+		context.takeScreenshot("m1-first-run-audio-page-en-us");
+		switchFirstRunNoticeLanguage(context, "zh_cn");
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& client.getLanguageManager().getSelected().equals("zh_cn")
+				&& notice.advanceAvailableForTesting(), 160);
+		context.runOnClient(client -> {
+			FirstRunNoticeScreen notice = (FirstRunNoticeScreen) client.screen;
+			notice.advanceForTesting();
+			if (notice.pageForTesting() != FirstRunNoticeScreen.Page.NOTICE)
+				throw new AssertionError("The audio page did not hand over to the disclosure");
+			if (FirstRunNoticeController.acknowledgedForTesting())
+				throw new AssertionError("Leaving the audio page spent the acknowledgement it does not own");
 		});
 	}
 
@@ -1053,8 +1309,11 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			if (client.screen != notice || FirstRunNoticeController.acknowledgedForTesting())
 				throw new AssertionError("First-run notice was bypassed through its ordinary close path");
 			if (notice.presentationPhaseForTesting() != FirstRunNoticeScreen.PresentationPhase.POWER_ON
-					|| notice.acknowledgementAvailableForTesting())
+					|| notice.acknowledgementAvailableForTesting()
+					|| notice.advanceAvailableForTesting())
 				throw new AssertionError("First-run notice did not begin with a non-bypassable power-on screen");
+			if (notice.pageForTesting() != FirstRunNoticeScreen.Page.AUDIO)
+				throw new AssertionError("The tube must light up on the audio page, not on the disclosure");
 		});
 		context.takeScreenshot("m1-first-run-crt-power-on");
 		switchFirstRunNoticeLanguage(context, "zh_cn");
@@ -1063,6 +1322,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			if (notice.openingSoundPlayCountForTesting() != 1)
 				throw new AssertionError("First-run notice replayed startup audio when its widgets were rebuilt");
 		});
+		assertAndLeaveFirstRunAudioPage(context);
 		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
 				&& notice.presentationPhaseForTesting() == FirstRunNoticeScreen.PresentationPhase.NOTICE
 				&& notice.acknowledgementAvailableForTesting()
@@ -1165,6 +1425,13 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 		});
 	}
 
+	/** Appends one unread record to the single player's log, the way the game itself would. */
+	private static void recordSignal(TestSingleplayerContext singleplayer, String type) {
+		singleplayer.getServer().runOnServer(server -> TerminalSignalService.record(
+				server.getPlayerList().getPlayers().getFirst(),
+				com.xm.thefourthfrequency.terminal.SignalBand.UNKNOWN, type, 0, 1, true));
+	}
+
 	private static void closeTerminal(ClientGameTestContext context) {
 		context.runOnClient(client -> {
 			if (client.screen instanceof TerminalScreen terminal) terminal.onClose();
@@ -1203,6 +1470,13 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				}
 			});
 			if (pointing[0]) {
+				// Let the step actually arrive before recording it. The phase flips a frame before
+				// anything is drawn - drawStep returns early while the scene transition is still at
+				// zero - and the explanation then types itself in over about a second and a quarter.
+				// Screenshotting on the flip captured a bare terminal every run, so the suite's only
+				// picture of the walkthrough showed none of it. Long enough here for the panel, all
+				// three lines and the advance button to have settled.
+				context.waitTicks(45);
 				context.takeScreenshot("r-terminal-onboarding-step-brief");
 				return;
 			}
@@ -1238,6 +1512,63 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			context.waitTicks(1);
 		}
 		throw new AssertionError("The finished first task was never shown on the home card");
+	}
+
+	/**
+	 * Answers the first-boot profile, the way a player does.
+	 *
+	 * <p>The profile sits between the self test and the tab tour and holds the exit while it is up, so
+	 * without this every later assertion in this file waits out a screen it does not know how to
+	 * leave. It is also this suite's only coverage of the profile actually working end to end.
+	 *
+	 * <p>It parks the receiver on an option and then waits, rather than sending an answer. Everything
+	 * between those two points is the part worth testing: the lock, the one-second hold, the packet,
+	 * and the server advancing its own question. A hook that posted the answer directly would prove
+	 * only that the server can count.
+	 *
+	 * <p>The terminal would in fact finish this unaided - fifteen seconds without a lock and it sweeps
+	 * to the nearest option itself, which then commits. That path is deliberately not relied on here:
+	 * five questions of it is well over a minute, and a test that waited it out would be asserting the
+	 * failsafe rather than the interaction.
+	 */
+	private static void completeFirstBootProfile(ClientGameTestContext context) {
+		int lastQuestion = -1;
+		for (int attempt = 0; attempt < 200; attempt++) {
+			// Three numbers, because "no question on screen" has three different meanings here and
+			// only one of them means the profile is behind us. It is also -1 through the self test,
+			// which has not started the profile yet, and through the two-second acknowledgement, which
+			// has finished the questions but not the scene. Leaving on either of those would drop the
+			// caller into a walkthrough that still has a form up.
+			int[] state = {-1, 0, -1};
+			context.runOnClient(client -> {
+				if (client.screen instanceof TerminalScreen terminal) {
+					state[0] = terminal.profileQuestionForTesting();
+					state[1] = terminal.onboardingLocksExitForTesting() ? 1 : 0;
+					state[2] = terminal.onboardingTargetPageForTesting();
+				}
+			});
+			// A tab is being pointed at, or the terminal has been handed back: the profile is done.
+			if (state[2] >= 0 || state[1] == 0) return;
+			if (state[0] >= 0 && state[0] != lastQuestion) {
+				lastQuestion = state[0];
+				if (state[0] == 0) {
+					// Same reason as the walkthrough step: the question is caught the frame it becomes
+					// current, and the scene takes about six hundred milliseconds to arrive - blank,
+					// then rows settling in one after another. Screenshotting on the flip recorded the
+					// settle rather than the screen, so the suite's picture of the profile showed a
+					// question nobody could read and no answer band at all. Wait for it to land.
+					context.waitTicks(20);
+					context.takeScreenshot("r-terminal-profile-question");
+				}
+				context.runOnClient(client -> {
+					if (client.screen instanceof TerminalScreen terminal) {
+						terminal.tuneToProfileOptionForTesting(0);
+					}
+				});
+			}
+			context.waitTicks(4);
+		}
+		throw new AssertionError("The first-boot profile never finished");
 	}
 
 	private static void completeFirstBootWalkthrough(ClientGameTestContext context) {
@@ -1508,6 +1839,8 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 		FragmentInvestigationService.setNearbyForTesting(player, candidates.get(3));
 		TerminalAnomalyLogService.record(player, "phantom_echo", 0, 1, 20, false);
 		TerminalAnomalyLogService.record(player, "light_dropout", 1, 1, 20, false);
+		// Deliberately a retired id: this is what a save written before the merge holds, and the
+		// records page still has to render it as a line rather than as a raw identifier.
 		TerminalAnomalyLogService.record(player, "surface_fracture", 2, 1, 20, false);
 		TerminalAnomalyLogService.record(player, "watcher_alignment", 3, 1, 20, false);
 		return new M4ClientFixture(FragmentInvestigationService.receiverTuning(candidates.get(3)));

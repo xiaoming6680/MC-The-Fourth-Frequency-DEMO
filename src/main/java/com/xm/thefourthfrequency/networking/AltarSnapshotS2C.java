@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.networking;
 
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
+import com.xm.thefourthfrequency.ending.WorldInterfacePolicy;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -24,7 +25,11 @@ public record AltarSnapshotS2C(
 		List<String> rosterNames,
 		int depositedMask,
 		boolean localEligible,
-		int statusId
+		int statusId,
+		/** Ticks left before every escrowed terminal is handed back, or 0 when no window is running. */
+		int windowRemainingTicks,
+		/** Whether this viewer may press summon right now: their own terminal is in, and all are in. */
+		boolean localCanSummon
 ) implements CustomPacketPayload {
 	public static final int PROTOCOL_VERSION = WorldInterfaceProtocol.VERSION;
 	public static final Type<AltarSnapshotS2C> TYPE = new Type<>(Identifier.fromNamespaceAndPath(
@@ -52,6 +57,15 @@ public record AltarSnapshotS2C(
 			throw new IllegalArgumentException("Deposited mask references a player outside the altar roster");
 		}
 		WorldInterfaceProtocol.AltarStatus.fromWireId(statusId);
+		if (windowRemainingTicks < 0 || windowRemainingTicks > WorldInterfacePolicy.RITUAL_WINDOW_TICKS) {
+			throw new IllegalArgumentException("Ritual window remainder outside 0.."
+					+ WorldInterfacePolicy.RITUAL_WINDOW_TICKS);
+		}
+	}
+
+	/** Whether a window is counting down at all, which is what the ring on the screen is drawn from. */
+	public boolean windowRunning() {
+		return windowRemainingTicks > 0;
 	}
 
 	public WorldInterfaceProtocol.Stage stage() {
@@ -80,6 +94,8 @@ public record AltarSnapshotS2C(
 		buffer.writeVarInt(value.depositedMask);
 		buffer.writeBoolean(value.localEligible);
 		buffer.writeVarInt(value.statusId);
+		buffer.writeVarInt(value.windowRemainingTicks);
+		buffer.writeBoolean(value.localCanSummon);
 	}
 
 	private static AltarSnapshotS2C read(RegistryFriendlyByteBuf buffer) {
@@ -101,7 +117,8 @@ public record AltarSnapshotS2C(
 		List<String> rosterNames = new ArrayList<>(rosterNameCount);
 		for (int index = 0; index < rosterNameCount; index++) rosterNames.add(buffer.readUtf(64));
 		return new AltarSnapshotS2C(protocolVersion, encounterId, sequence, revision, stageId, altarPos,
-				rosterIds, rosterNames, buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt());
+				rosterIds, rosterNames, buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt(),
+				buffer.readVarInt(), buffer.readBoolean());
 	}
 
 	@Override

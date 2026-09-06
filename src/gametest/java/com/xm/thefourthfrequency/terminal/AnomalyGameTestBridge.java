@@ -34,6 +34,13 @@ public final class AnomalyGameTestBridge {
 				.getStringOr(TerminalData.ACTIVE_ANOMALY_ID, "none");
 	}
 
+	/** One scheduler draw at {@code tier}, exactly as the ambient tick would run it. */
+	public static boolean draw(ServerPlayer player, int tier) {
+		return AmbientAnomalyService.triggerSelected(player,
+				FrequencyWorldData.get(player.level().getServer()).terminalRecord(player.getUUID()).orElseThrow(),
+				tier, player.level().getGameTime());
+	}
+
 	public static int activeLeaseCount() { return AnomalyServerEffects.activeLeaseCountForGameTest(); }
 	public static void cleanup(ServerPlayer player) { AnomalyRuntimeService.interrupt(player, false); }
 

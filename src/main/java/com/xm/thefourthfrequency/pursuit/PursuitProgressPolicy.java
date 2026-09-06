@@ -6,8 +6,7 @@ import com.xm.thefourthfrequency.world.SurvivalMilestone;
 public final class PursuitProgressPolicy {
 	public static final int FORM_COUNT = 5;
 	public static final int REQUIRED_EYE_SAMPLES = 3;
-	public static final int MIN_ENCOUNTERED_CHASES_FOR_FINAL_EYE = 1;
-	/** Upper bound for the stored encounter counter; only "at least one" is ever asked of it. */
+	/** Upper bound for the stored encounter counter, which is now a record rather than a gate. */
 	public static final int MAX_TRACKED_ENCOUNTERS = 99;
 	public static final long WARNING_LEAD_TICKS = 10L * 20L;
 	public static final long FORM_ONE_ACTIVITY_FALLBACK_TICKS = 20L * 60L * 20L;
@@ -45,16 +44,14 @@ public final class PursuitProgressPolicy {
 	}
 
 	/**
-	 * The final Eye asks only that the player has been through a chase, not that they won one.
-	 * Being caught already costs a heart of maximum health; letting it also withhold the ending
-	 * punished the same players twice and could lock them out of the finale indefinitely, because
-	 * captures never increment {@link #resolvedAfterSuccess}.
+	 * Counts a chase the player lived through, whichever way it resolved.
+	 *
+	 * <p>No longer gates anything. The final Eye used to refuse a player with none of these, which
+	 * put a per-player condition on an action whose consequences land on the whole world - see
+	 * {@code EnderEyeItemMixin}. The counter is kept because "how many of these has this person been
+	 * through" belongs in the record on its own merits, and dropping a persisted field would cost a
+	 * migration for nothing.</p>
 	 */
-	public static boolean finalEyeReady(int encounteredChases) {
-		return encounteredChases >= MIN_ENCOUNTERED_CHASES_FOR_FINAL_EYE;
-	}
-
-	/** Counts a chase the player lived through, whichever way it resolved. */
 	public static int encounteredAfterResolution(int encounteredChases) {
 		return Math.min(Math.max(0, encounteredChases) + 1, MAX_TRACKED_ENCOUNTERS);
 	}
@@ -71,12 +68,23 @@ public final class PursuitProgressPolicy {
 		return current > previous && !complete(resolvedChases) && actualForm(resolvedChases) <= current;
 	}
 
+	/**
+	 * Permission, progress and cooldown. Deliberately no longer a demonstration gate.
+	 *
+	 * <p>A {@code tutorialReady} leg used to sit here, and it meant "at least one anomaly has fired
+	 * since this form became the current one" rather than anything scripted. Its effect was that a
+	 * form could never arrive un-previewed, which is exactly the mercy the mod no longer wants: the
+	 * first encounter with a form is allowed to be the real pursuit. Anomalies still demonstrate what
+	 * is coming, they just do not hold the door.
+	 *
+	 * <p>The cooldown leg stays. It is a pacing floor, not a preview, and removing it would let two
+	 * pursuits stack back to back.
+	 */
 	public static boolean canStart(boolean pending, int allowedForm, int resolvedChases,
-			boolean tutorialReady, long now, long nextEligibleTick) {
+			long now, long nextEligibleTick) {
 		return pending
 				&& !complete(resolvedChases)
 				&& actualForm(resolvedChases) <= Math.clamp(allowedForm, 0, FORM_COUNT)
-				&& tutorialReady
 				&& now >= Math.max(0L, nextEligibleTick);
 	}
 

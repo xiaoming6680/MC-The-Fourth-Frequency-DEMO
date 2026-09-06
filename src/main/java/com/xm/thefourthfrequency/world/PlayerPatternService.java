@@ -5,7 +5,6 @@ import com.xm.thefourthfrequency.content.ModItems;
 import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.state.PlayerPatternState;
 import com.xm.thefourthfrequency.state.StoryState;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -33,7 +32,7 @@ public final class PlayerPatternService {
 		if (server.getTickCount() % interval != 0) return;
 		FrequencyWorldData data = FrequencyWorldData.get(server);
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (PursuitDimensions.isMirror(player.level())) continue;
+			if (PrivateDimensions.isPrivate(player.level())) continue;
 			CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
 			if (record != null && SurvivalMilestone.RETURNED_NETHER.present(
 					record.getIntOr(TerminalData.SURVIVAL_MILESTONE_MASK, 0))) {
@@ -43,7 +42,7 @@ public final class PlayerPatternService {
 	}
 
 	public static void sample(ServerPlayer player, FrequencyWorldData data) {
-		if (PursuitDimensions.isMirror(player.level())) return;
+		if (PrivateDimensions.isPrivate(player.level())) return;
 		CompoundTag before = data.terminalRecord(player.getUUID()).orElse(null);
 		if (before == null) return;
 		PlayerPatternState pattern = PlayerPatternState.read(before);

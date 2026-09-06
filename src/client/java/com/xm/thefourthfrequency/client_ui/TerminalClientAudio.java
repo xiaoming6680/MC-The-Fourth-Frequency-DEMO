@@ -6,6 +6,7 @@ import com.xm.thefourthfrequency.networking.TerminalNoticePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.sounds.SoundEvents;
@@ -15,15 +16,19 @@ import net.minecraft.util.Util;
 public final class TerminalClientAudio {
 	private static final RandomSource JITTER = RandomSource.create();
 	private static TuningLoop tuningLoop;
+	private static CarrierLoop carrierLoop;
 	private static long nextContactTick;
 	private static int loopStarts;
 	private static int lockPlays;
 	private static int noticeOpeningPlays;
 	private static int noticeStablePlays;
+	private static int volumePreviewPlays;
+	private static SimpleSoundInstance volumePreviewInstance;
 	private static long nextAttentionMillis;
 	private static int attentionPlays;
 	private static int signalSweepPlays;
 	private static int detentPlays;
+	private static int carrierStarts;
 
 	private TerminalClientAudio() {
 	}
@@ -142,6 +147,33 @@ public final class TerminalClientAudio {
 		play(ModSounds.TERMINAL_LOCK, 0.62F, 0.58F);
 	}
 
+	/**
+	 * The audition behind the mod-volume slider.
+	 *
+	 * <p>The band sweep, for three reasons. It is one of the mod's own recordings rather than a
+	 * re-pitched vanilla sample, so it is what this mod actually sounds like. It runs three seconds,
+	 * which is long enough to judge a level against - a 0.18-second lock tick is over before the ear
+	 * has settled on it, and that is what this used to be. And it gives nothing away: it is the sound
+	 * of a receiver looking for the fourth band, which is the premise, not a spoiler.
+	 *
+	 * <p>Played at the top of the range the mod's own cues occupy rather than at the sweep's authored
+	 * level, so a volume that is comfortable here is one nothing later will overshoot.
+	 *
+	 * <p>A second press stops the first rather than stacking on it. A player comparing two settings
+	 * will press this twice in a row on purpose, and on a screen whose whole job is to bound peak
+	 * volume, "press it five times and it gets five times louder" is the one outcome it cannot have.
+	 */
+	public static void volumePreview() {
+		volumePreviewPlays++;
+		SoundManager manager = Minecraft.getInstance().getSoundManager();
+		if (volumePreviewInstance != null) manager.stop(volumePreviewInstance);
+		volumePreviewInstance = null;
+		float volume = baseVolume(0.62F);
+		if (volume <= 0.0F) return;
+		volumePreviewInstance = SimpleSoundInstance.forUI(ModSounds.SIGNAL_TUNING_SWEEP, 1.0F, volume);
+		manager.play(volumePreviewInstance);
+	}
+
 	public static void attention(int tone) {
 		long now = Util.getMillis();
 		if (now < nextAttentionMillis) return;
@@ -202,12 +234,121 @@ public final class TerminalClientAudio {
 	public static int lockPlaysForTesting() { return lockPlays; }
 	public static int noticeOpeningPlaysForTesting() { return noticeOpeningPlays; }
 	public static int noticeStablePlaysForTesting() { return noticeStablePlays; }
+	public static int volumePreviewPlaysForTesting() { return volumePreviewPlays; }
 	public static int attentionPlaysForTesting() { return attentionPlays; }
 	public static int signalSweepPlaysForTesting() { return signalSweepPlays; }
 	public static int detentPlaysForTesting() { return detentPlays; }
 	public static void resetTuningForTesting() {
 		if (tuningLoop != null) tuningLoop.forceStop();
 		tuningLoop = null;
+	}
+
+	/**
+	 * Starts, or retunes, the terminal's noise floor.
+	 *
+	 * <p>Called every time the screen learns its anomaly stage, which is most snapshots. Restarting
+	 * the sample on each of those would be audible as a click and would also reset the loop phase, so
+	 * an already-running carrier is only ever retuned in place.
+	 *
+	 * @param stage the holder's anomaly stage, 0-5
+	 */
+	public static void carrierOn(int stage) {
+		Minecraft client = Minecraft.getInstance();
+		if (client == null || client.getSoundManager() == null) return;
+		float pitch = CarrierLoop.pitchFor(stage);
+		if (carrierLoop != null && !carrierLoop.isStopped()) {
+			carrierLoop.retune(pitch);
+			return;
+		}
+		carrierLoop = new CarrierLoop(pitch);
+		carrierStarts++;
+		client.getSoundManager().play(carrierLoop);
+	}
+
+	/**
+	 * Stops the noise floor.
+	 *
+	 * <p>Hard stop, no fade. A fade would be the polite thing for every other loop in this mod and is
+	 * exactly wrong here: the entire effect is that one time the room gets quieter while the terminal
+	 * is still open, and a quarter-second ramp is the difference between noticing that and not.
+	 */
+	public static void carrierOff() {
+		if (carrierLoop != null) carrierLoop.forceStop();
+		carrierLoop = null;
+	}
+
+	public static boolean carrierActiveForTesting() {
+		return carrierLoop != null && !carrierLoop.isStopped();
+	}
+
+	public static float carrierPitchForTesting() {
+		return carrierLoop == null ? 0.0F : carrierLoop.getPitch();
+	}
+
+	public static int carrierStartsForTesting() { return carrierStarts; }
+
+	public static void resetCarrierForTesting() {
+		carrierOff();
+		carrierStarts = 0;
+	}
+
+	/**
+	 * The noise floor a powered device makes, pitched by how far along its holder is.
+	 *
+	 * <p>Relative and unattenuated, because it is the sound of the thing in the player's hands rather
+	 * than a sound in the world. It never fades in or out on its own and has no schedule: it is on for
+	 * exactly as long as the screen is, which is what makes its absence mean something.
+	 *
+	 * <h2>AMBIENT is load-bearing. Do not move it to MASTER.</h2>
+	 *
+	 * <p>{@code silent_world} zeroes AMBIENT, WEATHER, MUSIC, RECORDS, HOSTILE and NEUTRAL through
+	 * {@code OptionsAnomalyMixin}, and it does it in {@code getFinalSoundSourceVolume}, which the
+	 * engine re-asks for sounds that are already playing. So the carrier goes silent for the two to
+	 * three minutes that anomaly runs, with the terminal still open in the player's hands.
+	 *
+	 * <p>That is the entire payoff of this sound, and it arrives for free. Nobody consciously hears a
+	 * noise floor arrive; they hear one leave. {@code SignalBedController} deliberately sits on MASTER
+	 * to escape exactly this mute - it needs to keep speaking when the world stops - and the carrier
+	 * wants the opposite for the same reason. Moving it would look like a consistency fix and would
+	 * quietly delete the feature.
+	 */
+	private static final class CarrierLoop extends AbstractTickableSoundInstance {
+		/**
+		 * Stage to pitch.
+		 *
+		 * <p>A little under a semitone per stage, downward. Small enough that nobody hears a stage
+		 * change happen - there is no moment where it steps, because the stage only ever moves between
+		 * sessions - and wide enough that stage five and stage one are not the same sound if anyone
+		 * ever puts recordings of them side by side.
+		 */
+		private static float pitchFor(int stage) {
+			return 1.0F - 0.05F * Math.clamp(stage, 0, 5);
+		}
+
+		private CarrierLoop(float pitch) {
+			super(ModSounds.TERMINAL_CARRIER, SoundSource.AMBIENT, RandomSource.create());
+			this.volume = 0.35F;
+			this.pitch = pitch;
+			this.looping = true;
+			this.relative = true;
+			this.attenuation = Attenuation.NONE;
+			// No delay. The terminal is already open by the time this is asked for.
+			this.delay = 0;
+		}
+
+		private void retune(float value) {
+			this.pitch = value;
+		}
+
+		private void forceStop() {
+			stop();
+		}
+
+		@Override
+		public void tick() {
+			// Nothing to do. Tickable only because that is the only instance type that loops; the
+			// sound has no envelope, no schedule and no reason to ever change on its own.
+		}
 	}
 
 	private static final class TuningLoop extends AbstractTickableSoundInstance {

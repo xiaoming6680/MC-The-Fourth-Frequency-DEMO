@@ -8,12 +8,14 @@ Written for whoever maintains this repository next (including your future self):
 MC-The-Fourth-Frequency/
 ├── README.md / README.en.md      Player-facing overview (bilingual)
 ├── LICENSE                       All Rights Reserved
+├── .gitattributes                Line endings and binary classification - see "Line endings and file modes"
 ├── build.gradle                  Loom, source sets, unitTest, client-suite parameters
 ├── gradle.properties             The single source of truth for versions and dependencies
 ├── settings.gradle
 ├── docs/
 │   ├── README.md                 Bilingual index and fact ownership
 │   ├── zh/                       Chinese documents (source of truth)
+│   │   └── design-notes.md       Trade-offs and rejected alternatives
 │   ├── en/                       English documents (synchronised translation)
 │   └── art/                      Reference art and manifests — paths are referenced by tests, do not move
 ├── src/
@@ -29,6 +31,13 @@ MC-The-Fourth-Frequency/
 
 `bin/`, `build/`, `run/`, `logs/`, `.gradle/`, `.planning/` and `.claude/` are all excluded by `.gitignore` as machine artefacts or agent state.
 
+### Line endings and file modes
+
+Both of these only surface on someone else's machine, or the first time the repository is pushed to GitHub:
+
+- `.gitattributes` pins every text blob to LF with `* text=auto eol=lf`, excepting `*.bat` and `*.cmd` which stay CRLF; audio, images and JARs are declared `binary`, so they are never converted and never merged as text. Without that file the result depends on each contributor's `core.autocrlf`, and a `gradlew` checked out with CR fails immediately with `bad interpreter`.
+- `gradlew` must be mode `100755` in the index. Windows filesystems carry no executable bit, so it can only be recorded with `git update-index --chmod=+x gradlew`; if the mode falls back to `100644` everything still works on Windows while `./gradlew` is permission denied on Linux, macOS and CI.
+
 ## Hard constraints
 
 Check these before changing anything. Every one of them fails as "compiles fine, explodes at runtime or at build time":
@@ -41,6 +50,9 @@ Check these before changing anything. Every one of them fails as "compiles fine,
 | `zh_cn.json` and `en_us.json` key sets must be fully symmetric | The contract test asserts symmetry in both directions; one missing key fails |
 | The `import static` lines at the top of `TerminalScreen.java` | `ResourceContractTest` asserts palette references as source text, and an IDE's "optimize imports" silently breaks it |
 | Protocol payloads may only **append** fields at the end | Decoding is positional; a boolean inserted in the middle silently misaligns every varint after it |
+| "The player is not in the world they live in" may only be asked of `PrivateDimensions.isPrivate` | Writing `PursuitDimensions.isMirror` directly misses the unrendered layer, and nothing fails and nothing logs — seventeen environment systems were all written that way once. `MultiplayerIsolationContractTest` guards it from the source |
+| `AnomalyCatalog.MASK_ORDER` may only be **appended** to | It is the bit order of `ANOMALY_SEEN_MASK`; reordering it silently hands an old save a history of anomalies it has never seen |
+| A new anomaly must be synced in six places | The catalogue, `AnomalyTiming`, `AnomalyConditions`, `AnomalyServerEffects`, `DebugNames`, and the bilingual `terminal.thefourthfrequency.log.type.<id>`. Missing any one of them is reported by an existing contract test, but what it reports is an assertion, not the cause |
 
 ## Fact ownership
 
@@ -59,13 +71,14 @@ Do not treat an older JAR in `build/libs`, a stale test number or a historical r
 | Versions, dependencies, artefact names | `gradle.properties` · `src/main/resources/fabric.mod.json` |
 | schema / protocol numbers | `PersistenceSchema.CURRENT_VERSION`, each `*Payload.CURRENT_PROTOCOL_VERSION`, `WorldInterfaceState.FORMAT_VERSION`, `WorldInterfaceProtocol.VERSION` |
 | World-level mainline, files, discoveries, compatibility migration | `FrequencyWorldData` |
-| Finale state | The separate `world_interface` persistence root (format v1) |
+| Finale state | The separate `world_interface` persistence root (`WorldInterfaceState.FORMAT_VERSION`, currently v2) |
 | Anomaly, Corrector and mirror rules | `docs/zh/anomalies-and-pursuits.md` |
 | Terminal appearance, layout, animation, onboarding | `docs/zh/terminal-ui.md` |
 | Finale numbers, actions, ending contracts | `docs/zh/world-interface.md` |
 | Music situations and seams | `docs/zh/audio.md` |
 | Asset generation, UV and emissive contracts | `docs/zh/art-pipeline.md` |
 | Test results and release artefacts | `docs/zh/testing.md` |
+| The trade-off behind a number, and past failures | `docs/zh/design-notes.md` |
 
 ## Change sync matrix
 
@@ -108,17 +121,25 @@ Do not treat an older JAR in `build/libs`, a stale test number or a historical r
 
 ### Local deployment
 
-After a successful `build`, the remapped JAR is copied into a local Minecraft instance's `mods` folder. The default path is in `build.gradle` and can be overridden or disabled with a Gradle property:
+After a successful `build`, the remapped JAR can be copied into a local Minecraft instance's `mods` folder. **This is off by default**: the destination is one particular machine's launcher directory, and `build.gradle` is checked in, so hard-coding it there publishes somebody's personal environment.
+
+To enable it for good, put it where **Git never sees it** — the user-wide `~/.gradle/gradle.properties` (`%USERPROFILE%\.gradle\gradle.properties` on Windows):
+
+```properties
+tffDeployDir=E:/SomeLauncher/.minecraft/versions/1.21.11-Fabric/mods
+```
+
+For a single invocation, or to turn it off temporarily:
 
 ```powershell
-# Override the destination
+# Deploy this build to a given directory
 .\gradlew.bat build -PtffDeployDir="D:\SomeLauncher\.minecraft\mods" --no-daemon
 
-# Disable deployment
+# Do not deploy this build (also the default when nothing is configured)
 .\gradlew.bat build -PtffDeployDir= --no-daemon
 ```
 
-If the destination's root does not exist, deployment is skipped with a notice rather than failing the build — so `build` works on a fresh clone on someone else's machine. **This step hangs off `build` rather than `remapJar`**: a compile or test failure must never replace the last known-good JAR.
+With nothing configured the build just prints a notice; with a configured but unavailable drive it skips with a notice. Neither fails the build — so `build` works on a fresh clone on someone else's machine. **This step hangs off `build` rather than `remapJar`**: a compile or test failure must never replace the last known-good JAR.
 
 ## Archive rules
 

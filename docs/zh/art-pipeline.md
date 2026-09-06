@@ -1,6 +1,8 @@
 # 美术与资产管线
 
-本文是所有**运行时贴图与音频如何产生**的唯一说明：生成脚本、UV 契约、自发光契约与冻结资产。终端外观层的布局与配色见[终端界面与手持形态](terminal-ui.md)。
+本文是所有**运行时贴图与音频如何产生**的唯一说明：生成脚本、UV 契约、自发光契约与冻结资产。
+
+终端外观层的布局与配色见[终端界面与手持形态](terminal-ui.md)，配乐调度见[背景音乐](audio.md)，取舍见[设计札记](design-notes.md)。
 
 ## 三条硬规则
 
@@ -41,7 +43,8 @@ python tools/<script>.py
 | `generate_terminal_audio.py` · `generate_entity_audio.py` | 终端与实体音效 |
 | `generate_signal_bed_audio.py` | 载波、静电、嘶声、黑场与提示音组成的信号床 |
 | `generate_alpha_corruption_audio.py` | 首次加载与卡死用的模拟恐怖提示音（每种至少 3 个变体） |
-| `import_music.py` | 从无损母带导入 BGM，按 40% 增益烘焙成 Ogg Vorbis |
+| `generate_unrendered_textures.py` · `generate_unrendered_audio.py` | 未渲染层的四张表面贴图（实心／假面同一配方，只差 `LIGHTNESS_SHIFT`）与细菌的 1 秒循环心跳 |
+| `import_music.py` | 从无损母带导入 BGM：先实测对齐到 −24 LUFS，再按比例衰减，烘焙成 Ogg Vorbis |
 
 ## 世界接口
 
@@ -162,6 +165,6 @@ python tools/world_interface_uv.py --emit-java && python tools/prepare_world_int
 
 ## 音频
 
-音频素材以 44.1 kHz 立体声 Ogg Vorbis（q4）随模组分发。BGM 的母带增益在 `tools/import_music.py` 导入时按 40% 烘焙进文件，而不是写在 `sounds.json` 里——该比例始终相对无损母带，重新导入不会叠加。调度与混音规则见[背景音乐](audio.md)。
+音频素材以 44.1 kHz 立体声 Ogg Vorbis（q4）随模组分发。BGM 的播放电平在 `tools/import_music.py` 导入时烘焙进文件，而不是写在 `sounds.json` 里：先用 `loudnorm` 实测每首母带、用纯线性增益平移对齐到 −24 LUFS，再乘一个衰减比例（默认 0.8）。两者都按源文件夹可覆盖：BOSS 战三首走 −17 LUFS、比例 1.0，未渲染层那一首走 −23 LUFS、比例 1.0。两者都相对无损母带的实测值，重新导入不会叠加。调度、分档理由与混音规则见[背景音乐](audio.md)。
 
 卡死故障音是变体池而不是单文件：`alpha_corruption_collapse` 与 `alpha_corruption_warning` 各至少 3 个，同一事件的各变体按 RMS 而非峰值对齐响度。`ResourceContractTest` 断言数量下限、无重复条目、全部为真实 Ogg 且每个大于 16 KB。**技术契约挡不住"不好听"**——加变体前必须先试听。

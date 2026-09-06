@@ -102,22 +102,8 @@ final class TerminalHandheldPoseTest {
 	void handsLineUpWithTheDeviceEdgesInScreenSpace() {
 		for (int step = 0; step <= 20; step++) {
 			final double openness = step / 20.0D;
-			final var pose = TerminalHandheldPose.presentation(openness, 0L);
-			// The device's bottom edge and side wall, as angles from the camera axis.
-			final double deviceBottom = (pose.y() - DEVICE_HEIGHT * pose.scale() / 2.0F)
-					/ Math.abs(pose.z());
-			final double deviceSide = DEVICE_WIDTH * pose.scale() / 2.0F / Math.abs(pose.z());
-			// Where the hands are actually drawn, as the same kind of angle. HAND_DROP_COMPENSATION
-			// cancels the drop vanilla's own map-hand pose applies after this point.
-			final double handGrip = (pose.handY() - HAND_DROP_COMPENSATION) / Math.abs(pose.handZ());
-			final double handSide = (pose.handSpread() + VANILLA_HAND_HALF_SPAN)
-					/ Math.abs(pose.handZ());
-			assertTrue(handGrip <= deviceBottom + 1.0E-4D,
-					() -> "hands climbed above the device's lower edge at openness " + openness
-							+ ": " + handGrip + " vs " + deviceBottom);
-			assertTrue(handSide >= deviceSide - 1.0E-4D,
-					() -> "hands inside the side wall at openness " + openness
-							+ ": " + handSide + " vs " + deviceSide);
+			assertHandsHoldTheEdges(TerminalHandheldPose.presentation(openness, 0L),
+					"openness " + openness);
 		}
 
 		var rest = TerminalHandheldPose.presentation(0.0D, 0L);
@@ -128,6 +114,30 @@ final class TerminalHandheldPoseTest {
 		assertEquals(rest.handZ(), open.handZ(), 1.0E-6F);
 		assertTrue(Math.abs(rest.handZ()) > Math.abs(rest.z()),
 				"the device is drawn nearer the camera than the arms holding it");
+	}
+
+	/**
+	 * The grip, as the player sees it: both hands under the casing's lower edge and outside its side
+	 * walls, in screen angles rather than world offsets.
+	 *
+	 * <p>Angles because the arms and the device are drawn at different depths, which is the mistake
+	 * that made the grip look detached: a world offset covers a screen angle proportional to
+	 * offset / depth, so the same number at two depths lands in two different places in the frame.
+	 * {@code HAND_DROP_COMPENSATION} is cancelled out again here because vanilla's own map-hand pose
+	 * applies that drop after this point.</p>
+	 */
+	private static void assertHandsHoldTheEdges(TerminalHandheldPose.Presentation pose, String where) {
+		final double deviceBottom = (pose.y() - DEVICE_HEIGHT * pose.scale() / 2.0F)
+				/ Math.abs(pose.z());
+		final double deviceSide = DEVICE_WIDTH * pose.scale() / 2.0F / Math.abs(pose.z());
+		final double handGrip = (pose.handY() - HAND_DROP_COMPENSATION) / Math.abs(pose.handZ());
+		final double handSide = (pose.handSpread() + VANILLA_HAND_HALF_SPAN) / Math.abs(pose.handZ());
+		assertTrue(handGrip <= deviceBottom + 1.0E-4D,
+				() -> "hands climbed above the device's lower edge at " + where
+						+ ": " + handGrip + " vs " + deviceBottom);
+		assertTrue(handSide >= deviceSide - 1.0E-4D,
+				() -> "hands inside the side wall at " + where
+						+ ": " + handSide + " vs " + deviceSide);
 	}
 
 	/**
@@ -195,6 +205,106 @@ final class TerminalHandheldPoseTest {
 					() -> "scale or field of view stepped at openness " + openness);
 			previous = pose;
 		}
+	}
+
+	/**
+	 * Hitting something shoves the whole rig forward and down, and it comes back on its own.
+	 *
+	 * <p>The regression this exists for is an absence rather than a wrong number: the two-handed
+	 * pass replaces vanilla's entire first-person rendering, and vanilla's swing went with it. The
+	 * terminal was the one held item in the game that did not move when the player mined, punched or
+	 * opened anything - the world reacted and the device sat welded to the lens.</p>
+	 *
+	 * <p>Asserted as a shove rather than as vanilla's arm rotation because there is no free arm: both
+	 * hands are on the casing, and rotating it about a shoulder would sweep a frame-wide CRT out of
+	 * view and back.</p>
+	 */
+	@Test
+	void swingShovesTheWholeRigForwardAndDownAndComesBack() {
+		// Zero at both ends, so a hand that never swung and a hand that has finished are the same
+		// pose and nothing has to be reset. Full travel a quarter of the way in - that early peak is
+		// what makes a hit read as impact instead of as a wave.
+		assertEquals(0.0F, TerminalHandheldPose.swingEnvelope(0.0D), 1.0E-6F);
+		assertEquals(0.0F, TerminalHandheldPose.swingEnvelope(1.0D), 1.0E-6F);
+		assertEquals(1.0F, TerminalHandheldPose.swingEnvelope(0.25D), 1.0E-6F);
+		assertTrue(TerminalHandheldPose.swingEnvelope(0.6D) < TerminalHandheldPose.swingEnvelope(0.25D),
+				"the second half of the swing has to be the recovery");
+		// Clamped, because vanilla's counter briefly runs past its own end between ticks.
+		assertEquals(0.0F, TerminalHandheldPose.swingEnvelope(-0.5D), 1.0E-6F);
+		assertEquals(0.0F, TerminalHandheldPose.swingEnvelope(4.0D), 1.0E-6F);
+
+		var still = TerminalHandheldPose.presentation(0.0D, 0L);
+		var jab = TerminalHandheldPose.presentation(0.0D, 0L, 0.25D);
+		assertTrue(jab.y() < still.y(), () -> "the shove has to go down: " + jab.y() + " vs " + still.y());
+		assertTrue(Math.abs(jab.z()) > Math.abs(still.z()),
+				() -> "and forward, away from the camera: " + jab.z() + " vs " + still.z());
+		assertTrue(jab.pitch() > still.pitch(),
+				() -> "and drive the far edge into the blow: " + jab.pitch() + " vs " + still.pitch());
+		// The raise owns the size and the camera; a punch is not a zoom.
+		assertEquals(still.scale(), jab.scale(), 1.0E-6F, "a swing must not magnify the device");
+		assertEquals(still.fovScale(), jab.fovScale(), 1.0E-6F, "a swing must not move the camera");
+
+		// The arms travel with the casing rather than the casing sliding out of them.
+		assertTrue(jab.handY() < still.handY(), "the grip has to follow the shove down");
+		assertEquals(still.handZ(), jab.handZ(), 1.0E-6F, "the arms stay life-sized through a swing");
+		for (int step = 0; step <= 20; step++) {
+			final double swing = step / 20.0D;
+			assertHandsHoldTheEdges(TerminalHandheldPose.presentation(0.0D, 0L, swing), "swing " + swing);
+		}
+
+		// Still nearer the camera than vanilla's own item depth, so the shove cannot push the device
+		// out into the range where an ordinary wall eats the whole of it.
+		assertTrue(Math.abs(jab.z()) < Math.abs(jab.handZ()),
+				() -> "the shove pushed the device past the arms holding it: z=" + jab.z());
+		// And not off the bottom edge either: the drop is a jolt, not a stow.
+		double visibleHalfHeight = Math.abs(jab.z())
+				* Math.tan(Math.toRadians(DEFAULT_FOV_DEGREES / 2.0D));
+		double deviceTop = jab.y() + DEVICE_HEIGHT * jab.scale() / 2.0D;
+		assertTrue(deviceTop > -visibleHalfHeight + 0.05D,
+				() -> "the shove put the device off the bottom of the frame: top=" + deviceTop);
+
+		// It returns to exactly where it started, without anything clearing it.
+		var recovered = TerminalHandheldPose.presentation(0.0D, 0L, 1.0D);
+		assertEquals(still.y(), recovered.y(), 1.0E-6F);
+		assertEquals(still.z(), recovered.z(), 1.0E-6F);
+		assertEquals(still.pitch(), recovered.pitch(), 1.0E-6F);
+		assertEquals(still.handY(), recovered.handY(), 1.0E-6F);
+	}
+
+	/**
+	 * The raise and a swing never add up.
+	 *
+	 * <p>Opening the terminal <em>is</em> a swing as far as the client is concerned - the open
+	 * request answers {@code InteractionResult.SUCCESS}, which carries {@code SwingSource.CLIENT},
+	 * so {@code Minecraft.startUseItem} swings the hand on the same frame the raise begins. The
+	 * animator refuses that one at source; this is the second half of the same rule, held here so
+	 * that a device pressed against the lens cannot be punched out of the frame whatever drives it.
+	 * </p>
+	 */
+	@Test
+	void anOpenedTerminalIsBracedAndTakesNoSwingAtAll() {
+		var open = TerminalHandheldPose.presentation(1.0D, 0L);
+		for (int step = 0; step <= 20; step++) {
+			final double swing = step / 20.0D;
+			final var swung = TerminalHandheldPose.presentation(1.0D, 0L, swing);
+			assertEquals(open.y(), swung.y(), 1.0E-6F, () -> "the page moved at swing " + swing);
+			assertEquals(open.z(), swung.z(), 1.0E-6F, () -> "the page moved at swing " + swing);
+			assertEquals(open.pitch(), swung.pitch(), 1.0E-6F, () -> "the page tipped at swing " + swing);
+			assertEquals(open.handY(), swung.handY(), 1.0E-6F, () -> "the grip moved at swing " + swing);
+		}
+
+		// And it fades in on the way down rather than switching on at the bottom of the travel.
+		double previous = 0.0D;
+		for (int step = 20; step >= 0; step--) {
+			final double openness = step / 20.0D;
+			final double dropped = TerminalHandheldPose.presentation(openness, 0L).y()
+					- TerminalHandheldPose.presentation(openness, 0L, 0.25D).y();
+			assertTrue(dropped >= previous - 1.0E-6D,
+					() -> "the swing must grow as the device comes down, not step in at openness "
+							+ openness);
+			previous = dropped;
+		}
+		assertTrue(previous > 0.0D, "a carried device has to take the full swing");
 	}
 
 	/** The off-hand fallback tilts the device without magnifying it or moving the camera. */

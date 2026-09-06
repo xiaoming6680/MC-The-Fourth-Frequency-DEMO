@@ -84,7 +84,9 @@ final class WorldInterfaceEndingClientContractTest {
 				"src/client/java/com/xm/thefourthfrequency/client_ui/FirstRunNoticeScreen.java");
 		JsonObject chinese = JsonParser.parseString(source(
 				"src/main/resources/assets/thefourthfrequency/lang/zh_cn.json")).getAsJsonObject();
-		assertTrue(controller.contains("CURRENT_NOTICE_VERSION = 3"));
+		// Tracks the revision of the whole first-run flow, not just this copy: it went to 4 when the
+		// audio page was added in front of the disclosure, so returning players meet both pages.
+		assertTrue(controller.contains("CURRENT_NOTICE_VERSION = 4"));
 		assertTrue(screen.contains("screen.thefourthfrequency.first_run_notice.body.safety_v2"));
 		assertTrue(screen.contains("screen.thefourthfrequency.first_run_notice.body.recovery_v3"));
 		assertFalse(screen.contains("screen.thefourthfrequency.first_run_notice.recovery_hint"));
@@ -134,7 +136,32 @@ final class WorldInterfaceEndingClientContractTest {
 				&& quarantine.contains(".thefourthfrequency-corrupted")
 				&& quarantine.contains("worldId"));
 		assertTrue(lock.contains("LevelResource.ROOT") && lock.contains("stageReplayQuarantine()")
-				&& lock.contains("properties.setProperty(\"version\", \"3\")"));
+				&& lock.contains("LOCK_VERSION = \"4\"")
+				&& lock.contains("properties.setProperty(\"serverAddress\", endingServerAddress)"));
+		// The seal is scoped to the run that earned it. A local save is sealed by the two quarantine
+		// mixins, a remote server by its own address, and the title screen keeps all three entries
+		// shut only while the desktop transaction is still owed - never for the ending as such.
+		String connect = source(
+				"src/client/java/com/xm/thefourthfrequency/mixin/ConnectScreenEndingQuarantineMixin.java");
+		assertTrue(connect.contains("method = \"startConnecting\"")
+				&& connect.contains("FailureMenuLockState.seals(serverData.ip)")
+				&& connect.contains("new AlertScreen"));
+		assertTrue(title.contains("WindowsEndingMetaTransaction.hasPendingTransaction()")
+				&& title.contains("ending_menu_lock.recovery_pending"));
+		// The ending holds every entry point on the title screen until recovery runs.
+		//
+		// This assertion has been all three ways round. It first required the lock to be absent
+		// here; then to reach Singleplayer only; and now to reach every game entry, which is what
+		// the user asked for on 2026-08-29. What has not changed is the reason the *quarantine*
+		// stays scoped - a run finished on somebody else's server must not seal this client's own
+		// saves or the other servers it plays on, and ConnectScreenEndingQuarantineMixin below is
+		// still asserted to seal by address. The title screen is doing a different job: refusing to
+		// let the game continue at all until the ending has been closed out.
+		assertTrue(title.contains("FailureMenuLockState.locked()")
+						&& title.contains("endingLocked && thefourthfrequency$isGameEntry(key)")
+						&& title.contains("ending_menu_lock.success")
+						&& title.contains("ending_menu_lock.failure"),
+				"an ending seals every entry and the dead buttons say F8 undoes it");
 		assertTrue(summary.contains("selectWorld.thefourthfrequency.corrupted")
 				&& summary.contains("primaryActionActive")
 				&& summary.contains("canUpload") && summary.contains("canEdit")

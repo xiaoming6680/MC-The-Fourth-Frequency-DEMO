@@ -32,6 +32,10 @@ public final class TerminalClientNetworking {
 				context.client().execute(() -> openOrUpdate(payload)));
 		ClientPlayNetworking.registerGlobalReceiver(TerminalNavigationPayload.TYPE, (payload, context) ->
 				context.client().execute(() -> {
+					// The HUD readout takes every one of these, open screen or not: the server keeps
+					// streaming while the terminal is shut, and that stream is the only thing telling
+					// the readout it is still alive.
+					TerminalNavigationReadout.accept(payload);
 					if (context.client().screen instanceof TerminalScreen terminal) terminal.updateNavigation(payload);
 					else pendingNavigation = payload;
 				}));

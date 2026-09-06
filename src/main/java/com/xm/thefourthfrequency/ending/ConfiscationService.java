@@ -20,25 +20,33 @@ import java.util.UUID;
 /**
  * The visible half of weapon custody.
  *
- * <p>Taking a tool used to leave a hole in the hotbar, which is indistinguishable from having
- * dropped it and says nothing about it coming back. The slot now holds a barrier stack that names
- * the state outright. The player may shuffle it around the inventory - that is deliberate, so the
- * placeholder is not a frozen slot - but it cannot be dropped, thrown or used, and the real stack
- * is still held in the encounter's durable recovery ledger rather than in this item.</p>
+ * <p>Custody leaves a barrier in the slot, named and coloured, and it cannot be dropped or used.
+ *
+ * <p>It was silent for a while - the slot simply emptied - on the argument that being told the
+ * weapon is coming back spends the fear. In play that argument turned out to be backwards: an item
+ * that vanishes mid-fight with nothing left behind reads as <em>lost</em> rather than as
+ * <em>taken</em>, and a player who believes their sword is gone for good plays the rest of the
+ * encounter as though it were. That is a real cost paid for an effect nobody reported feeling, so
+ * the placeholder is back.
+ *
+ * <p>The placeholder must keep being un-droppable and un-usable until the ledger resolves it: one
+ * that escaped into the world would resolve for nobody, since recovery only ever scans its own
+ * owner's inventory. Saves written during the silent period simply have no placeholder to clear,
+ * and every clear path is a no-op on them.</p>
  */
 public final class ConfiscationService {
-	/** Present on every placeholder, holding the ledger entry the real stack is waiting under. */
+	/** Present on every legacy placeholder, holding the ledger entry the real stack waits under. */
 	public static final String MARKER_KEY = "thefourthfrequency_confiscated";
-	private static final Component PLACEHOLDER_NAME = Component.translatable(
-			"item.thefourthfrequency.confiscated").withStyle(ChatFormatting.RED);
 	private static boolean initialized;
 
 	private ConfiscationService() {
 	}
 
 	/**
-	 * Blocks every use path a barrier stack has. Dropping is refused in {@code PlayerDropMixin},
-	 * which is the only path that is not an interaction callback.
+	 * Blocks every use path a barrier stack has. Dropping is refused in {@code LivingEntityDropMixin},
+	 * which is the only path that is not an interaction callback - and which has to sit on
+	 * {@code LivingEntity} rather than {@code Player}, or death drops walk straight past it and
+	 * scatter placeholders that {@link #clearPlaceholder} can then never find.
 	 */
 	public static synchronized void initialize() {
 		if (initialized) return;
@@ -59,12 +67,14 @@ public final class ConfiscationService {
 		return InteractionResult.FAIL;
 	}
 
+	/** The stack that stands in the slot while the interface is holding the real one. */
 	public static ItemStack placeholder(UUID recoveryId) {
 		ItemStack stack = new ItemStack(Items.BARRIER);
 		CompoundTag marker = new CompoundTag();
 		marker.putString(MARKER_KEY, recoveryId.toString());
 		stack.set(DataComponents.CUSTOM_DATA, CustomData.of(marker));
-		stack.set(DataComponents.CUSTOM_NAME, PLACEHOLDER_NAME);
+		stack.set(DataComponents.CUSTOM_NAME, Component.translatable(
+				"item.thefourthfrequency.confiscated").withStyle(ChatFormatting.RED));
 		return stack;
 	}
 
@@ -86,9 +96,10 @@ public final class ConfiscationService {
 	}
 
 	/**
-	 * Removes the placeholder for one custody and reports the slot it was occupying, so the real
-	 * stack can be handed back to wherever the player had moved it rather than to the slot it was
-	 * originally taken from.
+	 * Removes the legacy placeholder for one custody, if this save still has one.
+	 *
+	 * <p>The returned slot is no longer used to place the recovered stack: the weapon comes back
+	 * wherever the inventory puts it, so that its return is something the player has to notice.
 	 *
 	 * @return the freed slot, or -1 if the player was not holding this placeholder
 	 */

@@ -26,6 +26,15 @@ package com.xm.thefourthfrequency.terminal;
  * hands on the terminal would mean silently hiding the other item. Vanilla draws the item and this
  * only adjusts it - a slight tilt and the idle breath.</li>
  * </ul>
+ *
+ * <h2>Hitting things while holding it</h2>
+ *
+ * <p>Because {@link #presentation} replaces vanilla's whole first-person pass, nothing that pass
+ * did survives unless it is restated here - and vanilla's swing was one of those things. A player
+ * mining, punching or opening a chest with the terminal in hand saw a device welded to the lens
+ * while the world reacted, which reads as the terminal not really being held. The jab term is that
+ * pass's missing half, rebuilt for a grip that has no free arm to rotate: see
+ * {@link #swingEnvelope}.</p>
  */
 public final class TerminalHandheldPose {
 	/** How long the device takes to come up. Long enough to read as travel, short enough to obey. */
@@ -149,6 +158,27 @@ public final class TerminalHandheldPose {
 	/** Daylight between the hands and the casing, on each of the three axes. */
 	private static final float HAND_CLEARANCE = 0.06F;
 
+	// --- attack and use -------------------------------------------------------------------------
+	//
+	// Vanilla's swing rotates an arm about a shoulder and takes whatever is in the hand with it.
+	// This device is braced in both hands in front of the chest, so the same rotation would sweep a
+	// frame-wide CRT out of view and back. What a two-handed grip actually does when it hits
+	// something is shove: the whole rig - device and both arms - punches forward and down and
+	// recovers. So the jab is a translation plus a tip, applied to the terminal's own position, and
+	// the hands follow it for free because their placement is derived from that position.
+
+	/** Peak forward travel of the jab, blocks. Negative is away from the camera. */
+	private static final float SWING_PUSH_Z = -0.05F;
+	/** Peak downward travel of the jab, blocks. */
+	private static final float SWING_DROP_Y = -0.07F;
+	/**
+	 * Peak nose-down tip, degrees.
+	 *
+	 * <p>Positive, which is the opposite sign to {@link #REST_PITCH_DEGREES}: the carry lays the
+	 * device back so its face turns up, and the jab drives the far edge down into the blow.</p>
+	 */
+	private static final float SWING_PITCH_DEGREES = 13.0F;
+
 	// --- one-handed fallback --------------------------------------------------------------------
 	private static final float CARRIED_PITCH_DEGREES = 18.0F;
 	private static final float CARRIED_ROLL_DEGREES = 6.0F;
@@ -177,35 +207,69 @@ public final class TerminalHandheldPose {
 	}
 
 	/**
-	 * The two-handed presentation at a given openness.
+	 * The two-handed presentation at a given openness, with nothing being hit.
 	 *
 	 * @param openness  0 carried low, 1 raised and filling the frame. Clamped.
 	 * @param nowMillis monotonic clock, for the idle breath only
 	 */
 	public static Presentation presentation(double openness, long nowMillis) {
+		return presentation(openness, nowMillis, 0.0D);
+	}
+
+	/**
+	 * The two-handed presentation at a given openness, mid-swing.
+	 *
+	 * @param openness  0 carried low, 1 raised and filling the frame. Clamped.
+	 * @param nowMillis monotonic clock, for the idle breath only
+	 * @param swing     vanilla's own 0..1 swing progress. Clamped. 0 for a hand doing nothing
+	 */
+	public static Presentation presentation(double openness, long nowMillis, double swing) {
 		float open = (float) Math.clamp(openness, 0.0D, 1.0D);
 		float rest = 1.0F - open;
 		// The breath fades out as the device comes up. A terminal pressed against the lens that is
 		// still bobbing reads as a camera fault rather than as a pair of hands.
 		float breath = breathOffset(nowMillis) * rest;
-		float y = REST_Y + (OPEN_Y - REST_Y) * open + breath;
-		float z = BASE_Z + OPEN_Z_GAIN * open;
+		// So does the jab, and for a stronger reason than the breath: at full open the CRT is the
+		// frame, and a jolt this size would throw the page the player is reading off the edge of it
+		// and back. It also means the two things that raise the device - the opening performance and
+		// a swing - can never add up into a motion neither of them describes.
+		float jab = swingEnvelope(swing) * rest;
+		float y = REST_Y + (OPEN_Y - REST_Y) * open + breath + SWING_DROP_Y * jab;
+		float z = BASE_Z + OPEN_Z_GAIN * open + SWING_PUSH_Z * jab;
 		float scale = REST_SCALE + (OPEN_SCALE - REST_SCALE) * open;
 		// Where the device's bottom edge and side wall actually land on screen, converted into
 		// world offsets at the hands' own depth. Handing the arms the device's world coordinates
 		// instead put them at the right distance but the wrong place in frame, which is the grip
-		// looking detached from the casing.
+		// looking detached from the casing. Derived from the jabbed y and z, so the arms travel with
+		// the shove instead of the casing sliding out of them.
 		float grip = screenAligned(y - HALF_HEIGHT * scale - HAND_CLEARANCE, z);
 		float side = screenAligned(HALF_WIDTH * scale + HAND_CLEARANCE, z);
 		return new Presentation(
 				y,
 				z,
-				REST_PITCH_DEGREES * rest,
+				REST_PITCH_DEGREES * rest + SWING_PITCH_DEGREES * jab,
 				scale,
 				grip + HAND_DROP_COMPENSATION,
 				HAND_Z,
 				Math.max(0.0F, side - VANILLA_HAND_HALF_SPAN),
 				1.0F + (OPEN_FOV_SCALE - 1.0F) * open);
+	}
+
+	/**
+	 * How far into the shove the rig is, from vanilla's linear swing progress.
+	 *
+	 * <p>{@code sin(sqrt(p) * PI)}, which is the curve vanilla's own attack transform uses and the
+	 * reason a hit reads as impact rather than as a wave: it is already at full travel a quarter of
+	 * the way through the swing and spends the remaining three quarters coming back. A symmetric
+	 * curve on the same six ticks looks like the player is stirring something.</p>
+	 *
+	 * <p>Zero at both ends, so a hand that is not swinging and a hand that has just finished are the
+	 * same pose, and nothing has to reset it.</p>
+	 *
+	 * @param swing vanilla's 0..1 swing progress. Clamped
+	 */
+	public static float swingEnvelope(double swing) {
+		return (float) Math.sin(Math.sqrt(Math.clamp(swing, 0.0D, 1.0D)) * Math.PI);
 	}
 
 	/**

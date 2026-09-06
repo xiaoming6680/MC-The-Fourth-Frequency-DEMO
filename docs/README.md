@@ -33,6 +33,7 @@ Paths under `docs/art/` are referenced directly by tests and generators (`Resour
 | [测试与验收](zh/testing.md) | [Testing and acceptance](en/testing.md) | Gradle 入口、分层覆盖、关键不变量、当前证据 / Entry points, layered coverage, invariants, current evidence | 开发、发布 / Developers, release |
 | [人工验收清单](zh/acceptance.md) | [Manual acceptance](en/acceptance.md) | 自动化覆盖不到的逐项人工核对 / What automation cannot cover, item by item | QA、测试玩家 / QA, playtesters |
 | [仓库维护指南](zh/maintenance.md) | [Repository maintenance](en/maintenance.md) | 目录结构、事实归属、文档同步规则、发版流程 / Layout, fact ownership, sync rules, release process | 全体 / Everyone |
+| [设计札记](zh/design-notes.md) | [Design notes](en/design-notes.md) | 每个数值背后的取舍、被否决的方案与修掉的 BUG / The trade-off behind each number, rejected alternatives, fixed bugs | 开发、设计 / Developers, design |
 
 ## 事实归属 / Where each fact lives
 

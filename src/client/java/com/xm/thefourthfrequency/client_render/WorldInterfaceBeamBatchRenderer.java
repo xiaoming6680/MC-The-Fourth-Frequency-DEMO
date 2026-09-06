@@ -3,6 +3,7 @@ package com.xm.thefourthfrequency.client_render;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.xm.thefourthfrequency.client_ui.WorldInterfaceBeamPolicy;
 import com.xm.thefourthfrequency.client_ui.WorldInterfaceClientState;
+import com.xm.thefourthfrequency.ending.WorldInterfacePhasePressure;
 import com.xm.thefourthfrequency.ending.WorldInterfacePolicy;
 import com.xm.thefourthfrequency.entity.StabilityAnchorEntity;
 import com.xm.thefourthfrequency.entity.StabilityAnchorGeometry;
@@ -28,9 +29,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,7 +67,8 @@ public final class WorldInterfaceBeamBatchRenderer {
 	public static final int SKY_LANCE_SHELLS = 3;
 	public static final int MAX_VERTICES_PER_LANCE = (SKY_LANCE_MARK_SAMPLES + SKY_LANCE_SHELLS + 3) * 4;
 	public static final double SKY_LANCE_MARK_RADIUS = 3.6D;
-	public static final double SKY_LANCE_HEIGHT = 72.0D;
+	/** Shared with the server, which throws the column's particles up the same height. */
+	public static final double SKY_LANCE_HEIGHT = WorldInterfaceProtocol.SKY_LANCE_COLUMN_BLOCKS;
 	/** How far down the gathering stub reaches from the top while the lance is still charging. */
 	public static final double SKY_LANCE_GATHER_LENGTH = 14.0D;
 	/** Blocks of streak drawn behind a bolt in flight. */
@@ -121,7 +121,14 @@ public final class WorldInterfaceBeamBatchRenderer {
 	private static long lastBossScanTick = Long.MIN_VALUE;
 	private static UUID cachedScanEncounterId;
 	/** Client-side mirror of the server's laser aim trail; see {@link #laserEnd}. */
-	private static final Deque<Vec3> laserTrail = new ArrayDeque<>();
+	/**
+	 * The last few aim samples, oldest first.
+	 *
+	 * <p>A list rather than a deque because the lag is per-form now: the trail is kept at the
+	 * longest lag any form uses and read at this form's own depth, which is an indexed read
+	 * rather than a peek at one end.
+	 */
+	private static final List<Vec3> laserTrail = new ArrayList<>();
 	private static long lastLaserSampleTick = Long.MIN_VALUE;
 	private static Vec3 lanceImpact;
 
@@ -288,11 +295,33 @@ public final class WorldInterfaceBeamBatchRenderer {
 		float age = gameTime - action.startTick() + partialTick;
 		if (age < 0.0F || age > LASER_FIRE_TICKS) return;
 
-		Vec3 end = laserEnd(level, boss, action, gameTime, partialTick);
+		Vec3 primaryEnd = laserEnd(level, boss, action, gameTime, partialTick);
 		int red = WorldInterfacePalette.red255(band);
 		int green = WorldInterfacePalette.green255(band);
 		int blue = WorldInterfacePalette.blue255(band);
 		double muzzle = WorldInterfaceAnatomy.coreRadius(boss.form());
+		// The third form fires two, swung symmetrically about the aim. Derived from the same offsets
+		// the server uses rather than sent, so the two halves cannot drift apart.
+		int barrels = WorldInterfacePhasePressure.laserBeamCount(boss.form());
+		float widthScale = (float) WorldInterfacePhasePressure.beamScale(boss.form());
+		for (int barrel = 0; barrel < barrels; barrel++) {
+			Vec3 end = groundUnder(level, WorldInterfacePhasePressure.swingAroundY(core, primaryEnd,
+					WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(), barrel)));
+			extractLaserBarrel(boss, core, end, action, age, muzzle, widthScale,
+					red, green, blue, beams, halos);
+		}
+	}
+
+	/**
+	 * One barrel of the sweep.
+	 *
+	 * <p>Split out when the third form gained a second beam. Everything that is per-shot - the aim,
+	 * the trail, the age - is resolved by the caller and handed in, so the two halves of a split are
+	 * the same beam drawn twice at different angles rather than two independent effects.
+	 */
+	private static void extractLaserBarrel(WorldInterfaceEntity boss, Vec3 core, Vec3 end,
+			BossActionS2C action, float age, double muzzle, float widthScale,
+			int red, int green, int blue, List<Beam> beams, List<Halo> halos) {
 		if (age < WorldInterfaceProtocol.LASER_WARNING_TICKS) {
 			float progress = age / WorldInterfaceProtocol.LASER_WARNING_TICKS;
 			// Squared so the tell stays thin and calm early and snaps taut in the last half second.
@@ -305,7 +334,7 @@ public final class WorldInterfaceBeamBatchRenderer {
 			float flicker = progress < 0.78F ? 1.0F
 					: 0.86F + 0.14F * Mth.sin(age * 0.8F);
 			beams.add(new Beam(core.x, core.y, core.z, end.x, end.y, end.z,
-					0.035F + charge * 0.16F, red, green, blue,
+					(0.035F + charge * 0.16F) * widthScale, red, green, blue,
 					Math.clamp(Math.round((54.0F + charge * 150.0F) * flicker), 0, 255)));
 			// The core visibly gathers before it fires, so the aim line is not the only warning.
 			halos.add(new Halo(core.x, core.y, core.z, (float) (muzzle * (0.28F + charge * 0.62F)),
@@ -335,15 +364,18 @@ public final class WorldInterfaceBeamBatchRenderer {
 			// Squared rather than cubed: the outer haze now has to be visible from across the arena,
 			// and the old falloff put almost everything into the innermost shell.
 			float density = (1.0F - spread) * (1.0F - spread);
-			float width = 0.95F + spread * (4.4F + flare * 7.0F);
+			// Scaled by the form, so a beam that burns at twice the radius is drawn twice as wide.
+			// The server multiplies its burn radius by the same number - the drawn edge and the
+			// dangerous edge have to stay the same edge.
+			float width = (0.95F + spread * (4.4F + flare * 7.0F)) * widthScale;
 			int alpha = Math.round((44.0F + density * 176.0F) * fade * boil);
 			if (alpha <= 1) continue;
 			beams.add(new Beam(core.x, core.y, core.z, end.x, end.y, end.z, width * fade,
 					red, green, blue, Math.clamp(alpha, 0, 255)));
 		}
 		// White-hot axis last, so it reads as the source of the haze rather than a stripe on it.
-		beams.add(new Beam(core.x, core.y, core.z, end.x, end.y, end.z, 0.86F * fade * boil,
-				255, 255, 255, Math.round(255.0F * fade)));
+		beams.add(new Beam(core.x, core.y, core.z, end.x, end.y, end.z,
+				0.86F * fade * boil * widthScale, 255, 255, 255, Math.round(255.0F * fade)));
 
 		// Muzzle and impact blooms. Scattering is strongest where the beam meets something, and
 		// these are what sell that the shaft has two ends rather than being a decal on the screen.
@@ -452,15 +484,22 @@ public final class WorldInterfaceBeamBatchRenderer {
 			laserTrail.clear();
 			return boss.getEyePosition(partialTick).add(boss.getViewVector(partialTick).scale(48.0D));
 		}
+		// The lag is per-form, and this trail has to be read at the same depth the server aims at.
+		// Holding the protocol constant here meant that from the second form on, the shaft was drawn
+		// four ticks behind the one that actually burned - a beam you could stand in and a beam that
+		// hurt you, several blocks apart.
+		int lag = WorldInterfacePhasePressure.laserTrackingLagTicks(boss.form());
 		if (gameTime != lastLaserSampleTick) {
 			lastLaserSampleTick = gameTime;
-			laserTrail.addLast(target.getEyePosition(1.0F));
+			laserTrail.add(target.getEyePosition(1.0F));
+			// Trimmed to the longest lag any form uses, so a form with a shorter one simply reads a
+			// more recent entry out of the same trail instead of the trail having to be rebuilt.
 			while (laserTrail.size() > WorldInterfaceProtocol.LASER_TRACKING_LAG_TICKS + 1) {
-				laserTrail.removeFirst();
+				laserTrail.remove(0);
 			}
 		}
-		Vec3 aim = laserTrail.size() > WorldInterfaceProtocol.LASER_TRACKING_LAG_TICKS
-				? laserTrail.peekFirst() : target.getEyePosition(partialTick);
+		Vec3 aim = laserTrail.size() > lag
+				? laserTrail.get(laserTrail.size() - 1 - lag) : target.getEyePosition(partialTick);
 		if (aim == null) aim = target.getEyePosition(partialTick);
 		float age = gameTime - action.startTick() + partialTick;
 		// While it is still aiming the beam is drawn live, so the telegraph shows exactly who is

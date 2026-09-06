@@ -1,7 +1,13 @@
 package com.xm.thefourthfrequency.pursuit;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Finds a safe return point near the recorded source without loading an unbounded area. */
 public final class PursuitReturnLocator {
@@ -27,11 +33,17 @@ public final class PursuitReturnLocator {
 	 */
 	public static BlockPos find(ServerLevel level, BlockPos preferred, BlockPos fallback) {
 		BlockPos near = nearby(level, preferred);
-		if (near != null) return near;
+		// An air pocket is not the same as a place to arrive. The escape point is a mirror coordinate
+		// and the source world has been played in for however long the chase lasted, so the gap that
+		// existed there can now be the inside of somebody's wall, a one-block hole under a floor, or a
+		// sealed room a teammate built. Materialising inside one is not dangerous, but it is
+		// unexplainable - and the entry point is a place the player demonstrably stood.
+		if (near != null && !enclosed(level, near)) return near;
 		if (!fallback.equals(preferred)) {
 			BlockPos alternate = nearby(level, fallback);
 			if (alternate != null) return alternate;
 		}
+		if (near != null) return near;
 		BlockPos spawn = level.getRespawnData().pos();
 		return safe(level, spawn) ? spawn : level.getHeightmapPos(
 				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawn);
@@ -51,6 +63,38 @@ public final class PursuitReturnLocator {
 			}
 		}
 		return null;
+	}
+
+	/** How many open cells the escape test may visit before it accepts the space as somewhere to be. */
+	private static final int OPEN_SPACE_BUDGET = 96;
+
+	/**
+	 * Whether this position sits in a pocket too small to be anywhere.
+	 *
+	 * <p>A bounded flood fill rather than a line to the sky: a cellar, a mineshaft and the inside of a
+	 * mountain are all legitimate places to come back to, and all of them fail a sky test. What is
+	 * being rejected is the sealed one-block void - the difference between "underground" and "inside
+	 * a wall". Ninety-six cells is comfortably larger than any accidental gap and far smaller than
+	 * any room, so the search settles either way almost immediately, and the cap means an open
+	 * cavern costs the same bounded work as a sealed one.
+	 */
+	private static boolean enclosed(ServerLevel level, BlockPos feet) {
+		Set<BlockPos> seen = new HashSet<>();
+		Deque<BlockPos> queue = new ArrayDeque<>();
+		seen.add(feet);
+		queue.add(feet);
+		while (!queue.isEmpty()) {
+			if (seen.size() > OPEN_SPACE_BUDGET) return false;
+			BlockPos current = queue.poll();
+			for (Direction direction : Direction.values()) {
+				BlockPos next = current.relative(direction);
+				if (!seen.add(next)) continue;
+				if (next.getY() <= level.getMinY() || next.getY() >= level.getMaxY()) continue;
+				if (!level.hasChunkAt(next)) continue;
+				if (level.getBlockState(next).getCollisionShape(level, next).isEmpty()) queue.add(next);
+			}
+		}
+		return true;
 	}
 
 	private static boolean safe(ServerLevel level, BlockPos feet) {

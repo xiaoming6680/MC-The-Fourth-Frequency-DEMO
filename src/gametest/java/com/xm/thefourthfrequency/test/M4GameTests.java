@@ -12,6 +12,7 @@ import com.xm.thefourthfrequency.terminal.TerminalSignalService;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
 import com.xm.thefourthfrequency.world.FragmentInvestigationService;
+import com.xm.thefourthfrequency.world.FragmentLeadPolicy;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
 import com.xm.thefourthfrequency.world.SurvivalMilestone;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
@@ -197,42 +198,61 @@ public final class M4GameTests implements CustomTestMethodInvoker {
 	}
 
 	/**
-	 * A save that latched its allocation with a fragment left empty must reopen and run the rescue
-	 * pass. Until it did, a fragment whose four pooled groups all failed to locate stayed empty for
-	 * the life of the world: the receiver had nothing to point at, so no structure the player entered
-	 * was ever the right one and that hidden file was unreachable.
+	 * A fragment the world never offers one of its own four kinds of place must not stay empty.
 	 *
-	 * <p>This asserts the pass runs, not that it finds something - whether any structure exists within
-	 * range is a property of the world, and the test level has no guarantee of one.</p>
+	 * <p>Leads now come from exploring: the service reads the structure references in the chunks
+	 * already loaded around a player and takes the nearest one whose group belongs to a fragment still
+	 * waiting. That is the right behaviour almost everywhere and a trap in the places it is not - a
+	 * player who settles in an ocean, or on a flat world, can load chunks for hours without one of a
+	 * given fragment's four groups ever appearing. Strict, that fragment's hidden file is unobtainable
+	 * and the complete journal, which is gated behind all four, is locked for the life of the save.
+	 *
+	 * <p>So the pool is a preference with a timeout. This asserts the timeout: a fruitless scan costs
+	 * every waiting fragment one unit of patience, and once a fragment's is spent the pool stops
+	 * binding it. The test level is void - there are no structures at all - which is exactly the
+	 * starved case, and is why this asserts the counter rather than a lead that no world here could
+	 * produce.</p>
 	 */
-	@GameTest(maxTicks = 400)
-	public void latchedAllocationReopensToRescueAnEmptyFragment(GameTestHelper helper) {
+	@GameTest(maxTicks = 200)
+	public void aFragmentTheWorldNeverOffersItsOwnGroupsRunsOutOfPatience(GameTestHelper helper) {
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
 		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
 		data.updateTerminalRecord(player.getUUID(), record -> {
 			record.putBoolean(TerminalData.BOUND, true);
 			record.putInt(TerminalData.BAND_STAGE, 1);
 		});
-		// An allocation that ran before the rescue pass existed: latched complete, fragment 3 empty.
+		// Fragments 1-3 are already led; only fragment 4 is still waiting, so only it may spend
+		// patience. A shared counter would have burned all four on one player's unlucky biome.
 		FragmentInvestigationService.setCandidatesForTesting(data, List.of(
 				candidate(0, FragmentInvestigationService.Group.MINESHAFT, player.blockPosition().offset(600, -15, 0)),
 				candidate(1, FragmentInvestigationService.Group.DESERT_PYRAMID, player.blockPosition().offset(-900, 0, 400)),
 				candidate(2, FragmentInvestigationService.Group.TRIAL_CHAMBERS, player.blockPosition().offset(1200, -25, 800))));
-		FragmentInvestigationService.reopenAllocationForTesting(data);
-		helper.assertFalse(FragmentInvestigationService.allocationRescuedForTesting(data),
-				"The reopened save must start out without the rescue pass having run");
-		helper.runAfterDelay(300, () -> {
-			helper.assertTrue(FragmentInvestigationService.allocationRescuedForTesting(data),
-					"A latched allocation with an empty fragment must reopen and run the rescue pass");
-			// Fragments the pool already satisfied keep exactly what they had.
-			for (int fragment = 0; fragment < 3; fragment++) {
-				int index = fragment;
-				helper.assertTrue(FragmentInvestigationService.candidatesForTesting(data).stream()
-								.anyMatch(candidate -> candidate.fragment() == index),
-						"The rescue pass must not disturb a fragment that already had a candidate");
-			}
-			helper.succeed();
-		});
+		// Written rather than assumed: game tests share one server, whose tick loop goes on scanning
+		// between them, so "the counter starts at zero" is not something this test may take on faith.
+		for (int fragment = 0; fragment < 4; fragment++) {
+			FragmentInvestigationService.setPoolPatienceForTesting(data, fragment, 0);
+		}
+
+		FragmentInvestigationService.scanForLeadForTesting(player);
+		helper.assertValueEqual(FragmentInvestigationService.poolMissesForTesting(data, 3), 1,
+				"A scan that finds nothing costs the waiting fragment one unit of patience");
+		for (int fragment = 0; fragment < 3; fragment++) {
+			helper.assertValueEqual(FragmentInvestigationService.poolMissesForTesting(data, fragment), 0,
+					"A fragment that already has a lead must not spend another fragment's patience");
+		}
+
+		// Spent, and still nothing in a void world: the fragment stays waiting rather than being
+		// handed a lead that does not exist. What must not happen is the counter latching or resetting.
+		FragmentInvestigationService.setPoolPatienceForTesting(data, 3,
+				FragmentLeadPolicy.POOL_PATIENCE_SCANS);
+		FragmentInvestigationService.scanForLeadForTesting(player);
+		helper.assertTrue(FragmentInvestigationService.poolMissesForTesting(data, 3)
+						> FragmentLeadPolicy.POOL_PATIENCE_SCANS,
+				"Patience already spent must keep counting rather than latch");
+		helper.assertFalse(FragmentInvestigationService.candidatesForTesting(data).stream()
+						.anyMatch(candidate -> candidate.fragment() == 3),
+				"An empty world must not invent a lead");
+		helper.succeed();
 	}
 
 	private static FragmentInvestigationService.Candidate candidate(int fragment,

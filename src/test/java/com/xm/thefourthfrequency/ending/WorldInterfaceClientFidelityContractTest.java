@@ -306,6 +306,56 @@ class WorldInterfaceClientFidelityContractTest {
 	}
 
 	/**
+	 * The beam treatment is asked for before the lock, and is not private to the target.
+	 *
+	 * <p>Two things about it are easy to undo by accident and invisible once undone. The first is
+	 * order: {@code wantedEffect} used to open with a single early return covering both "no action"
+	 * and "not aimed at you", and putting the beam check back underneath that return would silently
+	 * make it target-only again - the treatment would still work perfectly for whoever was being
+	 * shot at, so nobody testing solo would ever see it missing. The second is precedence: the lance
+	 * fires while its own lock window is technically still open, so if the lock is resolved first
+	 * the column comes down behind a warning that is still counting.</p>
+	 *
+	 * <p>Both are pinned on the source rather than on behaviour because the decision they describe
+	 * is a decision about the shape of one method, and the shape is what regresses.</p>
+	 */
+	@Test
+	void theBeamTreatmentOutranksTheLockAndIsNotPrivate() throws Exception {
+		String post = read("client_ui/WorldInterfacePostEffectController.java");
+		int dispersion = post.indexOf("Identifier dispersion = wantedDispersion(");
+		int targetGate = post.indexOf("if (!projection.actionTargets(");
+		assertTrue(dispersion >= 0, "the beam treatment is never asked for");
+		assertTrue(targetGate >= 0, "the lock treatment stopped checking who it is aimed at");
+		assertTrue(dispersion < targetGate,
+				"the beam treatment is decided after the target gate, so only the player being shot"
+						+ " at can see the encounter's most visible event");
+		// It has to open on the protocol's own arrival clocks. A literal here would be a second
+		// schedule beside the one the server actually lands damage on, and this attack has already
+		// paid for exactly that once - the camera shake used to fire 27 ticks before the lance's
+		// crater existed because it was derived from a render-only constant.
+		for (String clock : new String[]{"LASER_WARNING_TICKS", "SKY_LANCE_LOCK_TICKS",
+				"SKY_LANCE_CHARGE_TICKS"}) {
+			assertTrue(post.contains("WorldInterfaceProtocol." + clock),
+					"the beam treatment must open on the protocol's " + clock);
+		}
+		// And it must not open on the descent constant. SKY_LANCE_FALL_TICKS describes the last few
+		// ticks of the charge, not the impact; subtracting it here would put the flash ahead of the
+		// crater, which is the same fraction-of-a-second lie the shake was fixed for.
+		//
+		// Matched on the qualified reference rather than the bare name, so the comment explaining
+		// why the constant is not used does not itself trip the assertion. Naming the mistake in
+		// source is how it stays named; only reading the field is refused.
+		assertFalse(post.contains("WorldInterfaceProtocol.SKY_LANCE_FALL_TICKS"),
+				"the beam treatment must land on the impact tick, not on the render-only fall clock");
+		// And the two chains have to be different files, or "aimed at me" and "happening near me"
+		// are the same sentence.
+		for (String effect : new String[]{"world_interface_dispersion", "world_interface_dispersion_far"}) {
+			assertTrue(Files.exists(Path.of("src/main/resources/assets/thefourthfrequency/post_effect",
+					effect + ".json")), "missing post effect: " + effect);
+		}
+	}
+
+	/**
 	 * A disarmed flash deadline must never reach a subtraction.
 	 *
 	 * <p>Both impact overlays are switched off by parking their deadline at {@link Long#MIN_VALUE}.

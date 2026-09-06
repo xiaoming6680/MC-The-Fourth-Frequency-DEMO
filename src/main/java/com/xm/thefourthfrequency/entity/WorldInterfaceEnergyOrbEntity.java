@@ -5,6 +5,7 @@ import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.ending.EndBossArenaService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceBlastService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceDamageService;
+import com.xm.thefourthfrequency.ending.WorldInterfaceVfx;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -189,6 +190,9 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 		builder.define(SCALE, MAX_SCALE);
 	}
 
+	/** Samples in the wake wound behind the bolt each tick. */
+	private static final int TRAIL_SAMPLES = 10;
+
 	@Override
 	public void tick() {
 		super.tick();
@@ -222,6 +226,19 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 				6, 0.22D, 0.22D, 0.22D, 0.01D);
 		level.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY(), getZ(),
 				3, 0.18D, 0.18D, 0.18D, 0.02D);
+		// The bolt crosses most of the arena in a couple of seconds, so what a player has to read is
+		// not the ball - it is the line the ball is on. The wake is wound around the step it just
+		// took and a collar is left standing across it: a helix has a direction and a ring across
+		// the flight says where it has reached, and together they are the whole warning.
+		double scale = orbScale();
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.core(), from, to,
+				scale * 0.55D, TRAIL_SAMPLES, 2, 1.6D, ageTicks * 0.55D);
+		WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), position(),
+				getDeltaMovement(), scale * 0.85D, 14, ageTicks * 0.35D, 0.0D);
+		if (ageTicks % 2 == 0) {
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.violet(), position(), scale * 0.45D,
+					26, 0.08D);
+		}
 		if (ageTicks >= MAX_FLIGHT_TICKS) detonate(level, position(), true);
 	}
 
@@ -254,6 +271,15 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 		double radius = impactRadius();
 		level.sendParticles(BREATH_PARTICLE, impact.x, impact.y, impact.z, 120,
 				radius * 0.3D, 0.4D, radius * 0.3D, 0.14D);
+		// The bolt coming apart, as a surface rather than as a cloud - one shell for the skin and,
+		// when it actually went off, three fronts leaving the ground at three speeds.
+		if (damaging) {
+			WorldInterfaceVfx.detonation(level, impact, radius, 3);
+		} else {
+			// Shot down in flight: it comes apart, it does not go off - so the shell without any of
+			// the front that follows one.
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.core(), impact, radius * 0.5D, 140, 0.8D);
+		}
 		if (!damaging) {
 			// Shot down in flight: it comes apart, it does not go off.
 			level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, 8,

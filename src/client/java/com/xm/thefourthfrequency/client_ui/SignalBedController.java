@@ -67,6 +67,13 @@ public final class SignalBedController {
 		// a mix that is already carrying the whole finale.
 		if (WorldInterfaceClientState.snapshot().encounter() != null) return EnumSet.noneOf(Layer.class);
 
+		// The unrendered layer is carried by its own twenty-second ambience and nothing else. The
+		// beds belong to the transmission, and the transmission is a thing in the player's world -
+		// hearing it from inside the layer would place the layer inside that world too. Decayed
+		// stage already reads as zero down there, so this mostly agrees with the line below; it is
+		// stated outright because the anomaly-driven layers further down do not go through it.
+		if (UnrenderedLayerClient.inLayer()) return EnumSet.noneOf(Layer.class);
+
 		// silent_world takes the world's voice away. Dead air replaces it alone rather than
 		// joining the others: the point is that everything stopped except the one thing that
 		// was never part of the world to begin with.

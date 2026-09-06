@@ -2,255 +2,453 @@
 
 The anomaly tiers, personal Corrector pursuits, mirror dimensions and terminal appearance rules in `1.0.0-rc.1`. Numbers are owned by `AnomalyIntensity`, `AnomalyCatalog`, `PursuitProgressPolicy`, `PursuitFormPolicy` and `PursuitSnapshotBuilder`.
 
+This document states **what the rules are**. Trade-offs and rejected alternatives are in [Design notes](design-notes.md#anomalies-and-personal-pursuits).
+
 ## Overall structure
 
-Three personal progressions constrain each other without substituting for each other:
+Three personal progressions that constrain each other without substituting for each other:
 
-- **Mainline permission** sets how far anomalies and the Corrector may advance.
+- **Mainline permission** decides how far anomalies and the Corrector may advance.
 - **Anomaly tier** rises through ordinary online exposure and successfully completed anomalies.
-- **Resolved pursuits** determine the Corrector form actually faced next.
+- **Resolved pursuits** decide which Corrector form is actually faced next.
 
-A player who clears several mainline thresholds early only ever holds one pending pursuit; no queue of debts forms. The anomaly tier likewise rises at most one level at a time.
+Clearing several mainline thresholds early keeps only the next pending pursuit — never a queue to be repaid; the anomaly tier rises at most one level at a time.
 
-**After the finale resolves, all background pressure closes permanently.** Once the World Interface enters success or failure resolution (including the exit and complete phases that follow), ordinary anomalies, gap pressure, decay and pursuits never reopen; any pending pursuit is cleared in place and the terminal projection is synced. The `pursuit_test` debug button goes through the same gate and cannot bypass it. That way a player walking out of the exit into the Overworld does not receive an epilogue nobody wrote.
+Pursuits also carry a separate **encountered** count (both capture and escape write to it; only technical interruption does not). Its sole use is unlocking the last Eye of Ender for the End finale; form progression still recognises only resolved pursuits.
 
-Pursuits also keep a separate **experienced** count: both capture and escape write to it, and only a technical interruption does not. Its only use is unlocking the last eye of ender for the End finale; form advancement still counts resolved pursuits only. They are separate because capture already costs a heart of maximum health — if it also locked the finale, a player who keeps being caught would be permanently shut out of the ending. This threshold means *you must have faced it*, not *you must have beaten it*.
+**After the finale resolves, all background pressure closes permanently.** Once the World Interface enters success/failure resolution (including the later portal and complete stages), ordinary anomalies, gap pressure, decay and pursuits never reopen; any pending pursuit is cleared in place and the terminal projection synced. The `pursuit_test` debug button goes through the same gate.
 
 ## Five anomaly tiers
 
-The "highest tier threshold" only raises the ceiling; it never jumps a level immediately. Except for tier 0 → 1, each promotion also requires at least 20 minutes of qualifying online time accumulated in the current tier and at least 2 successfully completed anomalies. When the actual tier lags the ceiling by two levels or more, the exposure requirement halves to 10 minutes, so a player racing the mainline does not miss a whole band of higher-tier content while climbing at a fixed rate.
+The "highest tier threshold" only raises the ceiling; it never jumps a level immediately.
 
-Qualifying online time requires the player to be alive, not spectating, not sleeping, not in the terminal, and not in a gap or a real pursuit. It does not require a fixed home.
+| Tier | Highest-tier threshold | Actual candidate pool | Overworld interval | Nether interval |
+| ---: | --- | --- | --- | --- |
+| 1 | Terminal bound | Tier 1 | First 5–8 min; then 10–16 min | 6–10 min |
+| 2 | Terminal band advanced, any activity proof, or 20 minutes of cumulative activity | Tiers 1 + 2 | 10–15 min | 6–9 min |
+| 3 | Iron obtained, preparing for or entering the Nether | Tiers 2 + 3 | 9–14 min | 5–9 min |
+| 4 | Blaze rods obtained and returned to the Overworld | Tiers 3 + 4 | 8–13 min | 5–8 min |
+| 5 | Any recorded Eye of Ender bearing, stronghold found, or finale pressure started | Tiers 4 + 5, plus experience gap and local rule collapse | 7–12 min | 5–8 min |
 
-The first Nether entry and the first recorded eye-of-ender bearing each schedule a **signature anomaly**: the next anomaly is pulled forward to roughly 30 seconds and the pool is picked against the *mainline ceiling* rather than the current actual tier, preferring content this player has never seen. Those two moments are exactly when the world loses its vocabulary, and unseen higher-tier content should appear once there rather than being reserved for players who grind out every exposure requirement. A signature survives a failed trigger and is consumed by the next successful one; it changes neither the actual tier, the success count, nor the existing strong-interface cooldown.
+**The dimension decides whether there is scheduling at all** (`AnomalyDimensionPolicy`): the Overworld runs the ordinary cadence; the Nether runs a pressed cadence (the right-hand column — the same table shifted down, with tier progression preserved); **the End and every other dimension (third-party dimensions, the mirror layer, the unrendered layer) never trigger**. The Nether is pressed on its own because the mainline sends the player there on a short, purposeful errand that could otherwise pass without a single lapse; the End is the finale's own stage; third-party dimensions are excluded because this mod cannot declare what counts as normal there. The first interval (5–8 min) ignores the dimension.
 
-| Tier | Ceiling threshold | Actual candidate pool | Ordinary interval |
+**Non-triggering dimensions freeze the timer rather than spend it** (`anomaly_frozen_remaining`): the remaining wait is stored on entry and resumes from that point on return to the Overworld or Nether. Twenty minutes in the End is neither charged to the player nor banked into an anomaly that fires the moment they land; a record that was never scheduled (timer 0) is not frozen. The mirror layer and the unrendered layer freeze too — a pursuit lasts at most 110 seconds and an unrendered layer at most six minutes, and spending that normally would hand the player an anomaly the instant they come out (while falling out of the sky in their own world). **Thawing can only push later, never earlier**: a finished pursuit schedules the next one about 6 m 30 s out while the player still holds tens of frozen seconds from the mirror, and the thaw takes whichever is later.
+
+There used to be a 90-second **dimension-change grace** here; it is deleted. As "don't throw something at me the moment I step out of a portal" it was reasonable, but as a rule applied **per crossing** it was a starvation path: a player running a portal network crosses every minute or two, each crossing pushed the next anomaly to "now plus 90 seconds", and the timer never reached the end.
+
+**Level-up conditions**: except for tier 0 → 1, each level-up also requires at least **20 minutes of qualifying online time** in the current tier (`MIN_STAGE_EXPOSURE_TICKS`) and at least **2 successful anomalies** (`REQUIRED_STAGE_SUCCESSES`). When the actual tier is two or more levels behind the ceiling, the exposure requirement halves to **10 minutes** (`LEGACY_TIER_RAMP_TICKS`).
+
+Qualifying online time requires the player to be alive, non-spectator, not sleeping, not in the terminal, and not in an empty segment or a real pursuit. **It does not require owning a fixed home.**
+
+**Signature anomalies**: one is scheduled at the first Nether entry and one at the first recorded Eye bearing, pulling the next anomaly in to about 30 seconds (`SIGNATURE_LEAD_TICKS`) and drawing from the mainline ceiling (not the current actual tier), preferring content this player has never seen. A signature survives a failed trigger and is spent by the next successful one; it does not change the actual tier, success count or strong-interface cooldown.
+
+Candidate counts per tier: **3 / 9 / 10 / 7 / 7**.
+
+- Tier 5's pool is `tier >= 4` plus experience gap and local rule collapse, so metric drift never appears in the final stretch of the mainline.
+- Local rule collapse is named separately at tier 4: it inherits the availability range of both pre-merge entries (tier 2 and tier 3).
+
+### The eighteen anomalies
+
+| First tier | Name | Scope | Behaviour |
 | ---: | --- | --- | --- |
-| 1 | Terminal bound | Tier 1 | First 4–7 min; then 8–14 min |
-| 2 | Terminal band advanced, any activity proof, or 20 min of qualifying activity | Tier 1 + 2 | 8–13 min |
-| 3 | Iron obtained, preparing for or entering the Nether | Tier 2 + 3 | 7–12 min |
-| 4 | Blaze rods obtained and returned to the Overworld | Tier 3 + 4 | 6–10 min |
-| 5 | Any eye-of-ender bearing recorded, stronghold found, or finale pressure begun | Tier 4 + 5, plus experience gap and local rule collapse | 5–9 min |
-
-### The nineteen anomalies
-
-Three are marked **sustained**: they hang on for minutes at an intensity low enough to be doubted, instead of firing for seconds and letting the world snap back. With only short events, the mod is quiet for roughly 98% of a session and unease has nowhere to live.
-
-**Every anomaly opens with the same cue: the vanilla cave ambience `ambient.cave`, played positionally in the world.** Using a vanilla sound is deliberate — a synthesised cue announces *the mod is doing something*, whereas the cave sound announces *there is something here you did not place*, and it does that before the player consciously identifies what they just heard. Playing it positionally rather than at the ear gives it a bearing: the anomaly came from somewhere, and turning to look is something the player can do. Anchored anomalies sound from the anchor (that is where it is happening anyway); unanchored ones derive a bearing from their own seed and play 9 blocks from the player, so the bearing is stable for the whole instance and identical on every client rather than re-rolled per query. Red horizon's original tuning-sweep intro was removed — two opening cues on the same frame is one too many.
-
-| First tier | Name | Scope | Current behaviour |
-| ---: | --- | --- | --- |
-| 1 | False echo | Personal | Footsteps or mining sounds nearby that are not there |
-| 1 | Light failure | Shared | Ordinary block light sources within 16 blocks go out server-side at once and return when the anomaly ends; only enabled at night (13000–23000), and unrestricted in dimensions without a day cycle |
-| 1 | Surface fracture | Personal | False cracks with mining sounds appear on a wall or floor |
-| 1 | Silent world | Personal, sustained | Ambience, weather and every creature's sound disappear together; only the player's own actions still answer. Lasts 2–3 minutes. The signal bed runs on the MASTER channel and is not silenced with them |
-| 2 | Peripheral residue | Personal | Cold hands reach further in toward the centre from both sides of the screen; both vanish in sync when the flash hits |
-| 2 | Observer alignment | Shared | Nearby animals all turn their heads toward the player |
-| 2 | Gaze in the dark | Shared | Briefly existing glowing eyes spawn in darkness |
-| 2 | Behaviour replay | Personal | The player's actions from seconds ago reappear |
-| 2 | Organ misread | Personal | The terminal renders inventory items as eyes and rewrites their names |
-| 2 | Temporal drift | Personal, sustained | Celestial position decouples from the local clock; lighting, spawning and rules still run on real time, so the discrepancy is only in the sky. The terminal weather tool's celestial-phase channel reports it while the day/night countdown stays correct — here the terminal is right and the sky is wrong. Lasts 3–5 minutes |
+| 1 | Phantom echo | Personal | **Two acts, in that order**. The first two fifths are the approach: footsteps that are not there walk a straight line in from beyond the anchor, positioned from elapsed rather than integrated from a velocity so the last step provably lands at the wall - and the wall is still intact, with nothing in it yet. The walking is cut off on the tick the approach ends, one short beat of nothing, then the first blow lands and **that is what opens the crack**, which then deepens across the digging act. The digging comes from the crack. Attacking the crack triggers one flash impact (only once the crack exists), and **the block itself never changes**. Lasts 14–20 s. It used to pick digging or walking with `random.nextBoolean()` per burst while a crack that had been in the wall since tick zero deepened on the whole instance's clock: every part was present and the sequence they describe was not - a hole that predates the person, blows that stop for a walk and resume, and no moment where anything begins. The precondition probes in order: the blocks in front and to either side at **foot and eye height**, then failing those the **ground one block beside the player's feet**, and refuses only when all three are empty. The ground pass was added later - `player.blockPosition()` is the air block the feet are in, so probing horizontally alone never finds a target on flat terrain and this tier-1 anomaly was simply unavailable in the open |
+| 1 | Light dropout | Shared | Light sources within 16 blocks go out from far to near and return afterwards; night only (13000–23000), unrestricted in dimensions with no day cycle. **Different answers per light type**: anything with `LIT` flips to unlit; torches, lanterns and end rods are removed; solid light blocks swap to their non-emitting relative (sea lantern → prismarine bricks, jack o'lantern → carved pumpkin, shroomlight → warped wart block, crying obsidian → obsidian); **anything with no relative (glowstone) stays exactly as it is and keeps burning** |
+| 1 | Silent world | Personal, sustained | Ambience, weather and every creature's sound vanish at once; only the player's own actions still answer. Lasts 2–3 min. The signal bed runs on MASTER and is not silenced |
+| 2 | Peripheral residue | Personal | Cold hands reach further in from both sides of the frame; both vanish on the flash |
+| 2 | Watcher alignment | Shared | Nearby animals all turn their heads toward the player. **Precondition: at least 2 living mobs within 30 blocks** (`ALIGNMENT_MINIMUM_MOBS`) — a whole field turning at once is the anomaly; one sheep facing you is what sheep do. It previously had no precondition at all, so a player alone in a tunnel could still draw it and pay a whole interval plus an anti-repeat slot |
+| 2 | Dark watcher | Shared | Briefly existing glowing eyes in the dark |
+| 2 | Action echo | Personal | The player's actions from a few seconds ago reappear. **Precondition: the client's three-second history buffer is full and the player really did something in the last 5 s** (`ACTIVITY_WINDOW_TICKS`) — a movement sample, or a recorded dig/place/craft/interact. A replay recorded from a motionless player is a copy of a statue |
+| 2 | Organ misread | Personal | The terminal renders inventory items as eyes and rewrites their names. **Precondition: at least 4 occupied slots across the main inventory and hotbar** (`MISREAD_MINIMUM_ITEMS`) — selection takes at most two slots per visual row, and a nearly empty inventory only leaves one eye in the corner of a screen the player may not open. The test runs on stack identity, and **an empty stack never participates**: `ItemStack.EMPTY` is a global singleton, so picking a rewritten item onto the cursor emptied that slot and used to paint every empty slot on screen as an eye |
+| 2 | Local rule collapse | Personal | The 7×3×7 sections around the player (about 112×48×112 blocks) stop solving lighting and render fully black; a few scattered exposed blocks in the same region simultaneously show as missing textures. Light sources, real brightness and spawn checks are unchanged. **There is no sound at all on trigger.** Each section recovers its lighting when any block update touches it; the missing-texture fragments **do not** recover and stay until disconnect. 30–40 s backstop. Available across tiers 2–5 |
 | 3 | Viewpoint separation | Personal | The camera stays where it is while the body can still move |
-| 3 | Door cascade | Shared, destructive | Multiple doors within about 20 blocks are really broken, far to near |
-| 3 | Experience gap | Shared | The player is moved along a server-validated safe route during a black screen |
-| 3 | Local rule collapse | Personal | Nearby exposed blocks briefly show as missing textures, in scattered fragments |
-| 3 | Metric drift | Personal, sustained | Distances and coordinates the terminal reports drift continuously, while navigation and arrival checks still use the real position — what bent is the terminal's account, not the world. Lasts 2.5–4 minutes |
-| 4 | Red horizon | Personal | Sky, horizon and fog all turn red. The weather tool's horizon channel climbs before the colour is obvious, after which that page shows scan lines, tear rows, glitch and a self-corrupting refresh in turn |
+| 3 | Door cascade | Shared | Several closed doors within about 20 blocks are **forced open** from far to near. The crack progress bar, break particles, zombie door-break sound and block-break sound are all kept — only, afterwards the door is still there, open |
+| 3 | Experience gap | Shared | The player is moved along a server-validated safe route during a blackout |
+| 3 | Metric drift | Personal, sustained | The celestial position decouples from the local clock, and the terminal's reported distance and coordinates drift persistently at the same time. Lighting, spawning, rules, navigation and arrival tests all still run on real time and real position. The weather tool's celestial-phase channel reports the drift, while the day/night countdown stays correct. Lasts 3–5 min |
+| 4 | Red horizon | Personal | The sky, horizon and fog turn red. The weather tool's horizon channel climbs before the colour is obvious |
 | 4 | Window pulse | Personal, strong interface | The game window scales and flickers rapidly |
-| 5 | Channel takeover | Personal, strong interface | The vanilla chat bar types by itself in the first person |
-| 5 | Desktop presence | Personal, strong interface | The game minimises and a controlled Notepad types built-in text character by character |
+| 5 | Channel override | Personal, strong interface | Vanilla's chat bar types by itself in the first person |
+| 5 | Desktop presence | Personal, strong interface | The game minimises and a driven Notepad types built-in text |
+| 5 | Unrendered layer | Personal, strong interface | The player is moved into a procedurally generated endless interior plane for up to six minutes. See the section below |
 
-"Shared" means the effect changes entities, blocks or positions in the server world, so nearby players may observe the result. Tier, history, cooldowns and personal client presentation are still stored per player.
+"Shared" means the effect changes entities, blocks or positions in the server world, so nearby players may observe the result; tier, history, cooldown and per-client presentation are still saved per player.
 
-The tier-5 pool is `tier >= 4` plus experience gap and local rule collapse, so temporal drift and metric drift never appear in the final stretch of the mainline; they belong to the stages where the world is still trying to stay legible.
+**Shared entries are only deployed when the target is alone**: with another bound player within 32 blocks, selection prefers "personal"; it falls back to a shared entry only when no personal one can be drawn.
 
-### Two permanent sequences that are not in the catalogue
+**Dark watcher and HIM are only sent to the target** (per-player entity tracking, `broadcastToPlayer`); a client that never received the entity can neither draw it nor hit it.
 
-They occupy no anomaly slot, write no anomaly history and are not bound by the strong-interface cooldown, so they are not among the nineteen:
+**Only 4 anomalies have an opening cue** (`CUED_ANOMALIES`): watcher alignment, action echo, organ misread, peripheral residue. They use vanilla's cave ambience `ambient.cave`, played **positionally** in the world: anchored anomalies sound from the anchor, unanchored ones derive a bearing from their own seed and play 9 blocks from the player. **The rest have no opening cue, and that is a rule rather than an omission.**
 
-- **The Watcher** appears naturally only while the terminal band has not advanced (`BAND_STAGE == 0`) — the very opening of the story. Attempts begin 2400 ticks after the terminal is issued, then every 2800–6400 ticks, and it must be night (`dayTime >= 12500` or `<= 1000`) or underground (no sky view and local light ≤ 7). It stands 18–32 blocks away with its torso turned 115° but its head already turned back, and lives 900 ticks. Only one exists near a given player at a time.
-- **HIM** appears in a direction the player **has not looked at**: 95°–180° off their line of sight, 22–44 blocks away (× 1.6 in daylight, i.e. 35–70 blocks — at twenty-two blocks in daylight a crisply rendered humanoid reads as a spawned mob rather than as something that was already there), on terrain with relief (at least 5 blocks of height difference within the sample ring) or in an enclosed spot. Attempted every 6000–15000 ticks, alive for 600 ticks, one at a time. It **always faces the player** — aiming it once at spawn is not enough, because a player circling to the side would read it as an abandoned statue. Only facing moves; position, gravity and velocity stay pinned. The placement rule *is* the anomaly: it just stands there and then vanishes, and whether that reads as a sighting or a spawn is entirely a function of where it is standing when the player turns around. It vanishes 4 ticks after being seen, and also when the player comes within 4 blocks.
+### Three retired entries
 
-Neither is in the anomaly catalogue, so neither has a list row to click. The toolbar at the top of the debug panel's "anomalies" page is therefore their only manual entry point: currently only `him_spawn` ("spawn HIM") is wired to a button; the server's `watcher_spawn` still exists but has no button and relies on natural triggering. Manual spawning goes through the same `HimService.debugSpawn` as the natural path, so **the placement rules are not bypassed** — the panel refuses when the conditions are not met rather than dropping the figure in front of the player.
+| Retired | Merged into | What the merge became |
+| --- | --- | --- |
+| Surface fracture | Phantom echo | The digging is no longer only a sound: somebody walks up, starts digging, and only then does that wall crack and keep deepening - hitting it still triggers the flash |
+| Temporal drift | Metric drift | One reference-frame drift, with both the sky and the terminal's numbers off it |
+| Lighting solve failure | Local rule collapse | Lighting and textures stop being solved in the same region, and the two end differently |
 
-### Scheduling and anti-repetition
+**Retired ids are read but never run.** They keep their original slot in `AnomalyCatalog.MASK_ORDER` — that is the bit index of `ANOMALY_SEEN_MASK`, and deleting one silently renumbers everything after it. `containsHistorical()` recognises them and the bilingual `log.type.*` keys are kept; `contains()`, `require()`, `durationTicks()` and the candidate pool all refuse them.
+
+## The unrendered layer
+
+**The eighteenth anomaly, and the only one that moves the player out of the world they are in.**
+
+Entry has three beats: **watch yourself sink for half a second** (10 ticks — the view passes through the floor and underground while the body does not move) → one second of blackout → **stuck in the ceiling, falling**, into an endless interior plane: one-block-thick yellow walls, grey carpet, a quartz drop ceiling, one lamp per cell either still lit or already broken. No sky, no weather, no natural generation and no music — only a 20-second ambience loop.
+
+### Rank and stake
+
+**The unrendered layer is ranked with the personal pursuit, not with the anomalies it is catalogued beside.** An ordinary stage-five anomaly may fire every few minutes - right for four seconds of a window flickering, absurd for six minutes of being somewhere else. Drawn from the ordinary pool it competed with `window_pulse` for the same slot on the same terms.
+
+It now has a cooldown of its own, taken **verbatim from the pursuit's `MIN/MAX_CHASE_GAP_TICKS` (20-30 minutes)** rather than restated, so the two ranks cannot drift apart into "about the same". The cooldown is written on **every close**, not only the ones that settle: an entry that failed or was interrupted still means this person was very recently taken, and the gap is about how often this may happen to somebody rather than about how it ended.
+
+**Getting out is worth a heart of maximum health; not getting out costs one.** It uses the pursuit's existing rule, `PursuitProgressPolicy.resolutionMaxHealthDelta` - the same formula, the same six-heart floor (below which a failure costs nothing further, while an escape still pays at any health, so somebody who bottomed out can climb back), and the same shared clamp in `MaximumHealthAdjustment`. Restating it here with its own numbers would have been the quickest way to end up with two subtly different definitions of what losing costs.
+
+**Timing out counts as failing.** Six minutes without finding a way out is not getting out, whatever it was worth as an experience. That is a different judgement from the one the anomaly history makes - it files a timeout as a completion so the entry is not immediately re-drawn - and the two are answering different questions.
+
+**A session that never really happened settles nothing**: a disconnect, an operator's teleport, a server shutdown or a failed entry all close without a stake. Charging a heart for the game being restarted is exactly the kind of unrecoverable deprivation the layer is not allowed to be.
+
+### Generation
+
+It is not a hand-built map but a `ChunkGenerator`:
+
+| Item | Rule |
+|---|---|
+| Cells | One per 5×5 blocks; the north and west edges each raise a wall at **35%** probability |
+| Trunk corridors | One full row and one full column forced open every 8 cells |
+| Multiplayer isolation | **Needs no second dimension**: the 16 slot entry points are 1.5 million blocks apart, and the maze hashes on coordinates |
+| Entry variants | 64 per slot, rotating by visit count |
+| View distance | Locked to **6 chunks (96 blocks)** — a design requirement, not a performance budget |
+| Duration cap | 6 minutes |
+
+The trunk corridors do two things at once: they give the place its signature endless hallways, and they **guarantee the plane is connected without any global connectivity check** (purely random walls seal off about one cell in seventy).
+
+### The exit
+
+**The way out is a false wall.** Exactly one per 32×32 cells, positioned by hash, occupying a **15×15** square: a ring of "false wall" that renders, occludes and blocks light exactly like an ordinary wall **but has no collision**, wrapped around a solid patch of "false floor" that looks like floor but holds nothing up.
+
+**It is found by colour, not by shape.** False and solid surfaces are generated by the same procedural recipe with **pixel-identical patterning**, differing only by about **20%** in colour (`LIGHTNESS_SHIFT` in `tools/generate_unrendered_textures.py`, **warmer rather than merely brighter** — merely brighter reads as a light source). No outline, no icon, no silhouette.
+
+Passing through is two beats: step into the false wall (the view fills with wall, the floor still real), take one more step, and the floor lets go.
+
+**The false wall blocks nothing**, so the exit region cannot seal off any part of the map — which spares both the connectivity proof and the Bacteria's pathfinding a special case.
+
+**The exit is not only that.** Besides the large false-wall regions, the plane carries **four-by-four patches of floor that do not hold weight**, about one per forty thousand floor blocks - roughly a two-hundred-block square, and so noticeably rarer than the exit regions at one per hundred and sixty. That ordering is deliberate: the reliable way out is the one you can learn to spot, and this is luck layered on top of it.
+
+They began as **single blocks** at eight times this density, which was wrong twice over: single blocks were both too visible - off-colour speckle across every floor in the layer - and too easy to step over, because at six blocks a second the gap between footfalls is wider than a one-block hole. Four by four is something you fall into.
+
+These are for the player who cannot afford to look. Finding a region is observation; falling through one of these is luck: somebody being chased picks whichever corridor is open and is not reading the floor, and one of the blocks under that route simply is not there. They use the same false-floor block and so carry the same off colour - visible to somebody crossing slowly, invisible to somebody running, and that asymmetry is the whole design. They **cannot** replace finding a region, and they **can** save somebody who was about to be caught.
+
+Two hard constraints: never on a wall line (a wall stands on its own floor block, and cutting it away leaves the wall over nothing), and never on a trunk intersection cell - those are where the entry point and the entity are placed, both without checking anything.
+
+**The bearing is relative to where the player is looking, not to the compass.** Eight sectors: ahead, ahead-and-right, right, behind-and-right, behind, behind-and-left, left, ahead-and-left.
+
+A cardinal bearing is a fact about the world that has to be converted before it can be acted on, and down here there is nothing to convert it against: no sun, no landmark, no map, and a floor plan with no north. "Ahead and to the left" is something a player can simply walk; "north-west" is something they have to work out first, in a place whose whole design is that working things out is hard.
+
+That is why the server sends an **absolute angle** rather than a sector: the sector has to be recomputed against the player's facing every frame, and bucketing on the server would round twice and visibly lag the mouse.
+
+### Coming back
+
+| Route | Landing |
+|---|---|
+| Through the wall (dimension with sky) | **About 200 blocks directly above the entry point**, then falling |
+| Through the wall (dimension with a ceiling, e.g. the Nether) | Ground return |
+| Six-minute timeout | **Exactly where they were taken from** |
+
+- The teleport is hidden entirely behind a **40-tick blackout**, scheduled at tick **8** of that window, leaving the rest for loading.
+- During the fall, **view distance is forced up to 16 chunks** (the inverse of the layer's 6-chunk lock); the client restores it itself on the frame the local player lands.
+- **Fall damage is waived throughout**: fall distance is reset every tick during the descent rather than cancelling one instance on landing — which also covers landing in a ravine, a second bounce, and anything else met on the way.
+
+### The two things the terminal says down there
+
+1. **The moment the Bacteria lands**, one line pops above the hotbar: "anomalous signal detected". Only that — no bearing, no distance.
+2. **Three seconds later** the same line becomes the resident readout "Overworld signal detected: [bearing]" — eight bearings, direction only, no distance, **rewritten every 40 ticks** (vanilla's line starts fading after 60 ticks, so a 40-tick rewrite keeps it up without flicker).
+
+**It never points wrong.** The vagueness comes entirely from **resolution**: eight bearings at a 160-block spacing is a fan about 60 blocks wide at the far end. Within 20 blocks it says nothing at all.
+
+### Prohibitions in the layer
+
+- **No mining, no placing, no water, no flint and steel** (the opposite of the private mirror's rules).
+- **World decay, the signal bed and music are all off.**
+
+### The Bacteria
+
+One minute after entry, an entity is placed **more than 100 blocks away** (beyond view distance, so it is never seen spawning) and from then on does exactly one thing: walk toward that player.
+
+| Item | Value |
+|---|---|
+| Movement speed attribute | **0.370** |
+| Resulting speed | Slightly faster than sprinting (5.612 blocks/s), clearly slower than sprint-jumping (about 7.1) |
+| Conversion | `blocks/s ≈ 44.05 × attribute²` (measured on default 0.6-friction ground) |
+| Heartbeat | `unrendered/heartbeat.ogg`, 1 s loop, `HOSTILE`, registered radius **64 blocks** |
+
+- **It cannot be hit, pushed, knocked aside, damaged, and it deals no damage.** Reaching the player is a **capture**: the screen goes black, the scream plays, and they wake at their own spawn point with health and hunger restored. **The player does not actually die** — no death screen, no death broadcast, no drops, no statistics entry.
+- **It has a heartbeat, and only a heartbeat.** The entity itself is silent (footsteps would give away its exact distance with every step). Direction and proximity are left entirely to the engine's attenuation, so it is a **bearing** rather than a "something is here" icon. 64 blocks is chosen against the 100-block spawn distance: when the Bacteria lands it is still out of earshot, so "anomalous signal detected" is followed by silence, and then the heartbeat fades in from far away. It stops the instant it leaves the client's tracking range and **never keeps sounding from the last seen position**.
+- **A large spider, and it has no face.** Two body masses, eight jointed legs, and knees that rise above the back — that last line is the single feature that makes a shape read as a spider at any distance and in one frame, which is why the femur angles up and the tibia comes back down past it rather than the legs simply splaying outward. Leaving the face off is not a saving: a spider is already frightening from its gait and its proportions, and eyes would give the player something to look at and therefore something to reason about. The front of the body is just where the legs are densest. **No emissive at all.**
+- The gait runs on `walkAnimationPos`, the same distance-walked clock vanilla drives its own limbs from, so the legs are tied to ground actually covered rather than to elapsed time — a thing that has stopped stops moving its legs. The four pairs walk a diagonal sequence, so the four feet down at any moment are never all on one side. Over the top of that each leg carries a slow drift on a period that does not divide into the step cycle, so a spider standing still is never quite still.
+
+> **Tune the speed from what the GameTest measures, never from arithmetic.** `UnrenderedLayerGameTests.theBacteriaSpeedLandsBetweenSprintingAndSprintJumping` runs in every server GameTest pass.
+
+## The RECORDS backfill
+
+Anomalies are written to the isolated store `ANOMALY_LOGS` (type, world time, dimension, coordinates) from the **very first one**, capped at **160**. Nothing reads it until the latch flips — RECORDS reads `SIGNAL_EVENTS`, and `pruneOperationalTelemetry` strips every anomaly type from that one.
+
+**The latch flips on the first recorded Eye of Ender bearing** (thrown yourself, or shared to you by a teammate). After it flips:
+
+- Only then does the server start sending the list. **Before that it sends an empty one**, rather than letting the client hide it.
+- RECORDS **merges by world time** rather than appending at the end.
+- Backfilled lines **resolve out of noise character by character**, staggered per screen row: the resolution order is fixed and monotonic with progress, and only unresolved positions are re-rolled in 350 ms (7-tick) buckets, with zero reflow throughout.
+- Backfilled lines are **never navigable** (the RECORDS shortcut sends `SELECT_NEAREST_UNSTABLE` and does not aim per row).
+- They use `log.type.*` rather than `log.summary.*` — the former is the terminal's voice, the latter a specification description.
+- **One** ordinary record line with an unread badge is written at release.
+
+## Scheduling and anti-repetition
 
 - At most one ordinary anomaly runs per player at a time.
-- The 3 most recently completed anomalies are excluded from candidates; falling back is only allowed when there is nothing else.
-- Anomalies newly added at the current tier are weighted 3× against retained ones.
-- Window pulse, channel takeover and desktop presence share a 20–30 minute strong-interface cooldown.
-- Logging in schedules the next ordinary anomaly 3 minutes out; a real dimension change changes that to 90 seconds.
-- If the time arrives while the player is sleeping, in the terminal, in a gap or in another anomaly, the next check is deferred 60 seconds.
-- Ordinary anomalies are paused during real pursuits and in mirror dimensions; after a successful pursuit, the next one is scheduled about 6 minutes 30 seconds from the moment of success.
-- With `pacing.developerAcceleration=true` the first/subsequent intervals shorten to 5/10 seconds. Regression testing only.
+- The **3** most recently completed anomalies are excluded from candidates, and what is left then **prefers** entries this player has never seen. Both rules decide which anomaly arrives, never whether one does: **when every narrowed candidate refuses its own precondition, the draw falls back to the full pool without either preference and walks it once more**, skipping ids already refused on the same tick. The strong-interface cooldown and the "send a personal anomaly when somebody is within 32 blocks" rule still apply to the fallback - neither is a freshness rule.
+  - Before the fix this starved. Tier 1 holds three entries; phantom echo needs a surface to crack and light dropout is night-only, so above ground in daylight the only one that can start is silent world. One success then occupies both the recent-3 list and the seen mask, the remaining two cannot start where the player is, and the 30-second retry rebuilt the identical impossible pool. No anomalies also meant `ANOMALY_STAGE_SUCCESSES` never reached 2, so the tier stayed at 1 and the pool never grew.
+- An anomaly newly added at the current tier is weighted **3×** compared to retained ones.
+- Window pulse, channel override and desktop presence use a **20–30 minute** strong-interface cooldown.
+- **Login applies a floor, not a reschedule**: no earlier than 3 minutes out, and an existing later schedule is kept. Dimension changes apply no grace.
+- If the moment arrives while the player is sleeping, has the terminal open, is in an empty segment or in another anomaly, the next check is deferred **60 seconds**.
+- **If a draw happens but every candidate is refused by its own precondition, the deferral is only 30 seconds**, not a whole interval.
+- Ordinary anomalies pause during real pursuits and in mirror dimensions; after a successful pursuit the next one is scheduled about **6 m 30 s** later.
+- **No anomaly triggers for the entire World Interface fight**, from the summon's first tick to resolution, and **anything already running is interrupted in place** (`interruptAll` sends an `interrupted` phase). Gap pressure is likewise off.
+- With `pacing.developerAcceleration=true` the first/subsequent intervals shorten to 5/10 seconds, for regression testing only.
 
-## Five personal pursuit forms
+## Two resident presentations outside the catalogue
 
-### Permission, actual form and pending pursuit
+They occupy no anomaly slot, write no anomaly history and are not bound by the strong-interface cooldown, so they are not among the eighteen.
+
+| | Watcher | HIM |
+|---|---|---|
+| Conditions | Terminal band not yet advanced (`BAND_STAGE == 0`), and either night (`dayTime >= 12500` or `<= 1000`) or underground (no sky access and local light ≤ 7) | 95°–180° off the line of sight, 22–44 blocks (×1.6 by day, i.e. 35–70), and either uneven terrain nearby (≥ 5 blocks of height range within the sample ring) or an enclosed spot |
+| First attempt | 2400 ticks after the terminal is issued | — |
+| Interval | 2800–6400 ticks | 6000–15000 ticks |
+| Lifetime | 900 ticks | 600 ticks |
+| Placement | 18–32 blocks out, torso 115° off with the head already turned back | A direction **the player has not looked at yet** |
+| Other | Only one near a given player at a time | **Always faces the player** (only the facing moves); despawns 4 ticks after being seen, and also if the player comes within 4 blocks |
+
+The "anomalies" group in the debug panel's right column is their only manual entry, with a button each for `him_spawn` and `watcher_spawn`. Manual spawning goes through the same `HimService.debugSpawn` / `WatcherService.debugSpawn` as a natural trigger, so **the placement rules are not bypassed**. The debug HUD's entity outlines tell you whether one spawned and where, but they are no part of the server's "has been seen" judgement: an outline visible through a wall is not a figure that will still be there when you reach it.
+
+## The five-form personal pursuit
 
 | Form | Permission threshold | Duration | Core counterplay |
 | ---: | --- | ---: | --- |
-| 1 Sound-Seeker | Terminal bound and at least one anomaly completed, plus either any proof of mining/exploration/loot/building/trading or 20 minutes of qualifying activity | 60 s | Stop forming a rhythm; sneak and break line of sight |
+| 1 Soundseeker | Terminal bound and at least one anomaly completed successfully; plus either any mining/exploration/loot/building/trading proof, or 20 minutes of cumulative activity | 60 s | Stop forming a rhythm; sneak and break line of sight |
 | 2 Router | Entered the Nether | 75 s | Do not repeat a route; use corners and multiple exits |
-| 3 Interceptor | Blaze rods obtained and returned to the Overworld | 85 s | Recognise the predicted route; double back, change direction or change height |
-| 4 Trespasser | Three real eye-of-ender bearings recorded | 95 s | Read the glow/sound wind-up and cut away at the end of the lunge |
-| 5 Interface Corrector | Stronghold found | 110 s | Ignore contradictory text, coordinates and directions; use the heartbeat only for distance |
+| 3 Interceptor | Blaze rods obtained and returned to the Overworld | 85 s | Recognise the predicted route; double back, change direction or change elevation |
+| 4 Boundary-crosser | Three real Eye of Ender bearings recorded | 95 s | Read the glow/sound wind-up and cut away at the end of the lunge |
+| 5 Interface Corrector | Stronghold found | 110 s | Ignore conflicting text, coordinates and bearings; use the heartbeat only for distance |
 
 `allowedForm` is the highest form the mainline permits; `actualForm` always equals "resolved pursuits + 1", capped at 5. A real trigger requires `actualForm <= allowedForm`.
 
-Every form follows the same teaching chain:
+The teaching chain:
 
 ```text
 Safe demonstration inside a successful anomaly
 → Wait for a safe environment and a free mirror slot
-→ Terminal writes an anomalous-signal warning 10 seconds ahead
-→ Terminal vibration, progressive frame-rate decay, 2-second freeze
-→ Black screen hides the load and the real pursuit begins
-→ Archived on success / pending kept and retried after capture
+→ The terminal writes an anomalous-signal warning 10 seconds ahead
+→ Terminal vibration, progressive frame-rate decay and a 2-second freeze
+→ A blackout hides the loading and the real pursuit begins
+→ Archived on success / pending kept and retried after a capture
 ```
 
-Success advances the actual form by one step, and the next real pursuit waits 20–30 minutes. Capture, disconnection or a technical interruption does not increase the resolved count; the pending state is kept and retried 5 minutes after returning to reality.
+A success advances the actual form one step, and the next real pursuit waits **20–30 minutes**. Capture, disconnect and technical interruption do not increase the resolved count; the pending state is kept and retried **5 minutes** after returning to reality.
 
-### Entry sequence and screen feedback
+### The entry presentation
 
-Once the safety window is confirmed and a mirror slot is taken, the server immediately appends an unread record to the terminal: a green "anomalous signal fluctuation detected, approaching.." followed by a red "prepare yourself...". The action bar shows only "the terminal is vibrating violently". Opening the terminal at this point jumps to the records page. Both the real path and the five-tier test entries in the debug workbench start here.
+Once the safety window is confirmed and a mirror slot taken, the server immediately appends an unread record, still in two colours: **the green half now differs per form**, the red half is always "prepare yourself...". The action bar shows only "the terminal is vibrating violently". Opening the terminal then jumps straight to RECORDS.
 
-The full lead-in is fixed at 10 seconds: the first 4 seconds are for reading the terminal record; the next 4 lower the presentation frame rate programmatically from about 60 FPS to about 4 FPS with no filter, vignette, signal band or other screen overlay layered on; the final 2 seconds freeze the picture, lock movement input and repeat a machine-hang fault sound.
+The green half is split because the five forms do not track alike — form 1 only calibrates while the player is making noise, form 3 takes their heading rather than their position, form 4 keeps reappearing behind them — and running on instinct is precisely the worst answer to form 1. The five keys already existed, but the records page used to discard the form and render a shared line, so nothing ever read them and nobody noticed all five held the same text; `PursuitWarningTextContractTest` now asserts they are pairwise distinct.
 
-That fault sound is not a single file: `alpha_corruption_collapse` and `alpha_corruption_warning` have 3 variants each, drawn at random by the sound engine on every play, all generated procedurally by `tools/generate_alpha_corruption_audio.py`. It replays every 5 ticks during the freeze and again for 3 seconds at capture resolution, so a player might hear it a dozen times in one evening; with a single sample it would be recognised, and a recognised sound has already been filed under "sequence". The three collapse variants are three different ways of hanging (audio buffer lock-up, a high-frequency whine from a driver deadlock, bit depth decaying ring by ring into a square wave), not randomisations of the same clip. Variants of one event are level-matched by RMS rather than by peak, so which one is drawn never changes how loud this moment is.
+**The action bar line is not split by form, and must not be.** During the event there is only the shake; what this is and how it hunts belongs to the records page, which the terminal force-opens the next time it is raised (`PURSUIT_WARNING_RECORDS_REDIRECT`). That ordering is the [world bible](world-bible.md)'s rule that explanation arrives after the event, and splitting the action bar by form would move the explanation in front of it. `ResourceContractTest` asserts no per-form variant of that key exists.
 
-There was once a fourth collapse variant — clipping into the rails and grinding down — that measured fine and was cut after listening: it sounded like the signal being destroyed rather than the device hanging, and this cue has to say the latter. A technical contract test cannot stop "it sounds wrong", so any future clipped-square-wave variant must be auditioned first.
+**The full lead-in is a fixed 10 seconds:**
 
-After the freeze the screen goes solid black, and only then does the server begin copying the initial 5×5 mirror window. The 10-second warning itself does not enable the black loading cover; cross-dimension `LevelLoadingScreen` and resource `LoadingOverlay` are always covered by it. Both entering the mirror and returning to reality must wait until **the destination chunks are actually in hand** before lifting the black screen and restoring rendering and input: first the loading screen must be gone and the dimension correct, then the client must hold the chunks within a 3-chunk radius (7×7) of the player, and only then does the count of consecutive stable ticks (8) begin. The previous rule waited only for the loading screen plus 2 ticks — and the loading screen is removed when vanilla considers the world entered, long before the surrounding terrain arrives, so the black screen lifted after about a hundred milliseconds and the player watched the world assemble itself, which is the exact thing this transition exists to prevent. Having the chunks is not the same as having rendered them, so the stable-tick count went from 2 to 8 to cover section compilation. There is a hard 200-tick (10-second) timeout overall: a stalled or rate-limited chunk stream must never leave a player in the black permanently — a brief pop-in is a blemish, a black screen you cannot leave is a broken save.
+| Segment | Duration | Content |
+|---|---|---|
+| Reading | 4 s | Purely for the player to read the terminal record |
+| Frame decay | 4 s | Presentation frame rate is programmatically reduced from about 60 FPS to about 4 FPS, **with no filter, vignette, signal bar or other screen overlay layered on** |
+| Freeze | 2 s | The frame freezes, movement input locks, and the crash sound replays |
 
-During a real pursuit the client runs a **black-and-white, low-bit-depth digital-corruption post-process** (`thefourthfrequency:post/digital_corrupt`); the scan lines and vignette are terms in that chain (`ScanDepth` / `Vignette`) rather than rectangles drawn on the HUD. The old "continuous waveform" boss bar is gone; only a red "attempt to escape" is pinned at the bottom, and any other terminal prompt generated during the pursuit is queued without being shown or sounded until resolution, the black-screen return and the source world's load are all complete. The Esc pause menu still opens, but "Save and Quit"/"Disconnect" are disabled with "you cannot simply walk away..." and restored once the session is fully over. The Corrector uses the vanilla warden heartbeat, whose interval shortens with proximity; it is played positionally at the Corrector's coordinates on the HOSTILE channel rather than at the player's ear, so it carries stereo bearing and linear distance falloff (volume 1.75 gives roughly a 49-block audible radius, covering the whole heartbeat distance band), and only the pitch still tightens with proximity.
+- **The crash sound is a variant pool**: `alpha_corruption_collapse` and `alpha_corruption_warning` have 3 variants each, generated procedurally by `tools/generate_alpha_corruption_audio.py` and drawn randomly by the sound engine each time. It replays every 5 ticks during the freeze, and again for 3 seconds at capture resolution. The three collapse variants are three different ways of crashing (audio buffer lock-up, a driver-deadlock high-frequency whine, bit depth decaying into a square wave). Variants of the same event are level-matched by **RMS rather than peak**.
+- **Capture has one extra scream**: `pursuit_capture_scream` plays once when the `CAPTURE_FREEZE` phase arrives, **layered over the corruption sound rather than replacing it**. Master: mono 44.1 kHz Ogg Vorbis, about 3.8 s, ingested at −7.8 LUFS / peak −0.1 dBFS, played at 0.85. `ResourceContractTest` specifically asserts this file is a **Vorbis stream**, not merely an Ogg container.
 
-### Two filter languages: analog signal vs digital corruption
+**Conditions for lifting the blackout**: first the loading screen must be gone and the dimension correct; then the client must hold the 7×7 chunks (radius 3) around the player; only then does the count of consecutive stable ticks begin (**8 ticks**). There is a **200-tick (10 s) hard timeout** — a stalled chunk stream must never leave a player in a permanent blackout.
 
-Glitch across the mod splits into two languages that are never mixed, so a player can tell "the tape is broken" from "the rules are broken" without being told:
+The 10-second WARNING itself does not raise the pure-black loading cover; the cross-dimension `LevelLoadingScreen` and the resource `LoadingOverlay` always are covered.
 
-| Language | Shader | Chain | Used by |
-| --- | --- | --- | --- |
-| **Analog signal** (the medium is breaking) | `post/analog_signal.fsh` | `signal_1..4` | Anomaly impacts |
-| Same, still variant | Same | `signal_still_1..4` | First-launch loading screen, world-loading-screen corruption |
-| **Digital corruption** (the rules are breaking) | `post/digital_corrupt.fsh` | `pursuit_low_res*` | Private pursuits (4 proximity levels) |
-| Same, edge mask | Same | `world_interface_lock{,_peak}` / `_expulsion` | World Interface lock / forced expulsion |
+### During a pursuit
 
-**The still variants are tuned separately; they are not the moving family minus two terms.** The two families are for fundamentally different purposes: an impact lasts 18 ticks and nothing in those 18 ticks needs reading, while the corruption loading screen is a full page of **red text** that has to be read for half a minute. The moving family's `Desaturate` is 0.70 at its highest — seventy per cent pulled to grey, plus a near-neutral `Tint` and a heavy bloom — and on red text over black that does not read as "broken", it reads as "the colour is gone".
+- A **black-and-white, low-colour-depth digital corruption post-process** (`thefourthfrequency:post/digital_corrupt`); scanlines and vignette are terms in that chain (`ScanDepth` / `Vignette`), no longer rectangles drawn on the HUD.
+- **No boss bar**; only a red "try to escape" is resident at the bottom. Other terminal notices queue without display or sound until the pursuit resolves, the blackout return finishes and the source world has loaded.
+- The ESC pause menu still opens, but "Save and Quit / Disconnect" is disabled and reads "you can't just walk away from this..."; it is restored once the session fully ends.
+- **The heartbeat is played positionally at the Corrector's coordinates on the HOSTILE channel** (volume 1.75 ≈ 49-block audible radius), carrying its own panning and linear falloff; only the pitch tightens with proximity.
+- **Night vision is applied throughout**: ambient, no particles, no HUD icon, renewed every 600 ticks (topped up below 300) rather than infinite. Resolution, return, disconnect and recovery login all remove it actively.
+- At the moment a pursuit really begins, other players holding bound terminals within 64 blocks of the source dimension receive one line: "a nearby terminal's signal cannot be resolved right now" — unnamed, revealing nothing, and not sent to the target.
 
-So the still family: `Wobble` and `RollHeight` go to zero (no shake, no roll), `Desaturate` drops to ≤ 0.05, `Tint` alpha to ≤ 0.07, bloom and overall strength come down with them; grain, scan lines, radial chromatic aberration and vignette are all kept. `PostFilterContractTest` guards a **one-way** rule: **no term on the side that has to be read may be heavier than on the side that does not**. It separately pins "desaturation and tint may not be high enough to replace the colour underneath" and "grain / scan lines / aberration may not be zeroed" — it still has to be the same medium breaking. Mistracking is carried by the loading screen's own slow sweep on the screen clock, so there is exactly one mistrack on the picture rather than two running on separate clocks.
+### Corrector behaviour
 
-**Two post-processing slots, not one:**
+| Environment | Base speed | Pathfinding multiplier |
+|---|---:|---:|
+| Open | 0.31 | 1.32 |
+| Cave (no direct skylight, low sky light, enclosed on at least four sides) | 0.25 | 1.04 |
 
-| Slot | Driven by | Scope | Users |
-| --- | --- | --- | --- |
-| Level slot (vanilla's) | `PostEffectArbiter` | World image only; HUD and terminal prompts stay legible | Pursuits, World Interface lock/expulsion |
-| Full-frame slot (self-driven) | `ScreenFilterDriver` + `MinecraftScreenFilterMixin` | World + HUD + current screen, all inside the filter | Anomaly impacts, both loading screens |
+The intended feel: **holding a sprint keeps the distance roughly constant; only sprint-jumping actually opens a gap.** Leaving a cave restores immediately. Pursuit-specific breaching starts breaking block by block after a brief stall; when a player pillars up it prioritises removing the support under them and periodically leaps vertically. Correctors in the ordinary world are unaffected by this package.
 
-The line is deliberate: **a sequence you still have to play through** must keep the instruments readable, so it stops at the "glass" layer; only **a sequence where the whole screen is supposed to be broken** goes into the full-frame slot.
+**Initial spawns and respawns take a point from the full 25–42 block ring around the player, not restricted to behind them** — the probe may land directly in front. It advances through five rings at 26/30/34/38/41 blocks, near to far, 12 bearings each with a randomised start angle; when a column has no footing, it advances to the neighbouring bearing on the ring rather than jumping to the player's other side.
 
-The full-frame slot works because `PostChain.process(RenderTarget, GraphicsResourceAllocator)` is already public, and `Minecraft.runTick` contains exactly one moment where world, HUD and screen have all been composited into the main render target but `blitToScreen` has not run. Injecting on that call rather than at the end of the method lands inside vanilla's own `if (!window.isMinimized())`. **Its claim takes effect per frame**: each frame the claim is consumed and cleared, and callers claim from their own render path — so the entire class of "the shader got stuck on" bugs is structurally impossible. Closing the screen, disconnecting, reloading resources and thrown exceptions cannot carry it.
+### Escape and counter-kill
 
-**Band-style overlays are all disabled, but the source is kept.** Three horizontal band effects — the pursuit interference band (`renderInterference`), the anomaly impact's tear and mistracking bands (`renderTornPicture` / `renderMistrackedBand`) and the loading screen's tracking band (`drawTrackingBand`) — are now carried by shader terms: on the digital side `BandShift`/`BandLoss` drag the picture itself, on the analog side the new `TearBands`/`TearShift`/`TearLoss` do the same, and the loading screen's mistrack became `signal_still_*`'s own slow rolling bar. All four methods remain in source and none are called: they are the reference for what the shader term should look like, and the fallback if some GPU cannot compile a chain. The contract test asserts that **nothing calls them**, not that they do not exist.
+Outlasting the form's duration is still the fallback condition, but no longer the only solution:
 
-**The only thing still drawn with the GUI is the terminal weather card**: it is a small area inside a page and must not cover the tabs and close hint beside it, while a post-processing chain's uniforms are baked at load and the card's screen position varies with window and GUI scale — a full-frame chain cannot express "only this rectangle". That one case uses `AnalogFilter` and the same vocabulary (grain layer, soft scan lines, triangular-decay mistracking bar) drawn inside the rectangle.
+- Staying at least **42 blocks** away for a cumulative **5 seconds** severs tracking and ends it early;
+- breaking line of sight beyond **18 blocks** for a cumulative **8 seconds** likewise;
+- both progresses **decay quickly** once the condition lapses;
+- the Corrector keeps **36 health** and a real hit box, and killing it yourself resolves as a counter-kill success.
 
-Everything on the analog side is **continuous**: radial chromatic aberration (zero at the centre, growing outward), sinusoidal row wobble (two non-integer-ratio periods multiplied, so no predictable pattern forms), cosine scan lines, highlight bloom, an upward-crawling mistracking bar, vignette, grain. Everything on the digital side is **discrete**: whole bands flung sideways, per-band RGB channel offset, a lost band stretching one row across the whole width, hash-selected macroblocks collapsing into mosaic, dithering then quantising to a low bit depth.
+**Resolution:**
 
-**Why a real filter is possible now**: 1.21.11 bakes post-processing uniforms at chain load and offers no public per-frame write — but the `Globals` block from `#moj_import <minecraft:globals.glsl>` carries `GameTime` and `ScreenSize`, and `GlProgram` maintains its own `BUILT_IN_UNIFORMS` (`Projection / Lighting / Fog / Globals`) that get bound whenever the shader declares them, regardless of whether the pipeline declared them (vanilla's own `box_blur.fsh` uses exactly this). So only a few intensity levels need pre-baking; the motion is computed by the shader itself.
+| Outcome | Presentation | Max health |
+|---|---|---|
+| Captured | The last frame holds and the crash sound plays for 3 s | **−1 heart**, with a soft floor at 6 hearts (no further loss at or below 6) |
+| Success (outlast / distance / line of sight / counter-kill) | "Try to escape" is withdrawn first, replaced by a green "you have escaped it, for now..." for 3 s | **+1 heart** (not subject to the soft floor) |
 
-`SamplerInfo` is the opposite: every post pass declares it, but it is **only filled for some chains**, and when it is not, the whole block reads as 0 with no error at all — which is what the old `world_interface_edge.fsh` fell into (dividing by `OutSize.y` flattened the radius's horizontal term and painted the entire screen purple). Every shader in this mod therefore takes its size from `Globals.ScreenSize`, and `PostFilterContractTest` asserts that none of them reads `SamplerInfo`.
-
-**The flicker ceiling lands on `HoldTicks`**: it is the re-roll period for every discrete quantity in digital corruption. 3 Hz = 6.67 ticks, so every chain is ≥ 7 ticks, asserted by test. The analog side has no equivalent field — everything it does is continuous — with the single exception of grain, which is zero-mean per-pixel noise and by definition does not change mean brightness, so it is not "flicker".
-
-**There is only one level post-processing slot** and three subsystems want it (pursuit / World Interface lock / anomaly impact). `PostEffectArbiter` holds **claims**, not results: priority follows declaration order `PURSUIT > WORLD_INTERFACE > ANOMALY`, and whichever live claim is highest gets installed; chains this mod did not install are neither overwritten nor cleared. Previously each side wrote its own opposite rule — pursuits pre-empted unconditionally, the World Interface refused pre-emption — and whichever ticked last won.
-
-Night vision is applied to the pursued player for the entire real pursuit: the mirror may be entered from a cave or a night-time Overworld, and a black-and-white low-bit-depth corruption filter on an already contrast-free picture erases the ground along with everything else — the player should lose to the thing behind them, not to the dark. It is ambient, particle-free and shows no HUD icon, and it is renewed on a 600-tick cycle (topped up below 300 ticks) rather than given infinite duration, so if any cleanup path ever misses it, the worst case is half a minute of residue. Pursuit resolution, the return, disconnection and recovery login all remove it actively.
-
-After a pursuit the player returns to the same coordinates in the source world as where they stood in the mirror, rather than being dragged back to where the pursuit started — the mirror is a chunk-for-chunk, coordinate-for-coordinate copy, the distance they ran is real, and erasing it means the escape did not happen. If that coordinate is solid in the source world (the player dug through in the mirror), it falls back to a nearby safe point, then the entry point, and only then the spawn point. After surviving, escaping or killing it, the temporary pursuit-warning record is deleted on return and a new "the magnetic field around the user is very unstable..." record is added; capture also records the field anomaly but keeps the warning for the next retry. The heartbeat provides distance pressure and the Corrector's bearing, but never points to an exit or an escape direction — it answers "where is it and how close", never "which way should I run".
-
-The Corrector's initial spawn and any respawn after an unexpected loss both take a valid foothold from the **full ring** 25–42 blocks around the player, **no longer restricted to behind them**: a probe may land directly ahead and the player may watch it appear. This is deliberate — something that only ever appears behind you can be reasoned about by turning around, and the old rule effectively promised "the direction you are facing is safe". Probes advance through five rings at 26/30/34/38/41 blocks, near to far, with 12 bearings per ring and a randomised start angle, so the first attempted position is equally likely to be in front as behind; when a column has no foothold it advances to the adjacent bearing on the ring rather than jumping to the player's other side. The near-to-far order also has an implementation reason: the initial mirror window is 5×5 chunks around the player's chunk, so a player standing against a chunk edge is only guaranteed a 32-block copy radius in the worst case, and the outer two rings may probe chunks that have not been copied. That does not cause a spawn failure — those columns are simply skipped, and the inner two rings fall inside the guaranteed range from anywhere in the chunk, providing 24 candidate columns on their own.
-
-The pursuit form uses 0.31 base movement speed and a 1.32 pathfinding multiplier in the open; when the player is detected in a cave environment (no direct sky light, low sky light, enclosed on at least four sides) it drops dynamically to 0.25 and 1.04, restoring immediately on leaving. Actual pathing speed is the product of the two, but the nominal value cannot be matched to the player's directly: an entity has to turn between path nodes, slow into corners and re-path, while a player running straight does not — so "level with a sprint in the open" corresponds to a nominal value slightly above sprinting itself. The target feel is that a sprinting player roughly holds distance, and only sprint-jumping actually opens a gap. The previous 0.32 × 1.42 was faster than any player movement, which made distance escapes and line-of-sight escapes operationally impossible and left surviving the timer as the only solution. The pursuit-specific breaching starts breaking block by block after a brief stall; when the player pillars up, the Corrector prioritises removing the support beneath them and periodically leaps vertically. Correctors in the ordinary world are not affected by any of these enhancements.
-
-### Escape and turning the tables
-
-Surviving the form's duration is still the guaranteed success condition, but it is no longer the only one:
-
-- Staying at least 42 blocks from the Corrector for a cumulative 5 seconds cuts tracking and ends the pursuit early;
-- Breaking line of sight from at least 18 blocks away for a cumulative 8 seconds also ends it early;
-- Both progressions decay quickly once the condition lapses, so a single brief break cannot be banked permanently;
-- The pursuing Corrector keeps 36 health and real hit detection. Killed by the pursued player personally, the pursuit resolves as a successful kill and the dead entity is no longer auto-respawned.
-
-On capture, the client freezes on the last frame and plays 3 seconds of the machine-hang fault sound (drawn from the same variant pool); resolution removes one heart of maximum health, then a black screen hides the return to the source dimension. The capture penalty has a 6-heart soft floor: at 6 hearts or below, capture no longer removes any more — a player failing repeatedly is already losing the pursuit itself, and grinding them down to one heart only makes the next pursuit and the finale harder for whoever needs help most. On surviving, opening distance, breaking line of sight or killing it, "attempt to escape" is withdrawn first and replaced by a green "you have escaped it, for now..." for 3 seconds; resolution adds one heart of maximum health (not subject to the soft floor — it always applies), then the black screen hides the return. Maximum health is always clamped between 1 and 20 hearts, and a technical interruption triggers no health penalty.
-
-At the instant a pursuit really begins (the target is moved into the mirror), other players within 64 blocks in the source dimension who hold a bound terminal receive one record line: "a nearby terminal's signal cannot be resolved for now". It names nobody, reveals nothing about the pursuit, and is not sent to the target. It turns the bystander experience from "did they disconnect?" into "it took them", while leaving the loneliness boundary intact.
+Max health is always bounded to 1–20 hearts; technical interruption triggers no health penalty. On success, the temporary warning record is deleted after the return and a "the magnetic field around the user is very unstable..." record is added; a capture likewise records the field anomaly but **keeps the warning for the next retry**.
 
 ### The safety window
 
-A real pursuit only starts when all of the following hold:
+A real pursuit begins only when **all** of the following hold:
 
-- The player is alive, not spectating, not sleeping, not flying/gliding/riding;
-- Not on fire, not in lava, fall distance no more than 3 blocks;
-- Health above `max(6 points, 40% of maximum)`;
-- No ordinary hostile within 12 blocks currently attacking them;
-- The terminal, ordinary anomalies, gaps and the World Interface finale are all unoccupied;
-- The current dimension is a supported vanilla source dimension and a free mirror slot exists.
+- The player is alive, non-spectator, not sleeping, not flying/gliding/riding;
+- not on fire, not in lava, fall distance no more than 3 blocks;
+- health above `max(6, 40% of max health)`;
+- no ordinary hostile within 12 blocks attacking that player;
+- the terminal, ordinary anomalies, empty segments and the World Interface finale are all unoccupied;
+- the current dimension is a supported vanilla source dimension and a free mirror slot exists.
 
-The Overworld and the Nether currently allow pursuits to start. End mirrors are registered for topological and recovery symmetry, but the v1 safety policy forbids starting a real pursuit in the End; modded dimensions do not trigger one in this version either.
+The Overworld and Nether currently allow pursuits to start. **End mirrors are registered** (for topological and recovery symmetry), but the v1 safety policy forbids starting a real pursuit in the End; modded dimensions do not trigger in the first version either.
 
 ## The private correction layer
 
-A real pursuit is not client-side invisibility; it moves the target into a private mirror slot of the matching dimension. The Overworld, Nether and End each pre-register two slots, with at most two pursuits running server-wide at once.
+A real pursuit is not client-side invisibility: it moves the target into that dimension's private mirror slot. The Overworld, Nether and End pre-register two slots each, but **only one pursuit runs server-wide at a time**.
 
-### Dynamic chunk snapshots
+### Streamed chunk snapshots
 
-- 5×5 chunks around the player, ±48 blocks vertically, are copied before entry.
-- At most 8192 blocks are copied per session per tick.
-- After the pursuit starts, a 5×5 window around the player's current chunk is continuously requested; crossing one chunk normally adds only the 5 chunk columns in the direction of travel.
-- Chunks already queued or copied in the same session are never overwritten, so the player's digging and temporary placements in the mirror survive.
-- There is no fixed 30-block horizontal boundary, and the player is never repeatedly returned to the entry anchor.
-- If an extreme teleport or high-speed movement overtakes the copy, the player is briefly held at the nearest safe position and the pursuit timer pauses in step; it resumes once chunks are ready.
+| Item | Value |
+|---|---|
+| Copied before entry | 5×5 chunks around the player, ±48 blocks vertically |
+| Per session per tick | 8192 blocks |
+| While running | Continuously requests the 5×5 window around the player's current chunk; crossing one chunk adds only the 5 columns in the direction of travel |
 
-The vertical copy range is still fixed at ±48 blocks around the entry height. That is a v1 boundary still awaiting real-hardware verification.
+- Chunks **already queued or copied in the same session are never overwritten**, so the player's tunnels and temporary placements survive.
+- There is **no fixed 30-block horizontal boundary**, and no repeated return to the opening anchor.
+- If an extreme teleport or high speed outruns the copy, the player only pauses briefly at the nearest safe position and **the pursuit timer pauses with them**.
+- The vertical range is fixed at ±48 blocks from the entry height — a v1 boundary still needing real-machine verification.
 
 ### Blocks and items
 
-- Natural blocks in the mirror can be broken, but drop no items or experience and consume no tool durability while clearing a path.
-- Containers and other block entities are replaced with air or stone; redstone, portals, beds, explosives and dangerous interactions are not preserved.
-- Only simple building blocks may be placed temporarily; a successful placement is written to a persistent recovery ledger.
-- On session success, failure, disconnection or restart recovery, each placement is refunded exactly once; when the inventory is full, the recovery ledger keeps holding it.
-- Health, hunger, potions, food, ammunition and combat durability stay real. Capture does not trigger vanilla death or drops.
+- Natural blocks in the mirror can be broken but **drop no items or experience**, and consume no durability on tools used to open a path.
+- Containers and other block entities are replaced with air or stone; redstone, portals, beds, explosives and hazardous interactions are not preserved.
+- **The test asks what a block is, not what it is called.** `PursuitBlockPolicy.safeSnapshotBlock` matches base types — `Portal`, `BaseFireBlock`, `PistonBaseBlock`, `DiodeBlock`, `BaseRailBlock`, `BasePressurePlateBlock`, `SculkSensorBlock` and the rest — with `isSignalSource()` underneath as a backstop, so modded subclasses are covered too. **The respawn anchor is refused along with them**: it has no block entity and an empty hand can use it, so leaving one in the mirror lets a player set their spawn point inside a private dimension that stops existing when their session does. Furniture that reports a comparator output without being redstone hardware — cauldrons, composters — is kept, because the mirror is supposed to look like the player's own base.
+- Only simple building blocks may be temporarily placed; a successful placement writes the persistent refund ledger.
+- On session success, failure, disconnect or restart recovery, **each placement is refunded exactly once**; with a full inventory the ledger keeps holding it.
+- **What comes back is the stack that was spent**: the ledger carries the data components (custom name, lore) alongside the id, so a renamed block and an ordinary one of the same type are billed and returned separately. A line that genuinely cannot be rebuilt — its item has left the game — is dropped and the player is told so on their terminal; every other line is still paid.
+- Health, hunger, potions, food, ammunition and combat durability stay real; **capture triggers no vanilla death and no drops**.
 
 ### Multiplayer and recovery
 
-- Pursuit progress, form, anomaly history, terminal appearance, mirror sessions and refund ledgers are all stored per player UUID.
-- A pursued player and players in reality are mutually invisible and share no entities, routes, block modifications or Corrector.
-- Slot occupancy is one of the few pieces of world-shared state; with no free slot the pursuit stays pending and never pre-empts another player.
-- Disconnection and server restarts cancel the copy queue, release the slot, settle refunds and return the player safely to the source dimension after they log in.
-- If the source landing spot is no longer safe, the return locator searches for a nearby safe position and never overwrites real-world blocks.
-- Player visibility is restored before the cross-dimension return. If death or an admin teleport already moved the player out of the mirror, the session only clears the copy queue, slot, refunds and visibility state and no longer forces them back to the entry point.
+- Pursuit progress, form, anomaly history, terminal appearance, mirror session and refund ledger are all saved **by player UUID**.
+- A player in a pursuit and players in reality cannot see each other, and share no entities, routes, block modifications or Corrector.
+- Slot occupancy is one of the few world-shared states; with none free, a pending pursuit is kept and **no other player is pre-empted**.
+- **The queue is ordered by waiting time**, not by player list order.
+- **Waiting says something**: a player who already meets every condition and is simply behind someone else receives one rate-limited record line (written once per pending pursuit).
+- Disconnect and server restart cancel the copy queue, release the slot, settle refunds, and return the player safely to the source dimension on login.
+- If the source landing spot is no longer safe, the return locator searches nearby safe positions and **never overwrites real-world blocks**.
+- Visibility is restored before a cross-dimension return; if death or an admin teleport has already moved the player out of the mirror, the session only cleans up the copy queue, slot, refunds and visibility state and **does not force the player back to the entry point**.
+- **Abandoning the warning or copying phase does not teleport either** (`PursuitReturnPolicy`). Through both of those the player has been standing where they were; they were never taken anywhere, so there is nothing to give back at the end. The most common way into that path is precisely the player changing dimension - they walked into a nether portal, which voids the prelude - and returning them to the source dimension would undo the move they had just made. A player who *is* in a mirror is always teleported, however stale the phase field looks: an extra teleport is the safe direction to be wrong in, leaving somebody in a slot dimension about to be recycled is not.
 
-## The three terminal appearances
+### The return landing
 
-Terminal appearance is personal state; it does not follow whichever player on the server is furthest ahead:
+After a pursuit the player returns to **the same coordinates in the source world as where they stood in the mirror**, not to where they started. If those coordinates are solid in the source world, it falls back to a nearby safe spot, then the entry point, then the spawn point.
 
-| Appearance stage | Current condition | Meaning |
+**Rotation shares the position's clock: the return does not change the view at all.** The teleport passes `Relative.ROTATION` as 0 ("add 0 to the current facing"), so not even the one tick of mouse movement between server and client is swallowed. Only a return that never entered the mirror but still has to teleport (recovery on login) applies the pair from the entry record - an aborted warning phase does not teleport at all, see above.
+
+## Three filter languages
+
+The mod's screen presentation splits into three **never-mixed** languages:
+
+| Language | Shader | Chain | Used for |
+| --- | --- | --- | --- |
+| **Analog signal** (the medium is breaking) | `post/analog_signal.fsh` | `signal_1..4` | Anomaly impacts |
+| Same, still variant | Same | `signal_still_1..4` | First-run loading screen, world-loading screen corruption |
+| **Digital corruption** (the rules are breaking) | `post/digital_corrupt.fsh` | `pursuit_low_res*` | Private pursuits (4 proximity tiers) |
+| Same, edge mask | Same | `world_interface_lock{,_peak}` / `_expulsion` | World Interface lock / forced eviction |
+| **Dispersion** (light is being bent) | `post/chromatic_dispersion.fsh` | `world_interface_dispersion{,_far}` | The **instant** a World Interface beam weapon lands (12 ticks) |
+
+The three languages are built from disjoint vocabularies:
+
+- **Analog signal** is entirely **continuous**: radial chromatic aberration, sinusoidal row wobble (two non-integer-ratio periods multiplied), a cosine scanline, highlight bloom, an upward-crawling mistrack band, vignette, grain.
+- **Digital corruption** is entirely **discrete**: whole bands flung sideways, per-band RGB channel offsets, a lost band filling an entire row, hash-selected macroblocks collapsing into mosaic, dithering then quantisation to a low bit depth.
+- **Dispersion** is entirely **optical**: radial R/B separation (`Spectrum` decides ghosting versus a continuous spectrum), outward barrel stretching, highlight bleed smeared along the radius, and a `Saturate` that pushes colour **away** from luminance — the other two filters take colour away, while a prism only separates it.
+
+**The dispersion chain contains no tear bands, macroblocks, quantisation, desaturation or anything that jumps per tick.** `PostFilterContractTest#theBeamTreatmentStaysOptical` asserts those uniforms **do not exist**, not that they happen to be 0.
+
+**Dispersion is the only chain worn by people who are not the target**: `world_interface_dispersion` for whoever is being hit, `world_interface_dispersion_far` for everyone else on the island (within 128 blocks of the arena centre), with every term of the far tier noticeably lighter. The test asserts term by term that the far tier is never heavier.
+
+**It hangs on the arrival frame**: the laser's beam touching ground, the lance's column landing — **the same tick the server settles damage and sends the shake packet**. The lance must never be shifted earlier by `SKY_LANCE_FALL_TICKS`, and the contract test asserts that constant **does not appear** in the class.
+
+**Order: `wantedEffect` asks dispersion first, then eviction, then the lock.** Dispersion must be asked **before** the "is this aimed at you" test. `WorldInterfaceClientFidelityContractTest` pins this ordering on the source shape.
+
+**It follows the `impactFlash` option**: turning it off does not cancel the presentation but drops everyone uniformly to the far tier.
+
+### The still variant's one-way rule
+
+`PostFilterContractTest` guards: **on the side that has to be read, no term may be heavier than on the side that does not.** The still family zeroes `Wobble` and `RollHeight`, holds `Desaturate` ≤ 0.05 and `Tint` alpha ≤ 0.07, and lowers bloom and overall strength — while **keeping** grain, scanlines, radial aberration and vignette; it must still be the same medium breaking.
+
+### Two post-process slots
+
+| Slot | Driven by | Scope | Users |
+| --- | --- | --- | --- |
+| Level slot (vanilla's) | `PostEffectArbiter` | The world image only; the HUD and terminal notices stay legible | Pursuits, World Interface lock/eviction/dispersion |
+| Whole-frame slot (ours) | `ScreenFilterDriver` + `MinecraftScreenFilterMixin` | World + HUD + current screen, all inside the filter | Anomaly impacts, both loading screens |
+
+**A presentation you are still meant to play through** must keep the instruments readable and stops at the "glass" layer; **a presentation where the whole screen is supposed to be broken** gets the whole-frame slot.
+
+The whole-frame injection point is the `blitToScreen` call inside `Minecraft.runTick` (which sits neatly inside vanilla's own `if (!window.isMinimized())`). **Its claim is per frame**: consumed and cleared every frame, so the entire class of "the shader got stuck" bugs is structurally impossible.
+
+**There is only one level slot** and three subsystems want it. `PostEffectArbiter` holds a **claim** rather than a result: priority `PURSUIT > WORLD_INTERFACE > ANOMALY`, whichever live claim ranks highest gets installed; a chain this mod did not install is neither overwritten nor cleared.
+
+### The flicker ceiling
+
+It lands on `HoldTicks` — the re-roll period for every discrete term in digital corruption. 3 Hz is 6.67 ticks, so every chain is **≥ 7 ticks**, asserted by test. The analog side has no equivalent field (everything it does is continuous); the sole exception is grain, which is zero-mean per-pixel noise and by definition does not change mean brightness.
+
+### Two shader implementation constraints
+
+- **Strength can vary per frame**: 1.21.11 bakes post-process uniforms at chain load with no per-frame write API — but the `Globals` block from `#moj_import <minecraft:globals.glsl>` carries `GameTime` and `ScreenSize`, and `GlProgram` maintains its own `BUILT_IN_UNIFORMS` that bind whenever a shader declares them. So only a few strength tiers need baking; the motion is computed in the shader.
+- **Never read `SamplerInfo`**: every post pass declares it, but it is **filled for only some chains**, and when unfilled the whole block reads as 0 with no error at all. This mod's shaders always take dimensions from `Globals.ScreenSize`, and `PostFilterContractTest` asserts it.
+
+### Retired but retained band overlays
+
+Three horizontal band overlays — the pursuit interference band (`renderInterference`), the impact tear and mistrack bands (`renderTornPicture` / `renderMistrackedBand`) and the loading screen's tracking band (`drawTrackingBand`) — are now carried by shader terms. All four methods **remain in the source and are never called**: they are the reference for what that shader term should look like, and the fallback if some GPU cannot compile the chain. The contract test asserts **nothing calls them any more**, not that they do not exist.
+
+**The only thing still drawn with the GUI is the terminal's weather-tool card** (via `AnalogFilter`): it is one rectangle inside a page and must not cover the neighbouring tabs and close hint, while a post-process chain's uniforms are baked at load and the card's screen position moves with the window and GUI scale.
+
+## The terminal's three appearances
+
+Terminal appearance is **personal state** and does not follow the server's fastest player:
+
+| Stage | Condition | Meaning |
 | ---: | --- | --- |
-| 0 | First pursuit not yet resolved successfully | An old device, able only to receive and record |
-| 1 | At least 1 pursuit resolved | The device has met the Corrector and begun to erode |
-| 2 | At least 3 resolved, allowed form at least 4, anomaly tier at least 4 | Mainline, anomalies and pursuits converge; the terminal becomes a correction interface |
+| 0 | No pursuit resolved yet | An old device that can only receive and record |
+| 1 | At least 1 pursuit resolved | The device has been in contact with a Corrector and is beginning to erode |
+| 2 | At least 3 resolved, allowed form ≥ 4 and anomaly tier ≥ 4 | Mainline, anomalies and pursuits converge; the terminal becomes a correction interface |
 
-Unread indication still uses the matching alert model for each appearance; there is no fourth terminal form.
+Unread prompts still use each appearance's own alert model; **no fourth terminal form is added**. A uniform CRT shell (scanlines and vignette) sits on top of all three and does not change with the stage — see [Terminal interface](terminal-ui.md).
 
-A single CRT shell (scan lines and vignette) is layered on top of all three appearances and does not vary with the stage. That layer must be neutral darkening, static, and confined to the display area: an earlier pure-green overlay tinted every character read through it and crushed the contrast, and it has been deleted and blocked from returning by a contract test. Rolling bands belong to the "damage language" of the weather tool's sky instrument, meaning the instrument is failing, and are not part of the permanent shell. See [Terminal interface and handheld form](terminal-ui.md).
+## Current tuning boundaries
 
-## Boundaries still being tuned
+Not hidden design, but numbers the current implementation still needs long multiplayer verification for:
 
-Not hidden design — numbers the current implementation still needs verifying across a real, long multiplayer session:
-
-- Whether the tier-5 5–9 minute ordinary anomaly interval is too dense;
-- Door cascade really breaks doors, but there is currently no separate long cooldown for destructive anomalies;
-- Login and dimension changes directly overwrite the next schedule, so frequent relogging or round trips may accelerate anomalies;
-- TPS, disk growth and the felt experience of chunk catch-up when two players stream simultaneously;
-- Whether a fixed ±48 blocks vertically is enough for long shafts or fast ascent/descent routes.
+- How the queue feels under a single slot (how long an eight-player table waits);
+- TPS, disk growth and chunk catch-up while two players stream simultaneously;
+- Whether a fixed ±48 blocks vertically covers long shafts or fast ascents and descents.

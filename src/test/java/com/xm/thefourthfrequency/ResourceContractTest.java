@@ -1,5 +1,6 @@
 package com.xm.thefourthfrequency;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,10 @@ import javax.imageio.ImageIO;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -21,6 +25,48 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ResourceContractTest {
 	private static final Path ASSETS = Path.of("src/main/resources/assets/thefourthfrequency");
+
+	/**
+	 * Every GameTest class on disk is actually listed in the entrypoint that runs it.
+	 *
+	 * <p>A GameTest is discovered by name, not by scanning: a class missing from
+	 * {@code src/gametest/resources/fabric.mod.json} compiles, is packaged, and never runs, and the
+	 * run reports success for whatever else it did find. That is how six tests covering the anomaly
+	 * backfill, the terminal profile and the recovered fragment file sat green-by-absence - the class
+	 * existed and looked covered from the source tree, and the only visible symptom was a total that
+	 * nobody had a reason to count.
+	 *
+	 * <p>Checked in one direction only. A name listed here that no longer exists on disk fails the
+	 * run loudly at startup, so the silent half is the one worth a test.
+	 */
+	@Test
+	void everyGameTestClassIsRegisteredInTheEntrypointThatRunsIt() throws Exception {
+		Path metadata = Path.of("src/gametest/resources/fabric.mod.json");
+		JsonObject entrypoints = JsonParser.parseString(Files.readString(metadata, StandardCharsets.UTF_8))
+				.getAsJsonObject().getAsJsonObject("entrypoints");
+		Set<String> server = registeredEntrypoint(entrypoints, "fabric-gametest");
+		Set<String> client = registeredEntrypoint(entrypoints, "fabric-client-gametest");
+		Path sources = Path.of("src/gametest/java/com/xm/thefourthfrequency/test");
+		for (Path file : Files.list(sources).filter(path -> path.toString().endsWith(".java")).toList()) {
+			String source = Files.readString(file, StandardCharsets.UTF_8);
+			String name = file.getFileName().toString().replace(".java", "");
+			String qualified = "com.xm.thefourthfrequency.test." + name;
+			if (source.contains("@GameTest")) {
+				assertTrue(server.contains(qualified),
+						qualified + " declares @GameTest methods that no entrypoint ever runs");
+			}
+			if (source.contains("implements FabricClientGameTest")) {
+				assertTrue(client.contains(qualified),
+						qualified + " is a client GameTest that no entrypoint ever runs");
+			}
+		}
+	}
+
+	private static Set<String> registeredEntrypoint(JsonObject entrypoints, String key) {
+		Set<String> names = new HashSet<>();
+		for (var entry : entrypoints.getAsJsonArray(key)) names.add(entry.getAsString());
+		return names;
+	}
 
 	@Test
 	void bootSplashCatalogRemainsPopulatedAndUsesVanillaYellow() throws Exception {
@@ -367,10 +413,22 @@ final class ResourceContractTest {
 		}
 		JsonObject terminologyCopy = zh.deepCopy();
 		terminologyCopy.remove("screen.thefourthfrequency.first_run_notice.body.control");
+		// The unrendered layer's entity alert. 异象 is the mod's word for the anomaly system, and this
+		// line is not about that system: it is an instrument reporting a signal it cannot resolve, in
+		// the same register as the rest of the terminal's readouts, and it is what the copy was asked
+		// to say. Naming it 异象 would also tell the player which system the thing hunting them belongs
+		// to, which is exactly the fact the layer withholds.
+		terminologyCopy.remove("message.thefourthfrequency.unrendered.anomalous_signal");
 		terminologyCopy.remove("terminal.thefourthfrequency.signal.event.pursuit_warning.approaching");
 		for (int form = 1; form <= 5; form++) {
 			terminologyCopy.remove("terminal.thefourthfrequency.signal.event.pursuit_warning_" + form);
 		}
+		// The closing half of that same pair, in the same register and exempt for the same reason: the
+		// instrument is reporting a signal it could not resolve, arriving and then gone. Calling it
+		// 异象 here would name the system the thing hunting the player belongs to, which is the fact
+		// the whole sequence withholds.
+		terminologyCopy.remove("terminal.thefourthfrequency.signal.event.pursuit_survived");
+		terminologyCopy.remove("terminal.thefourthfrequency.signal.event.pursuit_survived.cleared");
 		assertFalse(terminologyCopy.toString().contains("异常"),
 				"Chinese gameplay terminology must consistently use 异象 outside explicitly requested system copy");
 		assertFalse(zh.toString().contains("缓存"), "The player-facing FILES system must not retain the old cache wording");
@@ -379,9 +437,25 @@ final class ResourceContractTest {
 				"The removed supplementary document must not remain in English copy");
 		assertEquals("终端备忘",
 				zh.get("terminal.thefourthfrequency.file.maintenance_handoff.title").getAsString());
-		assertTrue(zh.get("terminal.thefourthfrequency.file.maintenance_handoff.2").getAsString()
-				.contains("主页显示当前目标"),
-				"The first document must explain the current four-page terminal instead of obsolete tuning");
+		// Naming the four pages is the walkthrough's job, not the memo's. The memo used to repeat that
+		// list verbatim, which put it in front of the player twice - once while the walkthrough was
+		// pointing at each page as it named it, and again in a file that only appears at binding, long
+		// after the walkthrough is over. The contract follows the copy to its one remaining home
+		// rather than loosening: the four-page terminal must still be explained somewhere, and it must
+		// still not be explained as the obsolete tuning device.
+		for (String page : new String[]{"home", "tools", "records", "files"}) {
+			assertFalse(zh.get("terminal.thefourthfrequency.onboarding.brief." + page).getAsString().isBlank(),
+					"Every page of the four-page terminal must introduce itself during onboarding");
+			assertFalse(en.get("terminal.thefourthfrequency.onboarding.brief." + page).getAsString().isBlank(),
+					"Every page of the four-page terminal must introduce itself during onboarding");
+		}
+		assertTrue(zh.get("terminal.thefourthfrequency.onboarding.brief.home").getAsString()
+				.contains("当前目标"),
+				"The walkthrough must explain the current four-page terminal instead of obsolete tuning");
+		assertFalse(zh.has("terminal.thefourthfrequency.file.maintenance_handoff.4"),
+				"The memo is three lines; a fourth key would be an orphan the catalogue never renders");
+		assertFalse(en.has("terminal.thefourthfrequency.file.maintenance_handoff.4"),
+				"The memo is three lines; a fourth key would be an orphan the catalogue never renders");
 		assertEquals("接收到新文件：%s",
 				zh.get("message.thefourthfrequency.file.discovered").getAsString());
 		assertEquals("接收到来自【%s】共享的第 %s 份破损文件",
@@ -651,8 +725,12 @@ final class ResourceContractTest {
 		assertTrue(terminalSnapshot.contains("int readableCodePoints = resolved.codePointCount")
 						&& terminalSnapshot.contains("int suffixMask = readableCodePoints - prefixMask"),
 				"Damaged files must balance each scattered readable fragment with an equal masked character count");
-		assertTrue(terminalSnapshot.contains("seenCandidateLocations.add(entry.variant())"),
-				"Records must collapse repeated optional investigations that resolve to the same named location");
+		// The collapse itself moved into TerminalRecordPolicy.listedInRecords, where the unread badge
+		// and the write path can read the same rule - the page keeping it to itself is what let the
+		// badge promise entries Records was never going to show. TerminalRecordPolicyTest owns the
+		// behaviour now; this only pins that the page has not gone back to its own private copy.
+		assertTrue(terminalSnapshot.contains("TerminalRecordPolicy.listedInRecords(entry.type(), entry.variant()"),
+				"Records must collapse repeated optional investigations through the shared listing rule");
 		assertTrue(terminalSnapshot.contains("fragmentLocationName(entry)"));
 		assertTrue(terminalSnapshot.contains("withObfuscated(true)"));
 		assertTrue(terminalSnapshot.contains("codePoints + 1"),
@@ -824,8 +902,18 @@ final class ResourceContractTest {
 		// The clamp has to track the highest declared tone, or every tone above the bound silently
 		// degrades into whichever one the bound names.
 		assertTrue(noticePayload.contains("TONE_DRAGON = 7"));
-		assertTrue(noticePayload.contains("Math.clamp(value.tone, TONE_NONE, TONE_DRAGON)"),
-				"The wire clamp must admit the new tone or it degrades into a pursuit warning");
+		assertTrue(noticePayload.contains("TONE_UNRENDERED = 8"));
+		// Names the highest declared tone, whatever that currently is. Updated from TONE_DRAGON when
+		// the unrendered layer added TONE_UNRENDERED above it - which is this assertion working
+		// rather than this assertion being loosened: a tone above the bound does not fail, it
+		// silently arrives as whichever one the bound names.
+		assertTrue(noticePayload.contains("Math.clamp(value.tone, TONE_NONE, TONE_UNRENDERED)"),
+				"The write clamp must admit the highest declared tone or everything above it degrades");
+		// Both clamps, because only one of them was updated last time. A tone written as 8 and read
+		// back as 7 arrived as the dragon - its teal panel and its roar - on a line about the
+		// unrendered layer, and nothing failed: the packet was valid, it just meant something else.
+		assertTrue(noticePayload.contains("Math.clamp(buf.readVarInt(), TONE_NONE, TONE_UNRENDERED)"),
+				"The read clamp must admit the highest declared tone; it is the half that was missed");
 		// The finale's narration is the mod's own channel now, not chat.
 		for (String tone : new String[]{"TONE_ENCOUNTER", "TONE_ANCHOR", "TONE_DRAGON"}) {
 			assertTrue(hud.contains("case TerminalNoticePayload." + tone + " -> "),
@@ -867,10 +955,14 @@ final class ResourceContractTest {
 		// the first task pays out mid-walkthrough and reads as an unexplained handout.
 		assertTrue(noticeService.contains("taskName, rewardName, rewardCount)"),
 				"A completion notice must name the task it is paying for");
+		// A shared payout arrives as a smaller stack than the objective advertises to a lone player.
+		// Unexplained, that reads as the reward being broken, so the same line has to say it was split.
+		assertTrue(noticeService.contains("taskName, rewardName, rewardCount, sharedBetween)"),
+				"A divided payout must say how many players it was divided between");
 		// Every task's short name has to exist as a literal, or a missing one silently degrades to
 		// the full objective line in the middle of a notice sized for a name.
 		for (String task : new String[]{"learn_terminal", "mine_logs", "bring_iron", "enter_nether",
-				"collect_blaze_rods", "return_from_nether", "craft_eye", "record_eye",
+				"find_fortress", "collect_blaze_rods", "return_from_nether",
 				"find_stronghold", "enter_end", "defeat_boss"}) {
 			assertTrue(taskService.contains("terminal.thefourthfrequency.task.name." + task),
 					"A task with a reward must have a short name for its completion notice: " + task);
@@ -888,19 +980,33 @@ final class ResourceContractTest {
 		assertTrue(noticeService.contains("TerminalNoticePayload.TONE_DENIED"),
 				"Refused actions must route through the dedicated denial tone");
 		for (String refusal : new String[]{
-				"src/main/java/com/xm/thefourthfrequency/mixin/PlayerDropMixin.java",
-				"src/main/java/com/xm/thefourthfrequency/mixin/BoundTerminalContainerMixin.java",
-				"src/main/java/com/xm/thefourthfrequency/mixin/EnderEyeItemMixin.java"}) {
+				"src/main/java/com/xm/thefourthfrequency/mixin/LivingEntityDropMixin.java",
+				"src/main/java/com/xm/thefourthfrequency/mixin/BoundTerminalContainerMixin.java"}) {
 			assertTrue(Files.readString(Path.of(refusal), StandardCharsets.UTF_8)
 					.contains("TerminalNoticeService.denied("), refusal);
 		}
-		assertTrue(signalService.contains("TerminalNoticeService.unreadReminder(player, unreadCount[0])"));
+		// The final Eye is not on that list any more, and must not come back onto it: a per-player
+		// refusal on an action whose consequences land on the whole world is unreadable from where
+		// either half of a party is standing.
+		String enderEye = Files.readString(Path.of(
+				"src/main/java/com/xm/thefourthfrequency/mixin/EnderEyeItemMixin.java"), StandardCharsets.UTF_8);
+		assertFalse(enderEye.contains("TerminalNoticeService.denied(") || enderEye.contains("finalEyeReady"),
+				"placing the twelfth Eye must carry no personal prerequisite");
+		assertTrue(signalService.contains("TerminalNoticeService.unreadReminder(player, unreadCount[0],"));
 		assertTrue(signalService.contains("totalUnreadCount(tag)"));
+		// The reminder is the one line that fires exactly when somebody has not been opening the
+		// terminal, so for a player still being explained to it has to carry how to open it. Both
+		// halves are asserted: losing the verbose key silently drops the only place the mod says how,
+		// and losing the terse one would start repeating the instruction at players who never needed it.
+		assertTrue(noticeService.contains(
+				"message.thefourthfrequency.terminal.unread_reminder.verbose\""));
 		assertTrue(noticeService.contains(
 				"message.thefourthfrequency.terminal.unread_reminder\", unreadCount"));
 		assertTrue(survivalProgress.contains("public static final int REQUIRED_IRON = 6;"));
+		// The trailing false is the point as much as the 24: eight players bring eight lots of iron,
+		// so this payout is per player and must never join the shared split.
 		assertTrue(taskService.contains(
-				"new TaskDefinition(\"bring_iron\", SurvivalProgressService.REQUIRED_IRON, Items.TORCH, 24)"));
+				"new TaskDefinition(\"bring_iron\", SurvivalProgressService.REQUIRED_IRON, Items.TORCH, 24, false)"));
 		// Completion and its reward are one moment, so delivery hangs off progress changing rather
 		// than off opening a page. Anywhere else and a finished task waits, which is what made the
 		// manual claim button feel necessary and made the two paths contradict each other.
@@ -943,10 +1049,11 @@ final class ResourceContractTest {
 		String structureNavigation = Files.readString(Path.of(
 				"src/main/java/com/xm/thefourthfrequency/world/StructureNavigationService.java"),
 				StandardCharsets.UTF_8);
-		// 13 since the unread lamp joined the snapshot. The three protocols are versioned separately
-		// on purpose, which is the property this line exists to keep honest: adding a field to one
-		// must not silently pass for the others.
-		assertTrue(snapshot.contains("CURRENT_PROTOCOL_VERSION = 13"));
+		// 16 since the discovered-fragment mask joined the snapshot, 15 for the oscilloscope's approach
+		// reading and 14 for the anomaly backfill and first-boot profile before it. The three protocols
+		// are versioned separately on purpose, which is the property this line exists to keep honest:
+		// adding a field to one must not silently pass for the others.
+		assertTrue(snapshot.contains("CURRENT_PROTOCOL_VERSION = 16"));
 		assertTrue(navigation.contains("CURRENT_PROTOCOL_VERSION = 6"));
 		assertTrue(toolSnapshot.contains("CURRENT_PROTOCOL_VERSION = 6"));
 		assertTrue(resourceGuidance.contains("TerminalRuntimeService.isOpen(player)"),
@@ -970,7 +1077,7 @@ final class ResourceContractTest {
 				"A mineral probe must clear its active marker only when its result commits");
 		for (String action : List.of("SELECT_TOOL", "START_GUIDANCE", "STOP_GUIDANCE",
 				"REQUEST_RESCAN", "MARK_RECORDS_READ", "MARK_FILES_SEEN", "READ_HIDDEN_FILE", "SELECT_STRUCTURE_TARGET",
-				"SELECT_NEAREST_UNSTABLE", "DISMISS_NAVIGATION_COMPLETION", "VISIT_PAGE",
+				"SELECT_NEAREST_UNSTABLE", "SELECT_FRAGMENT_TARGET", "DISMISS_NAVIGATION_COMPLETION", "VISIT_PAGE",
 				"CLAIM_TASK_REWARD")) {
 			assertTrue(control.contains(action));
 			assertTrue(runtime.contains("TerminalControlPayload." + action));
@@ -1023,7 +1130,7 @@ final class ResourceContractTest {
 				"src/main/resources/data/thefourthfrequency/tags/block/world_interface_immune.json"),
 				StandardCharsets.UTF_8)).getAsJsonObject();
 		assertTrue(state.contains("ROOT_KEY = \"world_interface\"")
-				&& state.contains("FORMAT_VERSION = 1")
+				&& state.contains("FORMAT_VERSION = 2")
 				&& state.contains("GATE_COUNT = 20")
 				&& state.contains("ANCHOR_COUNT = 10")
 				&& state.contains("MAX_ROSTER_SIZE = 8"));
@@ -1056,7 +1163,7 @@ final class ResourceContractTest {
 		// stopped being built long ago, and the cage wrapped a bright band of custom texture around
 		// the one thing in the arena a player is meant to be looking at.
 		assertFalse(blocks.contains("WARP_GATE_CORE") || blocks.contains("STABILITY_ANCHOR_CAGE"));
-		assertTrue(protocol.contains("VERSION = 2") && protocol.contains("MAX_PARTICIPANTS = 8")
+		assertTrue(protocol.contains("VERSION = 3") && protocol.contains("MAX_PARTICIPANTS = 8")
 				&& protocol.contains("MAX_GATEWAYS = 20") && protocol.contains("ANCHOR_MASK = 0x03FF"));
 		assertFalse(immunityTag.get("replace").getAsBoolean());
 		String immuneValues = immunityTag.getAsJsonArray("values").toString();
@@ -1137,6 +1244,12 @@ final class ResourceContractTest {
 		}
 		assertTrue(winScreenMixin.contains("postcreditsResource()"),
 				"The closing quote must not fall back to the vanilla sailing quote");
+		// Vanilla assigns unmodifiedScrollSpeed straight to the field in the constructor and only
+		// recomputes it from key events, so the multiplier applied to calculateScrollSpeed does
+		// nothing at all until the player happens to press something. Seeding the field is what makes
+		// the authored pace apply to a poem watched in silence, which is every poem that is read.
+		assertTrue(winScreenMixin.contains("scrollSpeed *= BASE_SCROLL_SCALE"),
+				"The roll's speed must be seeded in the constructor, not left to the first key event");
 	}
 
 	@Test
@@ -1222,7 +1335,8 @@ final class ResourceContractTest {
 		assertFalse(screen.contains("drawHeaderScope"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeOpening()"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeStable()"));
-		assertTrue(screen.contains("acknowledgementButton.visible = ready"));
+		assertTrue(screen.contains("arm(acknowledgementButton, ready)"),
+				"The way out stays hidden and dead until the entrance has finished playing");
 		assertTrue(screen.contains("transitionAge = 0"));
 		assertTrue(screen.contains("TEXT_FADE_TICKS = 4"));
 		assertTrue(screen.contains("ZOOM_TICKS = 24"));
@@ -1274,6 +1388,97 @@ final class ResourceContractTest {
 			assertTrue(theme.contains(" " + color + " ="), color);
 			assertTrue(terminal.contains("TerminalVisualTheme." + color), color);
 		}
+	}
+
+	/**
+	 * The audio page in front of the disclosure, and the one number it is allowed to write.
+	 *
+	 * <p>Three things have to stay true together or the slider is a lie. It must reach
+	 * {@code meta.peakVolume} rather than a setting of its own, because that is the number every
+	 * audio path in the mod already multiplies by. The score has to be scaled by the same number,
+	 * because a "mod volume" that silences every cue while the mod's own soundtrack keeps playing is
+	 * not one. And the notice version marker has to have moved, or the page is invisible to everyone
+	 * who already acknowledged the previous flow.</p>
+	 */
+	@Test
+	void firstRunAudioPageTrimsEveryModSoundAndIsReachableByPlayersWhoAlreadyAcknowledged()
+			throws Exception {
+		String controller = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/FirstRunNoticeController.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(controller.contains("CURRENT_NOTICE_VERSION = 4"),
+				"A new page in the first-run flow has to raise the marker or nobody sees it twice");
+
+		String screen = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/FirstRunNoticeScreen.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(screen.contains("public enum Page"));
+		assertTrue(screen.contains("private Page page = Page.AUDIO;"),
+				"The audio page must be the one the power-on sweep reveals");
+		assertTrue(screen.contains("class VolumeSlider extends AbstractSliderButton"));
+		assertTrue(screen.contains("button.thefourthfrequency.first_run_notice.next"));
+		assertTrue(screen.contains("button.thefourthfrequency.first_run_notice.preview"));
+		assertTrue(screen.contains("TerminalClientAudio::volumePreview"));
+		assertTrue(screen.contains("ModVolumeControl.apply(value)"));
+		assertTrue(screen.contains("ModVolumeControl.commit()"));
+		assertTrue(screen.contains("ModVolumePolicy.snap"));
+		// The disclosure is still mandatory: the audio page adds a step in front of it, never a way
+		// around it, so acknowledging remains the only thing that writes the marker.
+		assertTrue(screen.contains("page = Page.NOTICE;"));
+		assertEquals(1, screen.split("FirstRunNoticeController\\.acknowledge\\(", -1).length - 1,
+				"Leaving the audio page must turn the page, never spend the acknowledgement");
+
+		String control = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/ModVolumeControl.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(control.contains("withPeakVolume"));
+		assertTrue(control.contains("RuntimeServices.updateConfig"),
+				"The live value has to move, or the audition plays at the level before the drag");
+		assertTrue(control.contains("ConfigManager.updateMeta"),
+				"Persistence must go through the Meta updater so the rest of the file survives");
+
+		String music = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/MusicDirector.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(music.contains("fadeTarget = vanilla * (float) RuntimeServices.config().meta().peakVolume()"),
+				"The authored score is a mod sound and has to answer to the mod volume");
+
+		JsonObject en = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/en_us.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		JsonObject zh = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/zh_cn.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		for (String key : new String[]{
+				"button.thefourthfrequency.first_run_notice.next",
+				"button.thefourthfrequency.first_run_notice.preview",
+				"screen.thefourthfrequency.first_run_notice.volume.title",
+				"screen.thefourthfrequency.first_run_notice.volume.eyebrow",
+				"screen.thefourthfrequency.first_run_notice.volume.section",
+				"screen.thefourthfrequency.first_run_notice.volume.hint",
+				"screen.thefourthfrequency.first_run_notice.volume.footer",
+				"screen.thefourthfrequency.first_run_notice.volume.level",
+				"screen.thefourthfrequency.first_run_notice.volume.muted"}) {
+			assertTrue(en.has(key) && !en.get(key).getAsString().isBlank(), "missing English " + key);
+			assertTrue(zh.has(key) && !zh.get(key).getAsString().isBlank(), "missing Chinese " + key);
+		}
+		String levelKey = "screen.thefourthfrequency.first_run_notice.volume.level";
+		assertTrue(en.get(levelKey).getAsString().contains("%s"), "The readout needs its one slot");
+		assertTrue(zh.get(levelKey).getAsString().contains("%s"), "The readout needs its one slot");
+		// The page labels its control and says what the button does; it does not explain itself in
+		// prose. The body paragraph that used to sit above the slider said what the eyebrow already
+		// says, on the one page a player has to get past to reach the disclosure.
+		String retired = "screen.thefourthfrequency.first_run_notice.volume.body";
+		assertFalse(en.has(retired) || zh.has(retired) || screen.contains(retired),
+				"The audio page must stay a control with labels, not a page of copy");
+
+		// The audition has to be one of the mod's own recordings and long enough to judge a level
+		// against; a fifth-of-a-second lock tick was neither.
+		String audio = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalClientAudio.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(audio.contains("volumePreviewInstance = SimpleSoundInstance.forUI(ModSounds.SIGNAL_TUNING_SWEEP"));
+		assertTrue(audio.contains("if (volumePreviewInstance != null) manager.stop(volumePreviewInstance)"),
+				"Repeated auditions must replace each other rather than stack into a peak");
+		assertTrue(Files.size(ASSETS.resolve("sounds/signal/tuning_sweep.ogg")) > 0L);
 	}
 
 	/**
@@ -1363,8 +1568,17 @@ final class ResourceContractTest {
 		String animator = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalHandheldAnimator.java"),
 				StandardCharsets.UTF_8);
-		assertFalse(animator.contains("CustomModelData"),
-				"The performance must not write item components; that replays vanilla's equip swing");
+		// The rule is about the stack the *player* is holding, not about naming the component type.
+		// Vanilla replays the equip swing whenever the visible stack changes, so writing components on
+		// the held stack at animation or blink rate would re-equip the device several times a second.
+		// Drawing a throwaway copy with a different model index does not touch it and is how the
+		// unread lamp blinks on the device at all.
+		assertFalse(animator.contains("held.set("),
+				"the performance must never write components onto the stack the player is holding");
+		assertTrue(animator.contains("held.copy()"),
+				"the lamp-off form has to be drawn from a copy, or the blink re-equips the terminal");
+		assertTrue(animator.contains("TerminalUiLayout.unreadLampBlinkOn"),
+				"the device's lamp and the panel's lamp must blink off one clock, not two");
 		// The server pushes a snapshot roughly once a second while the terminal is open. Restarting
 		// the phase on each would hold the device mid-travel and the screen would never arrive.
 		assertTrue(animator.contains("if (state == State.OPENING || state == State.OPEN) return;"),
@@ -1464,8 +1678,23 @@ final class ResourceContractTest {
 				"PILLAGER_OUTPOST", "JUNGLE_TEMPLE", "OCEAN_MONUMENT", "ANCIENT_CITY",
 				"OCEAN_RUIN_COLD", "RUINED_PORTAL"})
 			assertTrue(fragments.contains("BuiltinStructures." + structure), structure);
-		assertTrue(fragments.contains("findNearestMapStructure"));
 		assertTrue(fragments.contains("getStructureWithPieceAt"));
+		// Leads are overheard, not searched for. `findNearestMapStructure` walked outward from Relay
+		// Station Zero over 256 chunks and handed the player four coordinates before they had left the
+		// building - none of them related to where they went, and each one the corner of a starting
+		// chunk rather than the structure. The replacement reads the structure references already
+		// recorded in loaded chunks, which is a map lookup rather than a search, and yields the real
+		// StructureStart. Pinned in both directions so the old search cannot quietly come back.
+		assertFalse(fragments.contains("findNearestMapStructure"),
+				"Fragment leads must not search outward from the station again");
+		assertTrue(fragments.contains("startsForStructure"),
+				"Fragment leads come from the structure references in already-loaded chunks");
+		assertTrue(fragments.contains("hasChunk"),
+				"A lead scan must never generate the chunk it is asking about");
+		assertTrue(fragments.contains("PrivateDimensions.isPrivate"),
+				"A lead taken inside a private dimension would point at a place that stops existing - "
+						+ "a mirror that is torn down, or the unrendered layer, whose coordinates mean "
+						+ "nothing anywhere else");
 		String terminalScreen = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"),
 				StandardCharsets.UTF_8);
@@ -1503,8 +1732,22 @@ final class ResourceContractTest {
 		// with it; what replaced them is the guarantee that it does not come back unnoticed.
 		assertFalse(terminalScreen.contains("drawSignalToolList"),
 				"The orphaned signal-card feed must not return without a render path");
-		assertFalse(terminalScreen.contains("SELECT_FRAGMENT_TARGET"),
-				"No client control may send an action the UI cannot reach");
+		// Was the reverse of this: for a long time nothing on screen could send SELECT_FRAGMENT_TARGET,
+		// so the assertion guarded against a dead action. The records shortcut now sends it, which is
+		// what makes that shortcut aim at its own row instead of at the nearest lead - so the property
+		// worth pinning is that it still does, and that it no longer settles for the nearest one.
+		assertTrue(terminalScreen.contains("TerminalControlPayload.SELECT_FRAGMENT_TARGET"),
+				"The records shortcut must aim at the lead on its own row");
+		int recordShortcut = terminalScreen.indexOf("private void drawRecordNavigationShortcut");
+		int recordClickEnd = terminalScreen.indexOf("private void drawCard", recordShortcut);
+		assertTrue(recordShortcut >= 0 && recordClickEnd > recordShortcut);
+		assertFalse(terminalScreen.substring(recordShortcut, recordClickEnd).contains("SELECT_NEAREST_UNSTABLE"),
+				"A per-row shortcut must not fall back to the nearest lead");
+		// The shortcut and the navigator's own option have to be the same offer. They were decided
+		// apart once already: the log announced a lead on day one and the navigator refused to route
+		// to it until the Nether, so the page drew a control that did nothing when pressed.
+		assertTrue(terminalScreen.contains("boolean investigationOffered = tools.unstableSignalAvailable();"),
+				"The records shortcut must be drawn from the same offer the navigation page draws");
 
 		String fragmentInvestigation = Files.readString(Path.of(
 				"src/main/java/com/xm/thefourthfrequency/world/FragmentInvestigationService.java"),
@@ -1540,30 +1783,88 @@ final class ResourceContractTest {
 	}
 
 	@Test
-	void debugPanelUsesMAndContainsLiveFileSectionAndScrollableLists() throws Exception {
+	void debugPanelKeepsItsKeysAndDrivesEveryListFromItsCatalogue() throws Exception {
 		String client = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/DebugPanelClient.java"), StandardCharsets.UTF_8);
 		String screen = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/DebugPanelScreen.java"), StandardCharsets.UTF_8);
+		String hud = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/DebugHud.java"), StandardCharsets.UTF_8);
 		assertTrue(client.contains("GLFW.GLFW_KEY_M"));
+		assertTrue(client.contains("GLFW.GLFW_KEY_N"));
 		assertFalse(client.contains("GLFW.GLFW_KEY_F7"));
-		for (String section : new String[]{"总览", "主线", "异象", "文件"})
-			assertTrue(screen.contains(section), section);
+		// The tab strip is the only navigation the rewrite left. The overview page it replaced is
+		// named here so that reintroducing it has to be a deliberate edit to this assertion: it is
+		// what made every number on this screen appear twice.
+		for (String tab : new String[]{"异象", "文件", "节点"})
+			assertTrue(screen.contains(tab), tab);
+		assertFalse(screen.contains("OVERVIEW"), "the overview page is back");
 		assertFalse(screen.contains("ENDING(\"终局\")"));
 		for (String removed : new String[]{"local_file_prev", "local_facility_prev", "local_anomaly_prev",
-				"完成生存节点", "显示设施坐标", "解锁当前文件"})
+				"显示设施坐标", "解锁当前文件"})
 			assertFalse(screen.contains(removed), removed);
 		for (String internalTerm : new String[]{"停止/恢复租约", "满复合", "恢复异象导演", "BOSS：", "造身：",
 				"最终实体", "肉身映射", "剧情上限"})
 			assertFalse(screen.contains(internalTerm), internalTerm);
 		assertTrue(screen.contains("AnomalyCatalog.definitions()"));
 		assertTrue(screen.contains("NarrativeFileCatalog.definitions()"));
-		assertTrue(screen.contains("LIVE_REFRESH_TICKS"));
-		assertTrue(screen.contains("send(\"poll\""));
+		assertTrue(screen.contains("SurvivalMilestone.values()"));
+		// The panel stopped polling when the server started pushing, and the HUD is the reason: a
+		// readout that only updates while a screen is open is not a readout.
+		assertFalse(screen.contains("send(\"poll\""), "the panel is polling again beside the server push");
+		assertTrue(hud.contains("HudRenderCallback.EVENT.register"));
 		assertTrue(screen.contains("file_unlock"));
 		assertTrue(screen.contains("file_lock"));
-		assertTrue(screen.contains("sectionCountForTesting()"));
+		assertTrue(screen.contains("tabCountForTesting()"));
 		assertTrue(screen.contains("mouseScrolled"));
+	}
+
+	/**
+	 * The capture scream, and the one thing about it that a container check cannot see.
+	 *
+	 * <p>Minecraft decodes Ogg <em>Vorbis</em> only. The file this shipped from arrived as a {@code
+	 * .ogg} carrying a FLAC stream, which passes every "is it an Ogg" check in this class - the
+	 * capital-S {@code OggS} page header is identical - and then fails at runtime by playing nothing
+	 * at all, on a cue whose whole job is to be heard once. So this asserts the codec rather than the
+	 * wrapper, by looking for the Vorbis identification packet that opens the first page.
+	 */
+	@Test
+	void theCaptureScreamIsAVorbisStreamWithSubtitlesInBothLanguages() throws Exception {
+		JsonObject sounds = JsonParser.parseString(Files.readString(ASSETS.resolve("sounds.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		var definition = sounds.getAsJsonObject("pursuit_capture_scream");
+		assertTrue(definition != null, "pursuit_capture_scream is missing from sounds.json");
+		assertEquals("subtitles.thefourthfrequency.pursuit_capture_scream",
+				definition.get("subtitle").getAsString());
+		assertEquals(1, definition.getAsJsonArray("sounds").size(),
+				"one scream, not a randomised set - it is the same event every time");
+
+		String name = definition.getAsJsonArray("sounds").get(0).getAsString();
+		Path ogg = ASSETS.resolve("sounds/" + name.substring(name.indexOf(':') + 1) + ".ogg");
+		assertTrue(Files.isRegularFile(ogg), ogg.toString());
+		byte[] header = Files.readAllBytes(ogg);
+		assertTrue(header.length > 4 && header[0] == 'O' && header[1] == 'g'
+				&& header[2] == 'g' && header[3] == 'S', ogg.toString());
+		byte[] vorbis = {0x01, 'v', 'o', 'r', 'b', 'i', 's'};
+		boolean identified = false;
+		for (int index = 0; index + vorbis.length <= Math.min(header.length, 256) && !identified; index++) {
+			identified = true;
+			for (int offset = 0; offset < vorbis.length; offset++) {
+				if (header[index + offset] != vorbis[offset]) {
+					identified = false;
+					break;
+				}
+			}
+		}
+		assertTrue(identified, ogg + " is an Ogg container but not a Vorbis stream");
+
+		for (String language : new String[]{"zh_cn", "en_us"}) {
+			JsonObject lang = JsonParser.parseString(Files.readString(
+					ASSETS.resolve("lang/" + language + ".json"), StandardCharsets.UTF_8)).getAsJsonObject();
+			String key = "subtitles.thefourthfrequency.pursuit_capture_scream";
+			assertTrue(lang.has(key), "missing " + language + ": " + key);
+			assertFalse(lang.get(key).getAsString().isBlank(), "blank " + language + ": " + key);
+		}
 	}
 
 	@Test
@@ -2428,5 +2729,122 @@ final class ResourceContractTest {
 				"A custom title key prevents Fabric Client GameTest from recognizing the warning");
 		assertTrue(build.contains("-Doshi.util.wmi.timeout=5000"),
 				"Windows hardware-report queries must not hang client tests indefinitely");
+	}
+
+	/**
+	 * The whole score, checked end to end: files on disk, {@code sounds.json}, both lang files and
+	 * the credits roll all describing the same set of tracks.
+	 *
+	 * <p>Every one of those four lives somewhere different and none of them fails loudly on its own.
+	 * A track dropped from the source folders leaves an orphaned Ogg in the jar, a "now playing" key
+	 * for a file nothing can select, and - the one a player actually sees - a credit for a piece that
+	 * is no longer in the game. That last one is not hypothetical: the roll went on thanking two
+	 * artists whose tracks had already been replaced, because nothing here was watching.</p>
+	 *
+	 * <p>The credits are matched by count rather than by name. The roll is written for a reader - the
+	 * titles carry their Chinese subtitles, the artists are spelled the way the artists spell them -
+	 * so tying it to the lang strings would only force the roll to read like a manifest. What has to
+	 * hold is that each context credits exactly as many pieces as it ships.</p>
+	 */
+	@Test
+	void theScoreIsTheSameSetOnDiskInSoundsJsonInBothLangsAndInTheCredits() throws Exception {
+		JsonObject sounds = JsonParser.parseString(Files.readString(ASSETS.resolve("sounds.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		JsonObject en = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/en_us.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+		JsonObject zh = JsonParser.parseString(Files.readString(ASSETS.resolve("lang/zh_cn.json"),
+				StandardCharsets.UTF_8)).getAsJsonObject();
+
+		Map<String, Integer> tracksPerEvent = new LinkedHashMap<>();
+		Set<Path> referenced = new HashSet<>();
+		for (String event : sounds.keySet()) {
+			if (!event.startsWith("music_")) continue;
+			JsonArray files = sounds.getAsJsonObject(event).getAsJsonArray("sounds");
+			tracksPerEvent.put(event, files.size());
+			for (var entry : files) {
+				String name = entry.isJsonPrimitive() ? entry.getAsString()
+						: entry.getAsJsonObject().get("name").getAsString();
+				String local = name.substring(name.indexOf(':') + 1);
+				Path file = ASSETS.resolve("sounds/" + local + ".ogg");
+				assertTrue(Files.isRegularFile(file), event + " points at a missing file: " + name);
+				assertTrue(referenced.add(file.normalize()), name + " is listed by more than one event");
+				// Vanilla derives the "now playing" toast from the *file* path, not from the event, so
+				// the same piece used in two contexts needs two files and two keys.
+				String key = "thefourthfrequency." + local.replace('/', '.');
+				assertTrue(en.has(key) && !en.get(key).getAsString().isBlank(), "missing English " + key);
+				assertTrue(zh.has(key) && !zh.get(key).getAsString().isBlank(), "missing Chinese " + key);
+			}
+		}
+		assertFalse(tracksPerEvent.isEmpty(), "parsed no score events out of sounds.json");
+		for (Path file : Files.walk(ASSETS.resolve("sounds/music")).filter(Files::isRegularFile).toList()) {
+			assertTrue(referenced.contains(file.normalize()),
+					file + " ships in the jar but no sound event can select it");
+		}
+		for (String key : en.keySet()) {
+			if (!key.startsWith("thefourthfrequency.music.")) continue;
+			Path file = ASSETS.resolve("sounds/"
+					+ key.substring("thefourthfrequency.".length()).replace('.', '/') + ".ogg");
+			assertTrue(referenced.contains(file.normalize()),
+					key + " names a track the score no longer ships");
+		}
+
+		assertCredits("texts/credits_zh_cn.json", "使用曲目", Map.of(
+				"游戏内 BGM", List.of("music_game"),
+				"主菜单 BGM", List.of("music_menu"),
+				"未渲染层", List.of("music_unrendered"),
+				"个人追逐", List.of("music_pursuit"),
+				"末地 · 召唤之前", List.of("music_end"),
+				"世界接口战斗", List.of("music_encounter_phase_1", "music_encounter_phase_2",
+						"music_encounter_final"),
+				"终末之诗 · 胜利", List.of("music_ending"),
+				"终末之诗 · 失败", List.of("music_ending_failure")), tracksPerEvent);
+		assertCredits("texts/credits_en_us.json", "Tracks Used", Map.of(
+				"In-Game BGM", List.of("music_game"),
+				"Main Menu BGM", List.of("music_menu"),
+				"The Unrendered Layer", List.of("music_unrendered"),
+				"Personal Pursuit", List.of("music_pursuit"),
+				"The End, Before the Summon", List.of("music_end"),
+				"World Interface Encounter", List.of("music_encounter_phase_1",
+						"music_encounter_phase_2", "music_encounter_final"),
+				"End Poem - Victory", List.of("music_ending"),
+				"End Poem - Defeat", List.of("music_ending_failure")), tracksPerEvent);
+	}
+
+	/**
+	 * Asserts that one credits roll lists every score event exactly once and credits as many pieces
+	 * per heading as that heading's events ship.
+	 */
+	private static void assertCredits(String resource, String discipline,
+			Map<String, List<String>> headings, Map<String, Integer> tracksPerEvent) throws Exception {
+		JsonArray credits = JsonParser.parseString(Files.readString(ASSETS.resolve(resource),
+				StandardCharsets.UTF_8)).getAsJsonArray();
+		Map<String, Integer> credited = new LinkedHashMap<>();
+		for (var section : credits) {
+			for (var entry : section.getAsJsonObject().getAsJsonArray("disciplines")) {
+				JsonObject block = entry.getAsJsonObject();
+				if (!discipline.equals(block.get("discipline").getAsString())) continue;
+				for (var titled : block.getAsJsonArray("titles")) {
+					JsonObject title = titled.getAsJsonObject();
+					credited.put(title.get("title").getAsString(),
+							title.getAsJsonArray("names").size());
+				}
+			}
+		}
+		assertEquals(headings.keySet(), credited.keySet(),
+				resource + " credits a different set of contexts than the score has");
+		List<String> uncredited = new ArrayList<>(tracksPerEvent.keySet());
+		for (var heading : headings.entrySet()) {
+			int shipped = 0;
+			for (String event : heading.getValue()) {
+				Integer count = tracksPerEvent.get(event);
+				assertTrue(count != null, resource + " credits " + heading.getKey()
+						+ ", which no longer maps to a sound event");
+				shipped += count;
+				uncredited.remove(event);
+			}
+			assertEquals(shipped, credited.get(heading.getKey()).intValue(),
+					resource + " credits the wrong number of tracks under " + heading.getKey());
+		}
+		assertTrue(uncredited.isEmpty(), resource + " never credits " + uncredited);
 	}
 }

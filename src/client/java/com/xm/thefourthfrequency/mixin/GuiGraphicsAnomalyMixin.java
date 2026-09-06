@@ -40,6 +40,10 @@ public abstract class GuiGraphicsAnomalyMixin {
 	}
 
 	private boolean thefourthfrequency$drawMisread(ItemStack stack, int x, int y) {
+		// Ahead of the controller's own guard, and ahead of vanilla's: this runs at the head of
+		// renderItem, which AbstractContainerScreen.renderSlot calls for empty slots as well, so
+		// every vacant square in an open inventory arrives here several times a frame.
+		if (stack == null || stack.isEmpty()) return false;
 		if (!AnomalyPresentationController.isMisread(stack)) return false;
 		((GuiGraphics) (Object) this).blit(RenderPipelines.GUI_TEXTURED, EYE, x, y,
 				0.0F, 0.0F, 16, 16, EYE_TEXTURE_SIZE, EYE_TEXTURE_SIZE,

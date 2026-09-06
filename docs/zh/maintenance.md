@@ -8,12 +8,14 @@
 MC-The-Fourth-Frequency/
 ├── README.md / README.en.md      玩家可见总览（双语）
 ├── LICENSE                       All Rights Reserved
+├── .gitattributes                行尾与二进制归类 —— 见下文《行尾与文件模式》
 ├── build.gradle                  Loom、source set、unitTest、客户端套件参数
 ├── gradle.properties             版本与依赖的唯一事实源
 ├── settings.gradle
 ├── docs/
 │   ├── README.md                 双语文档导航与事实归属表
 │   ├── zh/                       中文文档（事实源）
+│   │   └── design-notes.md       取舍与被否决方案（专题文档只写规则）
 │   ├── en/                       英文文档（同步翻译）
 │   └── art/                      参考图与清单文件 —— 路径被测试引用，勿动
 ├── src/
@@ -29,6 +31,13 @@ MC-The-Fourth-Frequency/
 
 `bin/`、`build/`、`run/`、`logs/`、`.gradle/`、`.planning/`、`.claude/` 全部由 `.gitignore` 排除，属于本机产物或代理状态。
 
+### 行尾与文件模式
+
+这两条只在别人的机器上、或第一次把仓库推上 GitHub 时才会现形，所以写在这里：
+
+- `.gitattributes` 用 `* text=auto eol=lf` 把所有文本 blob 钉成 LF，`*.bat` 与 `*.cmd` 例外为 CRLF；音频、图片与 JAR 显式声明 `binary`，不做行尾转换也不做文本合并。没有这份文件时行尾取决于每个人的 `core.autocrlf`，克隆到 Linux/macOS 的 `gradlew` 可能带着 CR，直接 `bad interpreter`。
+- `gradlew` 在索引里的模式必须是 `100755`。Windows 的文件系统不带执行位，所以它只能靠 `git update-index --chmod=+x gradlew` 记进索引；模式掉回 `100644` 时，Windows 上一切正常，Linux/macOS 与 CI 上 `./gradlew` 直接 permission denied。
+
 ## 硬约束
 
 改动前先确认这几条，它们的违反方式都是"编译通过但运行时/构建时炸"：
@@ -41,6 +50,9 @@ MC-The-Fourth-Frequency/
 | `zh_cn.json` 与 `en_us.json` 键集合完全对称 | 契约测试断言双向对称，少一个键即失败 |
 | `TerminalScreen.java` 顶部的 `import static` 行 | `ResourceContractTest` 用源码文本断言配色引用，IDE 的 optimize imports 会静默打断它 |
 | 协议载荷只能在**末尾追加**字段 | 解码按位置进行，中间插一个布尔会让其后每个 varint 静默错位 |
+| 「玩家不在他所居住的世界里」只能问 `PrivateDimensions.isPrivate` | 直接写 `PursuitDimensions.isMirror` 会漏掉未渲染层，且不会有任何测试失败或日志——十七处环境系统曾经全是这样。`MultiplayerIsolationContractTest` 从源码守住 |
+| `AnomalyCatalog.MASK_ORDER` 只能在**末尾追加** | 它是 `ANOMALY_SEEN_MASK` 的位序，重排会静默给旧存档一份它从未见过的异象历史 |
+| 新增异象要同步六处 | 目录、`AnomalyTiming`、`AnomalyConditions`、`AnomalyServerEffects`、`DebugNames`、双语 `terminal.thefourthfrequency.log.type.<id>`；漏任何一处都由现有契约测试报出来，但报的是断言而不是原因 |
 
 ## 事实归属
 
@@ -59,13 +71,14 @@ MC-The-Fourth-Frequency/
 | 版本、依赖、产物名 | `gradle.properties` · `src/main/resources/fabric.mod.json` |
 | schema / 协议号 | `PersistenceSchema.CURRENT_VERSION`、各 `*Payload.CURRENT_PROTOCOL_VERSION`、`WorldInterfaceState.FORMAT_VERSION`、`WorldInterfaceProtocol.VERSION` |
 | 世界级主线、文件、发现、兼容迁移 | `FrequencyWorldData` |
-| 终局状态 | 独立的 `world_interface` 持久化根（format v1） |
+| 终局状态 | 独立的 `world_interface` 持久化根（`WorldInterfaceState.FORMAT_VERSION`，当前 v2） |
 | 异象、校正者、镜像规则 | `docs/zh/anomalies-and-pursuits.md` |
 | 终端外观、布局、动画、开机引导 | `docs/zh/terminal-ui.md` |
 | 终局数值、行动、结局契约 | `docs/zh/world-interface.md` |
 | 配乐情境与接缝 | `docs/zh/audio.md` |
 | 资产生成与 UV/自发光契约 | `docs/zh/art-pipeline.md` |
 | 测试结果与发布物 | `docs/zh/testing.md` |
+| 数值背后的取舍与历史故障 | `docs/zh/design-notes.md` |
 
 ## 改动同步矩阵
 
@@ -108,17 +121,25 @@ MC-The-Fourth-Frequency/
 
 ### 本地部署
 
-`build` 成功后会把 remap JAR 复制到一个本地 Minecraft 实例的 `mods` 目录。默认路径写在 `build.gradle` 里，可以用 Gradle 属性覆盖或关闭：
+`build` 成功后可以把 remap JAR 复制到一个本地 Minecraft 实例的 `mods` 目录。**这一步默认关闭**：目标路径是某一台机器上的启动器目录，而 `build.gradle` 是要进 Git 的，写死在里面等于把个人环境发布出去。
+
+要长期启用，把它写进 **Git 看不到的**用户级 `~/.gradle/gradle.properties`（Windows 是 `%USERPROFILE%\.gradle\gradle.properties`）：
+
+```properties
+tffDeployDir=E:/SomeLauncher/.minecraft/versions/1.21.11-Fabric/mods
+```
+
+只想临时用一次，或临时关掉：
 
 ```powershell
-# 覆盖目标目录
+# 本次构建部署到指定目录
 .\gradlew.bat build -PtffDeployDir="D:\SomeLauncher\.minecraft\mods" --no-daemon
 
-# 关闭部署
+# 本次构建不部署（也是没有配置时的默认行为）
 .\gradlew.bat build -PtffDeployDir= --no-daemon
 ```
 
-目标目录的根不存在时会跳过部署并给出提示，不会让构建失败——所以在别人的机器上 clone 之后 `build` 照常可用。**这一步挂在 `build` 而不是 `remapJar` 上**：编译或测试失败绝不能覆盖上一个已知可用的 JAR。
+没有配置时构建只是打印一行说明；配置了但目标盘不存在时会跳过并给出提示，两种情况都不会让构建失败——所以在别人的机器上 clone 之后 `build` 照常可用。**这一步挂在 `build` 而不是 `remapJar` 上**：编译或测试失败绝不能覆盖上一个已知可用的 JAR。
 
 ## 归档规则
 

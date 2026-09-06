@@ -279,7 +279,7 @@ final class StabilityAnchorContractTest {
 				gates, anchors(oneDestroyed), Set.of(), Map.of(), false, Optional.empty(),
 				0.0D, 0.0D, 0L, -1L, 0L, Optional.empty(),
 				0L, 0L, 0, 0L, -1L, Map.of(), 0, 0, Map.of(), Map.of(), List.of(),
-				Optional.empty(), new BlockPos(0, 65, 0), false, 0, -1L);
+				Optional.empty(), new BlockPos(0, 65, 0), false, 0, -1L, -1L);
 	}
 
 	private static List<WorldInterfaceState.Anchor> anchors(boolean oneDestroyed) {

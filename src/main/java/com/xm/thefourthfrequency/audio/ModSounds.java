@@ -58,6 +58,14 @@ public final class ModSounds {
 	public static final SoundEvent LAYER_COMPARATOR_CLICK = register("layer_comparator_click");
 	public static final SoundEvent TERMINAL_CLICK = register("terminal_click");
 	public static final SoundEvent TERMINAL_TUNE = register("terminal_tune");
+	/**
+	 * The terminal's own noise floor, held for as long as the screen is open.
+	 *
+	 * <p>One asset, pitched by the client to say which anomaly stage the holder is on. The player is
+	 * not meant to hear it as information and almost certainly never will - it is there so that the
+	 * one time it stops while the terminal is still open, something is missing.
+	 */
+	public static final SoundEvent TERMINAL_CARRIER = register("terminal_carrier");
 	public static final SoundEvent TERMINAL_LOCK = register("terminal_lock");
 	public static final SoundEvent TERMINAL_FAULT = register("terminal_fault");
 	public static final SoundEvent TERMINAL_ANOMALY = register("terminal_anomaly");
@@ -84,6 +92,21 @@ public final class ModSounds {
 	public static final SoundEvent TERMINAL_BOOT_COMPLETE = register("terminal_boot_complete");
 	public static final SoundEvent ALPHA_CORRUPTION_WARNING = register("alpha_corruption_warning");
 	public static final SoundEvent ALPHA_CORRUPTION_COLLAPSE = register("alpha_corruption_collapse");
+	/**
+	 * The one thing the capture blackout is allowed to be loud about.
+	 *
+	 * <p>Everything else in that moment is equipment failing - the collapse, the corruption warnings
+	 * repeating underneath it - and equipment failing is the register the rest of the mod stays in.
+	 * This is deliberately the only cue that is not. It plays once, into a screen that has already
+	 * gone black, at the instant the player is told they were caught.
+	 *
+	 * <p>Ships at -7.8 LUFS with a -0.1 dBFS true peak. It was first aligned to {@code signal_alert}
+	 * at -12, on the reasoning that it had to be the loudest thing in this moment without being the
+	 * loudest thing in the mod; what that produced was a scream the collapse it plays over
+	 * (-9.2 LUFS) was covering. It now clears the collapse, and the only cue above it is
+	 * {@link #UNRENDERED_CAPTURE_SCREAM} - the layer's own, which is a different ending.
+	 */
+	public static final SoundEvent PURSUIT_CAPTURE_SCREAM = register("pursuit_capture_scream");
 	// The analog-horror signal palette. The four loops are beds meant to sit under everything
 	// else at a level low enough to be doubted; the three cues are one-shots.
 	public static final SoundEvent SIGNAL_CARRIER = register("signal_carrier");
@@ -165,12 +188,84 @@ public final class ModSounds {
 	public static final SoundEvent MUSIC_MENU = register("music_menu");
 	public static final SoundEvent MUSIC_GAME = register("music_game");
 	public static final SoundEvent MUSIC_PURSUIT = register("music_pursuit");
-	// The encounter is scored in two pieces rather than one, because the third body is a different
-	// fight: separate events are what lets the music manager cut from one to the other on the morph
-	// instead of waiting for the first to end.
-	public static final SoundEvent MUSIC_ENCOUNTER = register("music_encounter");
+	/**
+	 * The unrendered layer.
+	 *
+	 * <p>The layer used to be the one place the score was suppressed outright, on the reasoning that
+	 * somewhere that was never authored for anybody should not sound authored. What that produced was
+	 * six minutes carried by a single twenty-second drone, and the drone alone says "nothing here is
+	 * for you" without also saying the far worse thing this track does: that something down here still
+	 * remembers the playlist the player was listening to upstairs. It is a track pulled out of the
+	 * gameplay rotation rather than a piece of its own, so a player who has been playing long enough
+	 * recognises it, and the wrongness is that they recognise it <em>here</em>.</p>
+	 *
+	 * <p>Mixed under {@code unrendered_layer_ambience} rather than over it - see
+	 * {@code UNRENDERED_LOUDNESS_TARGET_LUFS} in {@code tools/import_music.py}. The bed still owns the
+	 * room; this is the thing that should not be in it.</p>
+	 */
+	public static final SoundEvent MUSIC_UNRENDERED = register("music_unrendered");
+	/**
+	 * The End before the interface is summoned.
+	 *
+	 * <p>Its own event rather than another entry in the gameplay playlist, because arriving in the
+	 * End is the point the run stops being a survival game: the place is scored from the moment the
+	 * player lands, and it stays on the one track until the summon takes over.
+	 */
+	public static final SoundEvent MUSIC_END = register("music_end");
+	// A track per body rather than one for the whole encounter. Separate events are what lets the
+	// music manager cut from one to the next on each morph instead of waiting for the current one
+	// to end.
+	//
+	// The summon has no track of its own: it fades the first body's in instead, so the piece
+	// playing while the interface descends is still playing when it starts fighting.
+	public static final SoundEvent MUSIC_ENCOUNTER_PHASE_1 = register("music_encounter_phase_1");
+	public static final SoundEvent MUSIC_ENCOUNTER_PHASE_2 = register("music_encounter_phase_2");
+	/** The third body's track. Named "final" since before the phases were scored separately. */
 	public static final SoundEvent MUSIC_ENCOUNTER_FINAL = register("music_encounter_final");
 	public static final SoundEvent MUSIC_ENDING = register("music_ending");
+	/**
+	 * The unrendered layer's two cues.
+	 *
+	 * <p>The ambience is a twenty-second bed the client loops for as long as the player is in the
+	 * layer, and it is what the place sounds like: {@link #MUSIC_UNRENDERED} is mixed underneath it
+	 * rather than over it. The scream is its opposite: one shot, into a screen that has already gone
+	 * black, at the instant the entity reaches them.
+	 *
+	 * <p>They ship at -20.1 LUFS and -5.0 LUFS, and the fifteen decibels between them are the point.
+	 * Both numbers moved twice before they landed, in opposite directions, and neither could have
+	 * been reasoned to:
+	 *
+	 * <ul>
+	 * <li>The ambience went -43 (scaled by the BGM importer's fraction, effectively silence) and then
+	 *     -20.1, aligned by measurement. That is a reference level rather than a mix: what it plays
+	 *     at is {@code UnrenderedLayerClient.AMBIENCE_VOLUME}, currently 0.11 - about -39 LUFS in
+	 *     play - because a bed that is correct for one listen is too loud for six minutes of it, and
+	 *     the trim belongs beside the playback where one place owns it.</li>
+	 * <li>The scream went -27.3 (untouched master), then -12 (aligned with {@code signal_alert}),
+	 *     then past both of the cues that were supposed to bound it: it is louder than
+	 *     {@code alpha_corruption_collapse} (-9.2 LUFS) and than the pursuit's own scream (-7.8).
+	 *     It is the loudest thing in the mod on purpose - the last sound before the layer takes the
+	 *     player - and nothing else is allowed to reach this tier.</li>
+	 * </ul>
+	 */
+	public static final SoundEvent UNRENDERED_LAYER_AMBIENCE = register("unrendered_layer_ambience");
+	public static final SoundEvent UNRENDERED_CAPTURE_SCREAM = register("unrendered_capture_scream");
+	/**
+	 * The heartbeat the thing in the layer carries, and the only way to tell where it is.
+	 *
+	 * <p>A fixed radius rather than a variable one, and it has to be: the entity is placed at least a
+	 * hundred blocks away, so at the sixteen blocks a variable-range event resolves to it would be
+	 * inaudible until it was already on top of the player - which is the opposite of what a locator
+	 * is for. Sixty-four blocks means it fades in while the entity is still a long way off and grows
+	 * the whole way in, so distance is something the player hears rather than something they are
+	 * told.
+	 *
+	 * <p>It does not contradict {@code BacteriaEntity.isSilent()}. That refusal is about footsteps
+	 * and hurt sounds, which would leak the entity's exact range for free every time it moved; this
+	 * is one authored cue at one known radius, played by the client off the entity's tracked
+	 * position, and its whole job is to be located.
+	 */
+	public static final SoundEvent UNRENDERED_HEARTBEAT = register("unrendered_heartbeat", LANDMARK_RANGE);
 	public static final SoundEvent MUSIC_ENDING_FAILURE = register("music_ending_failure");
 
 	private ModSounds() {

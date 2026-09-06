@@ -21,6 +21,8 @@ import com.xm.thefourthfrequency.entity.WorldInterfaceEnergyOrbEntity;
 import com.xm.thefourthfrequency.entity.WorldInterfacePartEntity;
 import com.xm.thefourthfrequency.entity.StabilityAnchorEntity;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
+import com.xm.thefourthfrequency.ending.FinaleRuntimePolicy;
+import com.xm.thefourthfrequency.terminal.AnomalyRuntimeService;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
@@ -160,15 +162,26 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		helper.succeed();
 	}
 
+	/**
+	 * Arrival belongs to the portal; the respawn point belongs to the sacrifice.
+	 *
+	 * <p>These used to happen together, and the second one was wrong: every player who used an End
+	 * portal while an encounter merely existed had their spawn moved to an altar in another
+	 * dimension, whether or not they had anything to do with the ritual - and the eight-entry ledger
+	 * filled up with those people, so a real participant arriving ninth was silently refused one.
+	 * The override now waits for a committed roster, which is the first moment anybody is a
+	 * participant at all.
+	 */
 	@GameTest(setupTicks = 62, maxTicks = 60)
-	public void portalTransitionArrivesAtAltarAndDeathRespawnsAtSafePoint(GameTestHelper helper) {
+	public void portalArrivalIsForEveryoneButTheAltarRespawnIsOnlyForTheRoster(GameTestHelper helper)
+			throws ReflectiveOperationException {
 		MinecraftServer server = helper.getLevel().getServer();
 		ServerLevel end = requireEnd(helper);
 		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
 		FrequencyWorldData data = FrequencyWorldData.get(server);
 		clearWorldInterface(data);
 		UUID encounterId = UUID.randomUUID();
-		initializeWaiting(server, encounterId, stateLayout(arena));
+		WorldInterfaceState.Snapshot waiting = initializeWaiting(server, encounterId, stateLayout(arena));
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
 		ServerPlayer respawned = null;
 		try {
@@ -178,10 +191,27 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 			helper.assertTrue(player.level().dimension() == Level.END
 					&& player.blockPosition().distManhattan(arena.safeSpawn()) <= 3,
 					"Portal travel must arrive directly at the altar safe point");
+			helper.assertTrue(WorldInterfaceState.snapshot(server).respawnLedger().isEmpty(),
+					"Walking in must not write a respawn entitlement for somebody who has not committed");
+
+			// Commit a roster of exactly this player, the way the ritual does, and let the tick that
+			// owns the override run once.
+			requireApplied(WorldInterfaceState.mutate(server, encounterId, waiting.revision(), state -> {
+				state.joinRoster(player.getUUID());
+				state.putTerminalTransaction(terminalTransaction(player.getUUID(),
+						WorldInterfaceState.TerminalTransactionState.REMOVED));
+				state.commitSacrifice(WorldInterfacePolicy.maxHealth(1));
+			}), "commit a one-player roster");
+			// Reflection rather than a test-only door, matching the ritual tick used elsewhere here.
+			Method encounterTick = EndBossEncounterService.class.getDeclaredMethod(
+					"tickStart", MinecraftServer.class);
+			encounterTick.setAccessible(true);
+			encounterTick.invoke(null, server);
+
 			ServerPlayer.RespawnConfig config = player.getRespawnConfig();
 			helper.assertTrue(config != null && config.respawnData().dimension() == Level.END
 					&& config.respawnData().pos().equals(arena.safeSpawn()),
-					"Entering the encounter must install the authoritative altar respawn");
+					"A committed participant must be given the authoritative altar respawn");
 			respawned = server.getPlayerList().respawn(player, false, Entity.RemovalReason.KILLED);
 			helper.assertTrue(respawned.level().dimension() == Level.END
 					&& respawned.blockPosition().distManhattan(arena.safeSpawn()) <= 4,
@@ -238,7 +268,7 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 							WorldInterfaceState.TerminalTransactionState.REMOVED));
 				}
 				snapshot = requireApplied(WorldInterfaceState.mutate(server, encounterId, snapshot.revision(), state -> {
-					state.freezeRoster(roster);
+					for (UUID member : roster) state.joinRoster(member);
 					for (WorldInterfaceState.TerminalTransaction transaction : transactions) {
 						state.putTerminalTransaction(transaction);
 					}
@@ -276,28 +306,44 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 				players.add(player);
 			}
 			long sharedRevision = waiting.revision();
-			Set<UUID> expectedRoster = players.stream().map(ServerPlayer::getUUID)
-					.collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+			// The roster is now built out of deposits rather than taken as one headcount, so it grows
+			// by exactly one name per successful deposit - and every one of those deposits is sent
+			// against the same stale UI revision, which must rebase rather than refuse.
 			for (int index = 0; index < players.size(); index++) {
 				ServerPlayer player = players.get(index);
 				WorldInterfaceRitualService.RitualResult result = WorldInterfaceRitualService.deposit(
 						player, encounterId, sharedRevision);
 				String diagnosis = ritualDiagnosis(server, data, player, sharedRevision, result);
 				helper.assertTrue(result.applied(),
-						"Stable-roster deposit " + index
-								+ " from one shared UI snapshot must rebase server-side; " + diagnosis);
-				helper.assertTrue(result.snapshot().frozenRoster().equals(expectedRoster),
-						"Every rebased deposit must retain the exact initial online roster; " + diagnosis);
+						"Deposit " + index + " from one shared UI snapshot must rebase server-side; " + diagnosis);
+				helper.assertValueEqual(result.snapshot().frozenRoster().size(), index + 1,
+						"The roster must grow by exactly the depositor; " + diagnosis);
+				helper.assertTrue(result.snapshot().frozenRoster().contains(player.getUUID()),
+						"A depositor must be on the roster their terminal joined; " + diagnosis);
 				helper.assertFalse(hasValidBoundTerminal(player, data),
 						"A successful deposit must move that player's bound terminal into custody; " + diagnosis);
 			}
+			// Depositing no longer starts anything. The altar waits for somebody to say so.
+			WorldInterfaceState.Snapshot collected = WorldInterfaceState.snapshot(server);
+			helper.assertTrue(collected.stage() == WorldInterfaceStage.WAITING_TERMINALS
+					&& !collected.sacrificeCommitted(),
+					"The last deposit must not start the encounter by itself");
+			helper.assertTrue(collected.ritualWindowRunning(),
+					"The first deposit must arm the ritual window");
+
+			WorldInterfaceRitualService.RitualResult summoned = WorldInterfaceRitualService.summon(
+					players.getFirst(), encounterId, collected.revision());
+			helper.assertTrue(summoned.applied(), "A depositor must be able to summon once everyone is in; "
+					+ ritualDiagnosis(server, data, players.getFirst(), collected.revision(), summoned));
 			WorldInterfaceState.Snapshot committed = WorldInterfaceState.snapshot(server);
 			helper.assertTrue(committed.stage() == WorldInterfaceStage.SUMMONING
-					&& committed.sacrificeCommitted(), "The third durable removal must atomically begin summoning");
+					&& committed.sacrificeCommitted(), "An explicit summon must atomically begin summoning");
 			helper.assertValueEqual(committed.frozenRoster().size(), 3,
-					"Exactly the three simultaneous participants must be frozen");
+					"Exactly the three depositors must be frozen");
 			helper.assertTrue(Math.abs(committed.maxVirtualHealth() - 1_200.0D) < 0.000_001D,
-					"Three simultaneous deposits must create exactly 1200 virtual health");
+					"Three deposits must create exactly 1200 virtual health");
+			helper.assertFalse(committed.ritualWindowRunning(),
+					"The window must be disarmed by the commit that ends it");
 		} finally {
 			restoreGameModes(server, originalGameModes);
 			clearWorldInterface(data);
@@ -305,8 +351,18 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		helper.succeed();
 	}
 
+	/**
+	 * A player arriving mid-ritual is a bystander, not an invalidation.
+	 *
+	 * <p>This test used to assert the exact opposite, and the behaviour it guarded was the single
+	 * worst multiplayer failure the encounter had: the roster was every online non-spectator, so
+	 * anybody connecting anywhere in the world - a friend dropping in, somebody's client
+	 * reconnecting after a timeout - tore down a ritual they had never touched and spat every
+	 * escrowed terminal back out. Now the roster is the depositors, and the only thing a newcomer
+	 * changes is that there is one more person standing there.</p>
+	 */
 	@GameTest(setupTicks = 70, maxTicks = 60)
-	public void joiningPlayerRollsBackPartialRitualAndReturnsHostedTerminal(GameTestHelper helper) {
+	public void aPlayerJoiningMidRitualLeavesTheEscrowUntouched(GameTestHelper helper) {
 		MinecraftServer server = helper.getLevel().getServer();
 		ServerLevel end = requireEnd(helper);
 		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
@@ -318,33 +374,89 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		try {
 			ServerPlayer first = preparedMockParticipant(helper, end, arena.altar(), data);
 			preparedMockParticipant(helper, end, arena.altar(), data);
-			WorldInterfaceRitualService.RitualResult deposited = WorldInterfaceRitualService.deposit(
-					first, encounterId, waiting.revision());
-			helper.assertTrue(deposited.applied() && !deposited.snapshot().sacrificeCommitted(),
-					"The first of two terminals must remain a recoverable partial ritual; "
-							+ ritualDiagnosis(server, data, first, waiting.revision(), deposited));
+			WorldInterfaceState.Snapshot deposited = requireDeposit(helper, server, data, first, encounterId,
+					waiting.revision(), "the first terminal");
+			helper.assertTrue(!deposited.sacrificeCommitted() && deposited.ritualWindowRunning(),
+					"One terminal in must leave a running window rather than a started fight");
 
-			preparedMockParticipant(helper, end, arena.altar(), data);
-			long rollbackRevision = deposited.snapshot().revision();
-			WorldInterfaceRitualService.RitualResult rollback = WorldInterfaceRitualService.deposit(
-					first, encounterId, rollbackRevision);
-			String rollbackDiagnosis = ritualDiagnosis(server, data, first, rollbackRevision, rollback);
-			helper.assertTrue(rollback.applied() && "roster_changed".equals(rollback.reason()),
-					"A newly joined online player must trigger the explicit roster-change rollback; "
-							+ rollbackDiagnosis);
-			WorldInterfaceState.Snapshot rolledBack = WorldInterfaceState.snapshot(server);
-			helper.assertTrue(rolledBack.frozenRoster().isEmpty()
-					&& rolledBack.terminalTransactions().isEmpty(),
-					"A pre-summoning roster join must abort and fully unwind the partial journal; "
-							+ rollbackDiagnosis);
-			helper.assertTrue(hasValidBoundTerminal(first, data),
-					"The hosted terminal must be returned exactly through the recovery path; "
-							+ rollbackDiagnosis);
+			// Somebody new connects and walks up. Nothing about the escrow may move.
+			ServerPlayer latecomer = preparedMockParticipant(helper, end, arena.altar(), data);
+			WorldInterfaceState.Snapshot afterJoin = WorldInterfaceState.snapshot(server);
+			helper.assertTrue(afterJoin.frozenRoster().equals(Set.of(first.getUUID())),
+					"A newcomer must not appear on a roster they never deposited into");
+			helper.assertValueEqual(afterJoin.revision(), deposited.revision(),
+					"A player joining must not mutate the ritual at all");
+			helper.assertFalse(hasValidBoundTerminal(first, data),
+					"The escrowed terminal must stay escrowed when somebody else logs in");
+
+			// And they can still take part, by doing the one thing that puts anyone on the roster.
+			WorldInterfaceState.Snapshot bothIn = requireDeposit(helper, server, data, latecomer, encounterId,
+					afterJoin.revision(), "the latecomer's terminal");
+			helper.assertTrue(bothIn.frozenRoster().equals(Set.of(first.getUUID(), latecomer.getUUID())),
+					"A latecomer who deposits must join the roster they walked into");
+			helper.assertValueEqual(bothIn.ritualDeadlineTick(), deposited.ritualDeadlineTick(),
+					"A later deposit must join the running window rather than extend it");
 		} finally {
 			restoreGameModes(server, originalGameModes);
 			clearWorldInterface(data);
 		}
 		helper.succeed();
+	}
+
+	/**
+	 * Three minutes with nobody pressing summon returns everything, and leaves the altar reusable.
+	 */
+	@GameTest(setupTicks = 70, maxTicks = 60)
+	public void anUnsummonedRitualReturnsEveryTerminalWhenItsWindowLapses(GameTestHelper helper)
+			throws ReflectiveOperationException {
+		MinecraftServer server = helper.getLevel().getServer();
+		ServerLevel end = requireEnd(helper);
+		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		clearWorldInterface(data);
+		UUID encounterId = UUID.randomUUID();
+		WorldInterfaceState.Snapshot waiting = initializeWaiting(server, encounterId, stateLayout(arena));
+		Map<UUID, GameType> originalGameModes = spectateExistingPlayers(server);
+		try {
+			ServerPlayer participant = preparedMockParticipant(helper, end, arena.altar(), data);
+			WorldInterfaceState.Snapshot deposited = requireDeposit(helper, server, data, participant,
+					encounterId, waiting.revision(), "the only terminal");
+
+			// Wind the deadline back to now rather than waiting three real minutes. The tick's own
+			// comparison is what is under test, not the arithmetic that produced the deadline.
+			requireApplied(WorldInterfaceState.mutate(server, encounterId, deposited.revision(),
+					state -> state.setRitualDeadline(server.overworld().getGameTime())),
+					"expire the ritual window");
+			// Reflection rather than a test-only entry point, matching offlineReturnEntitlementRemainsDurable
+			// directly below: the ritual tick is a lifecycle callback and should not grow a public door.
+			Method ritualTick = WorldInterfaceRitualService.class.getDeclaredMethod(
+					"tick", MinecraftServer.class);
+			ritualTick.setAccessible(true);
+			ritualTick.invoke(null, server);
+
+			WorldInterfaceState.Snapshot lapsed = WorldInterfaceState.snapshot(server);
+			helper.assertTrue(lapsed.frozenRoster().isEmpty() && lapsed.terminalTransactions().isEmpty(),
+					"A lapsed window must unwind the whole journal");
+			helper.assertFalse(lapsed.ritualWindowRunning(),
+					"A lapsed window must disarm rather than re-fire every tick");
+			helper.assertTrue(hasValidBoundTerminal(participant, data),
+					"A lapsed window must hand the terminal back through the recovery path");
+			helper.assertTrue(lapsed.stage() == WorldInterfaceStage.WAITING_TERMINALS,
+					"The altar must stay open so the ritual can simply be started again");
+		} finally {
+			restoreGameModes(server, originalGameModes);
+			clearWorldInterface(data);
+		}
+		helper.succeed();
+	}
+
+	private static WorldInterfaceState.Snapshot requireDeposit(GameTestHelper helper, MinecraftServer server,
+			FrequencyWorldData data, ServerPlayer player, UUID encounterId, long revision, String label) {
+		WorldInterfaceRitualService.RitualResult result = WorldInterfaceRitualService.deposit(
+				player, encounterId, revision);
+		helper.assertTrue(result.applied(), "Depositing " + label + " must apply; "
+				+ ritualDiagnosis(server, data, player, revision, result));
+		return result.snapshot();
 	}
 
 	@GameTest(setupTicks = 72, maxTicks = 40)
@@ -358,7 +470,7 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 				stateLayout(EndBossArenaService.prepare(requireEnd(helper))));
 		try {
 			requireApplied(WorldInterfaceState.mutate(server, encounterId, waiting.revision(), state -> {
-				state.freezeRoster(Set.of(offlinePlayer));
+				state.joinRoster(offlinePlayer);
 				state.putTerminalTransaction(terminalTransaction(offlinePlayer,
 						WorldInterfaceState.TerminalTransactionState.RETURN_PENDING));
 			}), "persist offline return entitlement");
@@ -723,13 +835,22 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 			snapshot = beginAttack(end, boss, snapshot, WorldInterfaceAction.CHARGE_WEAPON_STEAL,
 					List.of(target), 5L);
 			WorldInterfaceAttackService.tick(end, boss, snapshot, 55L);
-			helper.assertTrue(ConfiscationService.isPlaceholder(target.getInventory().getItem(0)),
-					"Weapon custody must leave a placeholder in the slot rather than an empty hole");
+			// Custody leaves a placeholder again. It was silent for a while, and the silence read as
+			// "lost" rather than as "taken" - see ConfiscationService. What the slot must never hold
+			// is the real weapon, and what the placeholder must always carry is the ledger id that
+			// resolves it.
+			ItemStack held = target.getInventory().getItem(0);
+			helper.assertTrue(ConfiscationService.isPlaceholder(held),
+					"Weapon custody must leave a placeholder saying the weapon is coming back");
+			helper.assertFalse(held.is(Items.DIAMOND_SWORD),
+					"...and the placeholder is never the weapon itself");
+			helper.assertTrue(countInventoryItem(target, Items.DIAMOND_SWORD) == 0,
+					"The weapon must actually be gone during custody, not merely hidden");
 			snapshot = cancelAndClearAttack(server, encounterId);
 			helper.assertValueEqual(countInventoryItem(target, Items.DIAMOND_SWORD), 1,
 					"Cancelling weapon custody must restore the exact sword once");
 			helper.assertValueEqual(ConfiscationService.clearPlaceholders(target), 0,
-					"Returning the weapon must consume its placeholder");
+					"Silent custody must never create a placeholder to clean up");
 
 			// 6: grab throw -- lift and wind-up interpolate, then the victim is hurled upward and freed.
 			resetAttackTarget(target, end, arena.safeSpawn());
@@ -842,12 +963,12 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 					List.of(target), 101L);
 			WorldInterfaceAttackService.tick(end, boss, snapshot, 55L);
 			helper.assertTrue(ConfiscationService.isPlaceholder(target.getInventory().getItem(0)),
-					"Weapon fixture must enter custody behind its placeholder");
+					"Weapon fixture must enter custody leaving a placeholder behind");
 			WorldInterfaceAttackService.onDisconnect(target, encounterId);
 			helper.assertValueEqual(countInventoryItem(target, Items.DIAMOND_AXE), 1,
 					"Disconnect recovery must return the entrusted weapon exactly once");
 			helper.assertValueEqual(ConfiscationService.clearPlaceholders(target), 0,
-					"Returning the weapon must consume its placeholder");
+					"Silent custody must never create a placeholder to clean up");
 			snapshot = cancelAndClearAttack(server, encounterId);
 
 			// The purge keeps no ledger: what it throws is an ordinary drop and stays one.
@@ -1222,7 +1343,7 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		WorldInterfaceState.TerminalTransaction transaction = new WorldInterfaceState.TerminalTransaction(
 				participantId, terminalId, 0, WorldInterfaceState.TerminalTransactionState.REMOVED, 1L, terminal);
 		snapshot = requireApplied(WorldInterfaceState.mutate(server, encounterId, snapshot.revision(), state -> {
-			state.freezeRoster(Set.of(participantId));
+			state.joinRoster(participantId);
 			state.putTerminalTransaction(transaction);
 			state.commitSacrifice(600.0D);
 		}), "commit terminal sacrifice");
@@ -1277,7 +1398,7 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		WorldInterfaceState.TerminalTransaction transaction = terminalTransaction(frozenPlayer,
 				WorldInterfaceState.TerminalTransactionState.REMOVED);
 		snapshot = requireApplied(WorldInterfaceState.mutate(server, encounterId, snapshot.revision(), state -> {
-			state.freezeRoster(Set.of(frozenPlayer));
+			state.joinRoster(frozenPlayer);
 			state.putTerminalTransaction(transaction);
 			state.commitSacrifice(600.0D);
 		}), "commit combat fixture");
@@ -1392,6 +1513,59 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 			result.add(position);
 		}
 		return List.copyOf(result);
+	}
+
+	/**
+	 * Somebody arriving on a server whose story is already over must still be able to arrive.
+	 *
+	 * <p>{@code ZeroStationService.issueTerminalIfNeeded} deliberately writes no grant ledger entry
+	 * once the finale has concluded, and says so at length: past the resolution there is nothing a new
+	 * terminal could do, and not being on the ledger is what stops every per-player service building
+	 * state for someone the story has no more of. That leaves a real, supported and permanent state -
+	 * an online player this mod holds no record for - which {@code FrequencyWorldData
+	 * .updateTerminalRecord} answers by throwing.
+	 *
+	 * <p>Reached from the join event that throw is a disconnect with an internal error. Reached from
+	 * the leave event it is worse: Fabric fires {@code ServerPlayerEvents.LEAVE} from the <em>head</em>
+	 * of {@code PlayerList#remove}, so nothing after it runs - the player is never saved and never
+	 * leaves the online list.
+	 *
+	 * <p>The join half is genuinely end to end: {@code makeMockServerPlayerInLevel} runs the whole
+	 * connection chain, so a throw anywhere in it fails here. The leave half calls the handler body
+	 * directly rather than {@code PlayerList#remove}, which a mock connection cannot survive for
+	 * reasons that have nothing to do with this.
+	 */
+	@GameTest(setupTicks = 76, maxTicks = 40)
+	public void aPlayerJoiningAConcludedServerIsNotAnError(GameTestHelper helper) {
+		MinecraftServer server = helper.getLevel().getServer();
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		clearWorldInterface(data);
+		UUID encounterId = UUID.randomUUID();
+		try {
+			WorldInterfaceState.Snapshot snapshot = committedCombat(server, encounterId,
+					stateLayout(EndBossArenaService.prepare(requireEnd(helper))));
+			snapshot = requireApplied(WorldInterfaceState.transition(server, encounterId,
+					snapshot.revision(), WorldInterfaceStage.PHASE_1, WorldInterfaceStage.PHASE_2), "phase two");
+			snapshot = requireApplied(WorldInterfaceState.transition(server, encounterId,
+					snapshot.revision(), WorldInterfaceStage.PHASE_2, WorldInterfaceStage.PHASE_3), "phase three");
+			requireApplied(WorldInterfaceState.transition(server, encounterId, snapshot.revision(),
+					WorldInterfaceStage.PHASE_3, WorldInterfaceStage.SUCCESS_RESOLUTION), "success resolution");
+			helper.assertTrue(FinaleRuntimePolicy.concluded(data),
+					"The fixture must actually reach the state that withholds the terminal");
+
+			ServerPlayer newcomer = helper.makeMockServerPlayerInLevel();
+			// Proves the test is not passing vacuously against a player who was handed a record after
+			// all - the whole failure mode only exists for someone who has none.
+			helper.assertTrue(data.terminalRecord(newcomer.getUUID()).isEmpty(),
+					"A concluded world must hand out no terminal, which is the state under test");
+			AnomalyRuntimeService.interrupt(newcomer, false);
+			helper.assertTrue(data.terminalRecord(newcomer.getUUID()).isEmpty(),
+					"The leave path must skip the write rather than invent a record for somebody the "
+							+ "grant ledger deliberately left off it");
+		} finally {
+			clearWorldInterface(data);
+		}
+		helper.succeed();
 	}
 
 	private static ServerLevel requireEnd(GameTestHelper helper) {

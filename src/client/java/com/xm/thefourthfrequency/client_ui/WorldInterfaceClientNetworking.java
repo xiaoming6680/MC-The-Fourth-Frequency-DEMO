@@ -60,9 +60,16 @@ public final class WorldInterfaceClientNetworking {
 		Minecraft client = Minecraft.getInstance();
 		if (client.screen instanceof ResonanceAltarScreen altar && altar.matches(payload.encounterId())) {
 			altar.update(payload);
-		} else {
-			client.setScreen(new ResonanceAltarScreen(payload));
+			return;
 		}
+		// A steady WAITING is a refresh, not an invitation. The altar now pushes to every viewer on a
+		// timer so the countdown and the summon button stay honest without anyone acting - and a
+		// viewer who closed the screen is still on that list until they walk away from the core, so
+		// opening on one of these would make the screen impossible to dismiss while standing at it.
+		// Every push that is a reply to something - the open itself, and every action's outcome -
+		// carries its own status and still opens.
+		if (payload.status() == WorldInterfaceProtocol.AltarStatus.WAITING) return;
+		client.setScreen(new ResonanceAltarScreen(payload));
 	}
 
 	private static void acceptEncounter(Minecraft client, WorldInterfaceSnapshotS2C payload) {

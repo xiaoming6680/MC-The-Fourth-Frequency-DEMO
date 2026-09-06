@@ -2,8 +2,12 @@ package com.xm.thefourthfrequency.client_ui;
 
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -36,6 +40,24 @@ public final class FirstRunNoticeScreen extends Screen {
 		TRANSITION
 	}
 
+	/**
+	 * The two pages this one terminal shows, in the order they are shown.
+	 *
+	 * <p>Audio first, and not as decoration. The disclosure page is a wall of text about a mod that
+	 * imitates system faults, and the very next thing after it is a title screen that starts playing
+	 * the mod's own score - so the last moment a player can set how loud any of that is going to be
+	 * <em>before</em> hearing it is here. Putting it after the notice would mean the first thing they
+	 * ever hear from this mod arrives at whatever level the file happened to say.</p>
+	 *
+	 * <p>Both pages are drawn on the same glass by the same grid; only the content and the button at
+	 * the bottom change. The power-on sweep therefore reveals the audio page, which is correct - it
+	 * is the first page, and the tube is not lighting up twice.</p>
+	 */
+	public enum Page {
+		AUDIO,
+		NOTICE
+	}
+
 	private static final int MAX_PANEL_WIDTH = 394;
 	private static final int MAX_PANEL_HEIGHT = 236;
 	private static final int MIN_PANEL_WIDTH = 300;
@@ -43,6 +65,13 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final int PANEL_MARGIN_X = 16;
 	private static final int PANEL_MARGIN_Y = 4;
 	private static final int BUTTON_HEIGHT = 18;
+	/** Matched to the button so the slider and the audition beside it read as one control row. */
+	private static final int SLIDER_HEIGHT = 18;
+	/** Heading glyphs, its underscore rule, and the air between that rule and the control row. */
+	private static final int AUDIO_HEADING_HEIGHT = 14;
+	private static final int AUDIO_HINT_GAP = 5;
+	private static final float HINT_SCALE = 0.82F;
+	private static final int AUDIO_HINT_LINE_HEIGHT = 7;
 	private static final int NORMAL_LINE_HEIGHT = 9;
 	private static final int SECTION_GAP = 4;
 	private static final float[] BODY_SCALE_STEPS = {0.82F, 0.78F, 0.74F, 0.70F, 0.66F};
@@ -95,7 +124,11 @@ public final class FirstRunNoticeScreen extends Screen {
 	private boolean stableSoundPlayed;
 	private boolean acknowledgementFocused;
 	private final Screen returnScreen;
+	private Page page = Page.AUDIO;
 	private NoticeButton acknowledgementButton;
+	private NoticeButton advanceButton;
+	private NoticeButton previewButton;
+	private VolumeSlider volumeSlider;
 
 	public FirstRunNoticeScreen(Screen returnScreen) {
 		super(Component.translatable("screen.thefourthfrequency.first_run_notice.title"));
@@ -107,9 +140,27 @@ public final class FirstRunNoticeScreen extends Screen {
 		acknowledgementFocused = false;
 		NoticeLayout layout = layout();
 		NoticeGrid grid = NoticeGrid.from(layout);
-		acknowledgementButton = addRenderableWidget(new NoticeButton(
-				grid.buttonLeft(), grid.buttonY(), grid.buttonWidth(), BUTTON_HEIGHT,
-				Component.translatable("button.thefourthfrequency.first_run_notice.acknowledge")));
+		acknowledgementButton = null;
+		advanceButton = null;
+		previewButton = null;
+		volumeSlider = null;
+		if (page == Page.AUDIO) {
+			volumeSlider = addRenderableWidget(new VolumeSlider(
+					grid.sliderLeft(), grid.audioSliderY(), grid.sliderWidth(), SLIDER_HEIGHT));
+			previewButton = addRenderableWidget(new NoticeButton(
+					grid.previewLeft(), grid.audioSliderY(), grid.previewWidth(), SLIDER_HEIGHT,
+					Component.translatable("button.thefourthfrequency.first_run_notice.preview"),
+					TerminalClientAudio::volumePreview));
+			advanceButton = addRenderableWidget(new NoticeButton(
+					grid.buttonLeft(), grid.buttonY(), grid.buttonWidth(), BUTTON_HEIGHT,
+					Component.translatable("button.thefourthfrequency.first_run_notice.next"),
+					this::advance));
+		} else {
+			acknowledgementButton = addRenderableWidget(new NoticeButton(
+					grid.buttonLeft(), grid.buttonY(), grid.buttonWidth(), BUTTON_HEIGHT,
+					Component.translatable("button.thefourthfrequency.first_run_notice.acknowledge"),
+					this::acknowledge));
+		}
 		updateButtonState();
 		if (!openingSoundPlayed) {
 			openingSoundPlayed = true;
@@ -139,15 +190,28 @@ public final class FirstRunNoticeScreen extends Screen {
 	}
 
 	private void updateButtonState() {
-		if (acknowledgementButton == null) return;
-		boolean ready = presentationPhase() == PresentationPhase.NOTICE && age >= NOTICE_READY_TICK;
-		acknowledgementButton.visible = ready;
-		acknowledgementButton.active = ready;
-		// Escape and every other exit is blocked here, so the only way out must be reachable by keyboard.
-		if (ready && !acknowledgementFocused) {
-			acknowledgementFocused = true;
-			setInitialFocus(acknowledgementButton);
-		}
+		boolean ready = controlsReady();
+		arm(acknowledgementButton, ready);
+		arm(advanceButton, ready);
+		arm(previewButton, ready);
+		arm(volumeSlider, ready);
+		if (!ready || acknowledgementFocused) return;
+		acknowledgementFocused = true;
+		// Escape and every other exit is blocked here, so the only way out must be reachable by
+		// keyboard. On the audio page the slider takes the focus instead - it is the only control on
+		// the page that cannot be operated without it, and Tab still reaches the way forward.
+		if (acknowledgementButton != null) setInitialFocus(acknowledgementButton);
+		else if (volumeSlider != null) setInitialFocus(volumeSlider);
+	}
+
+	private boolean controlsReady() {
+		return presentationPhase() == PresentationPhase.NOTICE && age >= NOTICE_READY_TICK;
+	}
+
+	private static void arm(AbstractWidget widget, boolean ready) {
+		if (widget == null) return;
+		widget.visible = ready;
+		widget.active = ready;
 	}
 
 	@Override
@@ -365,7 +429,8 @@ public final class FirstRunNoticeScreen extends Screen {
 
 	private void renderNoticeText(GuiGraphics graphics, NoticeLayout layout) {
 		renderHeader(graphics, layout);
-		renderContent(graphics, layout);
+		if (page == Page.AUDIO) renderAudioContent(graphics, layout);
+		else renderContent(graphics, layout);
 		renderFooter(graphics, layout);
 	}
 
@@ -435,10 +500,8 @@ public final class FirstRunNoticeScreen extends Screen {
 		drawBaselineAlignedString(graphics, statusText(), statusTextLeft, grid.statusY(),
 				GREEN, false);
 
-		drawBaselineAlignedString(graphics, title, grid.textLeft(), grid.titleY(), AMBER, false);
-		drawLeftScaled(graphics,
-				Component.translatable("screen.thefourthfrequency.first_run_notice.eyebrow"),
-				grid.textLeft(), grid.eyebrowY(), grid.textWidth(), DIM);
+		drawBaselineAlignedString(graphics, pageTitle(), grid.textLeft(), grid.titleY(), AMBER, false);
+		drawLeftScaled(graphics, pageEyebrow(), grid.textLeft(), grid.eyebrowY(), grid.textWidth(), DIM);
 		graphics.fill(grid.slotLeft(), grid.headerRuleY(), grid.slotRight(), grid.headerRuleY() + 1,
 				withAlpha(GREEN, 52));
 		graphics.fill(grid.textLeft(), grid.headerRuleY(), grid.textLeft() + 46, grid.headerRuleY() + 1,
@@ -471,11 +534,59 @@ public final class FirstRunNoticeScreen extends Screen {
 		}
 	}
 
+	/**
+	 * The audio page: a labelled control row and one line under it, centred in the content band.
+	 *
+	 * <p>Everything here is either the control or a label for it. There is no explanatory paragraph,
+	 * and there was one - a page standing between the player and a disclosure they have to read
+	 * should not itself be something to read. What is left is the heading that names the control, the
+	 * slider, and the sentence that says what the button beside it will do.
+	 */
+	private void renderAudioContent(GuiGraphics graphics, NoticeLayout layout) {
+		NoticeGrid grid = NoticeGrid.from(layout);
+		int headingY = grid.audioHeadingY();
+		drawBaselineAlignedString(graphics,
+				Component.translatable("screen.thefourthfrequency.first_run_notice.volume.section"),
+				grid.textLeft(), headingY, AMBER, false);
+		graphics.fill(grid.textLeft(), headingY + 9,
+				grid.textLeft() + Math.min(grid.textWidth(), 34), headingY + 10, withAlpha(AMBER, 92));
+		// Scaled to fit rather than wrapped: the hint is one sentence and the block below it is
+		// positioned for one line, so a second line would be a line nothing made room for.
+		drawLeftScaled(graphics,
+				Component.translatable("screen.thefourthfrequency.first_run_notice.volume.hint"),
+				grid.textLeft(), grid.audioHintY(), grid.textWidth(), DIM, HINT_SCALE);
+	}
+
 	private void renderFooter(GuiGraphics graphics, NoticeLayout layout) {
 		NoticeGrid grid = NoticeGrid.from(layout);
-		drawLeftScaled(graphics,
-				Component.translatable("screen.thefourthfrequency.first_run_notice.footer"),
-				grid.textLeft(), grid.footerY(), grid.textWidth(), DIM);
+		drawLeftScaled(graphics, pageFooter(), grid.textLeft(), grid.footerY(), grid.textWidth(), DIM);
+	}
+
+	private Component pageFooter() {
+		return Component.translatable(page == Page.AUDIO
+				? "screen.thefourthfrequency.first_run_notice.volume.footer"
+				: "screen.thefourthfrequency.first_run_notice.footer");
+	}
+
+	private Component pageTitle() {
+		return page == Page.AUDIO
+				? Component.translatable("screen.thefourthfrequency.first_run_notice.volume.title")
+				: title;
+	}
+
+	private Component pageEyebrow() {
+		return Component.translatable(page == Page.AUDIO
+				? "screen.thefourthfrequency.first_run_notice.volume.eyebrow"
+				: "screen.thefourthfrequency.first_run_notice.eyebrow");
+	}
+
+	/** The label on the handle. Silence is named rather than shown as a number, because 0% reads
+	 * like a setting that failed rather than one that was chosen. */
+	private static Component volumeLabel(double value) {
+		return ModVolumePolicy.muted(value)
+				? Component.translatable("screen.thefourthfrequency.first_run_notice.volume.muted")
+				: Component.translatable("screen.thefourthfrequency.first_run_notice.volume.level",
+						ModVolumePolicy.percent(value) + "%");
 	}
 
 	private void drawWrappedScaledText(GuiGraphics graphics, List<String> lines, int x, int y,
@@ -708,7 +819,9 @@ public final class FirstRunNoticeScreen extends Screen {
 	@Override public void onClose() { }
 	@Override public boolean isPauseScreen() { return true; }
 
-	public Component acknowledgementLabelForTesting() { return acknowledgementButton.getMessage(); }
+	public Component acknowledgementLabelForTesting() {
+		return acknowledgementButton == null ? Component.empty() : acknowledgementButton.getMessage();
+	}
 	public EntrancePhase entrancePhaseForTesting() { return entrancePhase(); }
 	public PresentationPhase presentationPhaseForTesting() { return presentationPhase(); }
 	public float transitionProgressForTesting() {
@@ -782,6 +895,65 @@ public final class FirstRunNoticeScreen extends Screen {
 	}
 	public void reinitializeForTesting() { rebuildWidgets(); }
 	public void acknowledgeForTesting() { acknowledge(); }
+	public Page pageForTesting() { return page; }
+	public void advanceForTesting() { advance(); }
+	public boolean advanceAvailableForTesting() {
+		return advanceButton != null && advanceButton.visible && advanceButton.active;
+	}
+	public Component advanceLabelForTesting() {
+		return advanceButton == null ? Component.empty() : advanceButton.getMessage();
+	}
+	public Component previewLabelForTesting() {
+		return previewButton == null ? Component.empty() : previewButton.getMessage();
+	}
+	public Component volumeLabelForTesting() {
+		return volumeSlider == null ? Component.empty() : volumeSlider.getMessage();
+	}
+	public double volumeForTesting() { return ModVolumeControl.current(); }
+	public void setVolumeForTesting(double value) {
+		if (volumeSlider != null) volumeSlider.setValue(value);
+	}
+	public void previewVolumeForTesting() {
+		if (previewButton != null && previewButton.active) TerminalClientAudio.volumePreview();
+	}
+	public int volumePreviewPlayCountForTesting() {
+		return TerminalClientAudio.volumePreviewPlaysForTesting();
+	}
+	/** The audio page's own fit audit: one control row, centred, entirely inside the safe rect. */
+	public boolean audioPageLayoutFitsForTesting() {
+		NoticeLayout layout = layout();
+		NoticeGrid grid = NoticeGrid.from(layout);
+		int safeBottom = NoticeGrid.y(layout, GLASS_SAFE_BOTTOM_ASSET);
+		return page == Page.AUDIO
+				&& volumeSlider != null && previewButton != null && advanceButton != null
+				&& volumeSlider.getX() == grid.textLeft()
+				&& volumeSlider.getY() == grid.audioSliderY()
+				&& grid.audioHeadingY() >= grid.contentTop()
+				&& grid.audioHeadingY() + 10 <= volumeSlider.getY()
+				&& volumeSlider.getRight() + grid.columnGap() == previewButton.getX()
+				&& previewButton.getRight() == grid.textRight()
+				&& previewButton.getY() == volumeSlider.getY()
+				&& volumeSlider.getBottom() < grid.audioHintY()
+				&& grid.audioHintY() + AUDIO_HINT_LINE_HEIGHT <= grid.contentBottom()
+				&& grid.contentBottom() < grid.footerY()
+				&& grid.footerY() + NORMAL_LINE_HEIGHT < grid.buttonY()
+				&& advanceButton.getBottom() <= safeBottom;
+	}
+
+	/**
+	 * Leaves the audio page for the disclosure.
+	 *
+	 * <p>Commits first. The slider already writes on mouse release and on every arrow press, so this
+	 * is a belt-and-braces write for the one path that reaches neither - a value left mid-gesture
+	 * when the window is resized, which rebuilds the widgets around it.
+	 */
+	private void advance() {
+		if (page != Page.AUDIO || !advanceAvailableForTesting() || transitionAge >= 0) return;
+		ModVolumeControl.commit();
+		page = Page.NOTICE;
+		acknowledgementFocused = false;
+		rebuildWidgets();
+	}
 
 	private void acknowledge() {
 		if (!acknowledgementAvailableForTesting() || transitionAge >= 0) return;
@@ -792,9 +964,79 @@ public final class FirstRunNoticeScreen extends Screen {
 		updateButtonState();
 	}
 
+	/**
+	 * The mod's own master trim, drawn as part of the tube rather than as a vanilla widget.
+	 *
+	 * <p>Everything about the value lives in {@link ModVolumePolicy} and {@link ModVolumeControl}:
+	 * this snaps to the policy's detents on the way in, moves the live value on every change so the
+	 * audition beside it is already at the new level, and writes the file only when the gesture ends.
+	 */
+	private final class VolumeSlider extends AbstractSliderButton {
+		private VolumeSlider(int x, int y, int width, int height) {
+			super(x, y, width, height, volumeLabel(ModVolumeControl.current()), ModVolumeControl.current());
+		}
+
+		@Override
+		protected void setValue(double newValue) {
+			super.setValue(ModVolumePolicy.snap(newValue));
+		}
+
+		@Override
+		protected void updateMessage() {
+			setMessage(volumeLabel(value));
+		}
+
+		@Override
+		protected void applyValue() {
+			ModVolumeControl.apply(value);
+		}
+
+		/**
+		 * One detent per press.
+		 *
+		 * <p>Vanilla steps by one pixel of the track, which under the policy's snapping would take
+		 * eleven presses to move the setting once - a slider that looks broken to anyone not using a
+		 * mouse. This is also why the value is not gated behind vanilla's select-then-adjust mode:
+		 * the notice hands this widget the focus, and the arrows have to work where the focus is.
+		 */
+		@Override
+		public boolean keyPressed(KeyEvent event) {
+			boolean left = event.isLeft();
+			if (!left && !event.isRight()) return super.keyPressed(event);
+			setValue(ModVolumePolicy.snap(value) + (left ? -ModVolumePolicy.STEP : ModVolumePolicy.STEP));
+			ModVolumeControl.commit();
+			return true;
+		}
+
+		@Override
+		public void onRelease(MouseButtonEvent event) {
+			super.onRelease(event);
+			// The end of the drag, which is the one moment a written file is worth the write.
+			ModVolumeControl.commit();
+		}
+
+		@Override
+		public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+			int track = withAlpha(GREEN, active ? 58 : 30);
+			graphics.fill(getX(), getY(), getRight(), getY() + 1, track);
+			graphics.fill(getX(), getBottom() - 1, getRight(), getBottom(), track);
+			graphics.fill(getX(), getY(), getX() + 1, getBottom(), track);
+			graphics.fill(getRight() - 1, getY(), getRight(), getBottom(), track);
+			int span = Math.max(1, getWidth() - 4);
+			int filled = getX() + 2 + (int) Math.round(span * ModVolumePolicy.snap(value));
+			graphics.fill(getX() + 1, getY() + 1, Math.min(filled, getRight() - 1), getBottom() - 1,
+					withAlpha(GREEN, active ? 34 : 18));
+			int handle = Math.clamp(filled - 1, getX() + 1, getRight() - 3);
+			graphics.fill(handle, getY(), handle + 2, getBottom(),
+					active ? (isHoveredOrFocused() ? AMBER : GREEN) : DISABLED_RAIL);
+			drawBaselineAlignedCenteredString(graphics, getMessage(), getX() + getWidth() / 2,
+					getY() + (getHeight() - 8) / 2, active ? GREEN : DIM);
+		}
+	}
+
 	private final class NoticeButton extends Button {
-		private NoticeButton(int x, int y, int width, int height, Component message) {
-			super(x, y, width, height, message, button -> acknowledge(), DEFAULT_NARRATION);
+		private NoticeButton(int x, int y, int width, int height, Component message, Runnable action) {
+			super(x, y, width, height, message, button -> action.run(), DEFAULT_NARRATION);
 		}
 
 		@Override
@@ -862,6 +1104,21 @@ public final class FirstRunNoticeScreen extends Screen {
 		private int rightColumnLeft() { return textRight - columnWidth(); }
 		private int columnDividerX() { return (textLeft + textRight) / 2; }
 		private int buttonWidth() { return buttonRight - buttonLeft; }
+
+		// Heading, control row, hint: one block, centred in the same content band the notice columns
+		// fill. Sharing the band is what keeps the two pages sitting on one grid rather than each
+		// finding its own idea of where the middle of the glass is.
+		private int audioBlockHeight() {
+			return AUDIO_HEADING_HEIGHT + SLIDER_HEIGHT + AUDIO_HINT_GAP + AUDIO_HINT_LINE_HEIGHT;
+		}
+		private int audioHeadingY() { return contentTop + (contentHeight() - audioBlockHeight()) / 2; }
+		private int audioSliderY() { return audioHeadingY() + AUDIO_HEADING_HEIGHT; }
+		private int audioHintY() { return audioSliderY() + SLIDER_HEIGHT + AUDIO_HINT_GAP; }
+		private int sliderLeft() { return textLeft; }
+		private int sliderWidth() { return textWidth() - previewWidth() - columnGap(); }
+		/** A fifth of the row, floored: enough for a two-glyph label at the narrowest panel. */
+		private int previewWidth() { return Math.max(34, textWidth() / 5); }
+		private int previewLeft() { return textRight - previewWidth(); }
 		private int statusLeft() { return textLeft; }
 		private int titleLeft() { return textLeft; }
 		private int bodyLeft() { return textLeft; }

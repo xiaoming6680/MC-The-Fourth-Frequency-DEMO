@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,8 +16,35 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.level.block.BasePressurePlateBlock;
+import net.minecraft.world.level.block.BaseRailBlock;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.CopperBulbBlock;
+import net.minecraft.world.level.block.DiodeBlock;
+import net.minecraft.world.level.block.EndGatewayBlock;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
+import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.LightningRodBlock;
+import net.minecraft.world.level.block.NoteBlock;
+import net.minecraft.world.level.block.ObserverBlock;
+import net.minecraft.world.level.block.Portal;
+import net.minecraft.world.level.block.RedStoneOreBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneLampBlock;
+import net.minecraft.world.level.block.RedstoneTorchBlock;
+import net.minecraft.world.level.block.RespawnAnchorBlock;
+import net.minecraft.world.level.block.SculkSensorBlock;
+import net.minecraft.world.level.block.TargetBlock;
+import net.minecraft.world.level.block.TntBlock;
+import net.minecraft.world.level.block.TripWireBlock;
+import net.minecraft.world.level.block.TripWireHookBlock;
+import net.minecraft.world.level.block.piston.MovingPistonBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -82,20 +108,50 @@ public final class PursuitBlockPolicy {
 	}
 
 	public static boolean simplePlacement(Block block) {
-		return safeSnapshotBlock(block) && !block.defaultBlockState().hasBlockEntity()
-				&& block != Blocks.RESPAWN_ANCHOR;
+		// The respawn anchor is covered by safeSnapshotBlock now, which is also what keeps one out of
+		// the copied world rather than only out of the player's hands.
+		return safeSnapshotBlock(block) && !block.defaultBlockState().hasBlockEntity();
 	}
 
+	/**
+	 * Whether a block may exist in the mirror as itself.
+	 *
+	 * <p><b>Asked of the block's type, not of its name.</b> This used to match substrings of the
+	 * registry path - {@code "redstone"}, {@code "rail"}, {@code "button"}, {@code "portal"} - which
+	 * is wrong in both directions and silently so. It rejected anything a mod happened to call a
+	 * railing and it accepted {@code target}, {@code lightning_rod}, {@code note_block} and
+	 * {@code copper_bulb}, all of which are redstone hardware whose names contain none of those
+	 * words. It also accepted {@code respawn_anchor}, which is the one that mattered: the anchor was
+	 * copied into the Nether mirror as itself, has no block entity, and nothing in the interaction
+	 * rules stops an empty hand from using it - so a player could set their spawn point <em>inside a
+	 * private mirror dimension</em> and be respawned there after the session that owns it is gone.
+	 *
+	 * <p>Class tests answer the question the names were standing in for, and they answer it for
+	 * modded subclasses too. {@code isSignalSource} is the backstop underneath them: anything that
+	 * can drive a redstone signal is refused whatever it is called. Deliberately <em>not</em>
+	 * {@code hasAnalogOutputSignal}, which would also take cauldrons and composters - those are part
+	 * of what a player's base looks like, and the mirror is supposed to look like their base.
+	 */
 	private static boolean safeSnapshotBlock(Block block) {
-		if (block == Blocks.TNT || block == Blocks.NETHER_PORTAL || block == Blocks.END_PORTAL
-				|| block == Blocks.END_GATEWAY || block == Blocks.FIRE || block == Blocks.SOUL_FIRE) return false;
-		String path = BuiltInRegistries.BLOCK.getKey(block).getPath();
-		return !(path.contains("redstone") || path.contains("repeater") || path.contains("comparator")
-				|| path.contains("piston") || path.contains("observer") || path.contains("dispenser")
-				|| path.contains("dropper") || path.contains("hopper") || path.contains("rail")
-				|| path.contains("sculk_sensor") || path.contains("tripwire") || path.contains("pressure_plate")
-				|| path.contains("button") || path.contains("lever") || path.contains("portal")
-				|| path.endsWith("_bed"));
+		// Ways out of the world, and things that rewrite it.
+		if (block instanceof Portal || block instanceof EndGatewayBlock
+				|| block instanceof EndPortalFrameBlock || block instanceof BaseFireBlock
+				|| block instanceof TntBlock || block instanceof RespawnAnchorBlock
+				|| block instanceof BedBlock) return false;
+		// Anything that moves blocks.
+		if (block instanceof PistonBaseBlock || block instanceof PistonHeadBlock
+				|| block instanceof MovingPistonBlock) return false;
+		// Redstone: sources, conductors, sensors and loads.
+		if (block instanceof RedStoneWireBlock || block instanceof DiodeBlock
+				|| block instanceof ButtonBlock || block instanceof LeverBlock
+				|| block instanceof BasePressurePlateBlock || block instanceof ObserverBlock
+				|| block instanceof BaseRailBlock || block instanceof TripWireBlock
+				|| block instanceof TripWireHookBlock || block instanceof SculkSensorBlock
+				|| block instanceof RedstoneTorchBlock || block instanceof RedstoneLampBlock
+				|| block instanceof RedStoneOreBlock || block instanceof CopperBulbBlock
+				|| block instanceof TargetBlock || block instanceof LightningRodBlock
+				|| block instanceof NoteBlock) return false;
+		return !block.defaultBlockState().isSignalSource();
 	}
 
 	private static boolean activeSession(ServerPlayer player) {

@@ -8,6 +8,7 @@ import com.xm.thefourthfrequency.client_ui.AlphaLoadSessionController;
 import com.xm.thefourthfrequency.client_ui.AlphaLoadTimeline;
 import com.xm.thefourthfrequency.client_ui.PersistentAlphaLoadingStyle;
 import com.xm.thefourthfrequency.client_ui.PursuitPresentationClient;
+import com.xm.thefourthfrequency.client_ui.UnrenderedLayerClient;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -141,7 +142,14 @@ public abstract class LevelLoadingScreenCorruptionMixin {
 	@Inject(method = "render", at = @At("HEAD"), cancellable = true)
 	private void thefourthfrequency$renderLegacyLoadingScreen(GuiGraphics graphics, int mouseX,
 			int mouseY, float partialTick, CallbackInfo callback) {
-		if (PursuitPresentationClient.shouldCoverLoadingScreen()) {
+		// Both private dimensions cover this screen, for the same reason and through the same line.
+		// The HUD blackout each of them raises is drawn from HudRenderCallback, which does not run
+		// while a Screen is up - so the one frame it exists to hide, the cross-dimension load, is
+		// exactly the frame it was missing. Falling into the unrendered layer showed the player the
+		// terrain progress spinner in the middle of a sequence whose entire premise is that they did
+		// not see what happened.
+		if (PursuitPresentationClient.shouldCoverLoadingScreen()
+				|| UnrenderedLayerClient.covering()) {
 			graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), 0xFF000000);
 			callback.cancel();
 			return;

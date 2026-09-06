@@ -248,9 +248,80 @@ final class PostFilterContractTest {
 		}
 		for (String name : new String[]{"pursuit_low_res", "pursuit_low_res_distant",
 				"pursuit_low_res_close", "pursuit_low_res_contact", "world_interface_lock",
-				"world_interface_lock_peak", "world_interface_expulsion"}) {
+				"world_interface_lock_peak", "world_interface_expulsion",
+				"world_interface_dispersion", "world_interface_dispersion_far"}) {
 			assertTrue(Files.isRegularFile(CHAINS.resolve(name + ".json")), "missing chain: " + name);
 		}
+		String controller = Files.readString(Path.of("src/client/java/com/xm/thefourthfrequency"
+				+ "/client_ui/WorldInterfacePostEffectController.java"), StandardCharsets.UTF_8);
+		for (String name : new String[]{"world_interface_lock", "world_interface_lock_peak",
+				"world_interface_expulsion", "world_interface_dispersion",
+				"world_interface_dispersion_far"}) {
+			assertTrue(controller.contains('"' + name + '"'),
+					"the encounter never names its own chain: " + name);
+		}
+	}
+
+	/**
+	 * The dispersion chains stay a lens and never become one of the other two languages.
+	 *
+	 * <p>Three screen vocabularies is one more than this mod used to have, and the only thing making
+	 * them worth having is that a player can tell them apart without being told which is which:
+	 * tape damage means the recording is failing, pipeline damage means the rules are, and this one
+	 * means something is being fired. The moment the beam treatment starts tearing bands or pulling
+	 * the colour out of the frame it has stopped saying its own sentence and started saying one of
+	 * the other two, and nothing else in the build would notice - a chain that reads wrong looks
+	 * exactly like a chain that was tuned that way on purpose.
+	 *
+	 * <p>Asserted on the shader as well as on the chains: the refusal is that these terms do not
+	 * exist here at all, not that they happen to be set to zero today.
+	 */
+	@Test
+	void theBeamTreatmentStaysOptical() throws Exception {
+		String shader = stripComments(Files.readString(
+				SHADERS.resolve("chromatic_dispersion.fsh"), StandardCharsets.UTF_8));
+		for (String borrowed : new String[]{"TearBands", "BandHeight", "BlockSize", "Levels",
+				"Grain", "RollHeight", "Desaturate"}) {
+			assertFalse(shader.contains(borrowed),
+					"chromatic_dispersion.fsh declares " + borrowed + ", which belongs to one of the"
+							+ " two damage languages; a beam is optics, not corruption");
+		}
+		for (String name : new String[]{"world_interface_dispersion", "world_interface_dispersion_far"}) {
+			Map<String, Float> config = dispersionConfig(name);
+			// The middle of the screen is where the beam is dodged from. A treatment that reaches it
+			// is one the player has to play through rather than one they can read the arena past.
+			assertTrue(config.get("CenterClear") >= 0.18F,
+					name + " treats the middle of the screen, which is where the shot is dodged");
+			assertTrue(config.get("EdgeRadius") > config.get("CenterClear"),
+					name + " has no radial ramp at all, so its mask is the whole frame");
+			// Colour is separated, never removed. See the shader's Saturate.
+			assertTrue(config.get("Saturate") > 0.0F, name + " stopped being a prism");
+		}
+		// And being the one it is aimed at has to be legible as *more* than watching it happen,
+		// term for term, or the two chains are saying the same thing at two strengths by accident.
+		Map<String, Float> aimed = dispersionConfig("world_interface_dispersion");
+		Map<String, Float> witness = dispersionConfig("world_interface_dispersion_far");
+		for (String term : new String[]{"Dispersion", "Barrel", "Bloom", "Jitter", "Vignette"}) {
+			assertTrue(witness.get(term) < aimed.get(term),
+					"the far chain treats " + term + " at least as hard as the aimed one, so being"
+							+ " singled out is not legible from the screen");
+		}
+		assertTrue(witness.get("CenterClear") > aimed.get("CenterClear"),
+				"the far chain reaches at least as far into the middle of the screen as the aimed one");
+	}
+
+	private static Map<String, Float> dispersionConfig(String chainName) throws Exception {
+		JsonObject chain = JsonParser.parseString(Files.readString(
+				CHAINS.resolve(chainName + ".json"), StandardCharsets.UTF_8)).getAsJsonObject();
+		Map<String, Float> values = new LinkedHashMap<>();
+		for (var uniform : chain.getAsJsonArray("passes").get(0).getAsJsonObject()
+				.getAsJsonObject("uniforms").getAsJsonArray("DispersionConfig")) {
+			JsonObject entry = uniform.getAsJsonObject();
+			if (entry.get("value").isJsonPrimitive()) {
+				values.put(entry.get("name").getAsString(), entry.get("value").getAsFloat());
+			}
+		}
+		return values;
 	}
 
 	private static float signalTintAmount(String chainName) throws Exception {

@@ -55,7 +55,6 @@ public final class TerminalGuidancePolicy {
 			case "enter_nether" -> pair(TerminalTool.NAVIGATION, TerminalTool.MINERALS);
 			case "collect_blaze_rods" -> pair(TerminalTool.NAVIGATION, TerminalTool.PORTAL);
 			case "return_from_nether" -> pair(TerminalTool.PORTAL, TerminalTool.NAVIGATION);
-			case "craft_eye" -> pair(TerminalTool.NAVIGATION, TerminalTool.WEATHER);
 			case "record_eye", "find_stronghold", "enter_end" ->
 					pair(TerminalTool.STRONGHOLD, TerminalTool.HOME);
 			case "defeat_boss" -> pair(TerminalTool.STRONGHOLD, TerminalTool.WEATHER);

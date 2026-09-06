@@ -5,6 +5,7 @@ import com.xm.thefourthfrequency.ending.EndingWorldQuarantine;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.level.storage.LevelResource;
 import org.lwjgl.glfw.GLFW;
 
@@ -19,15 +20,28 @@ import java.nio.file.StandardOpenOption;
 import java.util.Properties;
 import java.util.UUID;
 
-/** Durable client-local ending lock. It never changes the authoritative server outcome directly. */
+/**
+ * Durable client-local ending lock. It never changes the authoritative server outcome directly.
+ *
+ * <p>The lock records <em>which</em> run ended, and everything that reads it is expected to seal
+ * only that. It used to be read as a single global boolean that disabled Singleplayer, Multiplayer
+ * and Realms outright, which is correct for the world the ending happened in and wrong for every
+ * other one: finishing the mod on a friend's server took away the player's own unrelated saves and
+ * every other server they play on. The identity needed to do better was already being written here
+ * - {@code levelId} for a local save, and now {@code serverAddress} for a remote one - so the
+ * narrowing is entirely in the consumers. See {@code TitleScreenErosionMixin}.</p>
+ */
 public final class FailureMenuLockState {
 	private static final String DIRECTORY_NAME = "thefourthfrequency-ending";
 	private static final String LOCK_FILE_NAME = "failure-menu.lock";
+	/** Lock format. 4 adds {@code serverAddress}; 1-3 are still read, and simply seal less. */
+	private static final String LOCK_VERSION = "4";
 	private static volatile boolean initialized;
 	private static volatile boolean locked;
 	private static volatile UUID encounterId;
 	private static volatile String worldId = "";
 	private static volatile String levelId = "";
+	private static volatile String serverAddress = "";
 	private static volatile WorldInterfaceProtocol.Outcome outcome = WorldInterfaceProtocol.Outcome.FAILURE;
 	private static WindowSnapshot windowSnapshot;
 
@@ -65,6 +79,18 @@ public final class FailureMenuLockState {
 		return levelId;
 	}
 
+	/** The address of the server the run ended on, or empty for a local save or a pre-v4 lock. */
+	public static String serverAddress() {
+		if (!initialized) initialize();
+		return serverAddress;
+	}
+
+	/** Whether this exact server is the one this client finished its run on. */
+	public static boolean seals(String candidateAddress) {
+		if (!initialized) initialize();
+		return locked && !serverAddress.isBlank() && serverAddress.equalsIgnoreCase(candidateAddress);
+	}
+
 	public static synchronized boolean lock(UUID encounter) {
 		return lock(encounter, WorldInterfaceProtocol.Outcome.FAILURE, "", null);
 	}
@@ -75,26 +101,56 @@ public final class FailureMenuLockState {
 
 	public static synchronized boolean lock(UUID encounter, WorldInterfaceProtocol.Outcome endingOutcome,
 			String endingWorldId, Minecraft client) {
+		return lock(encounter, endingOutcome, endingWorldId, client, true);
+	}
+
+	/**
+	 * Writes the lock, optionally without capturing the window to restore to.
+	 *
+	 * <p>The two things this file holds have opposite deadlines. <b>The identity - which run ended,
+	 * and where - must be written the instant the outcome is known</b>, because after that the client
+	 * may not get another chance. <b>The window snapshot must be taken late</b>, after the ending's
+	 * presentation window has been undone, or the lock would restore the player into the window the
+	 * ending was performed in.
+	 *
+	 * <p>The failure path never had to choose: it undoes its window and locks on the same tick. The
+	 * success path did, and resolved it the wrong way round - it deferred the whole lock behind an
+	 * asynchronous resource-pack reload, so a player who left during the reload finished the mod and
+	 * kept an unlocked title screen. Splitting the two lets the success path write identity
+	 * immediately and come back for the snapshot once the window is its own again.
+	 *
+	 * @param captureWindow false to persist identity now and leave the snapshot for a later call
+	 */
+	public static synchronized boolean lock(UUID encounter, WorldInterfaceProtocol.Outcome endingOutcome,
+			String endingWorldId, Minecraft client, boolean captureWindow) {
 		initialize();
 		if (endingOutcome == null || endingOutcome == WorldInterfaceProtocol.Outcome.NONE
 				|| endingWorldId == null || endingWorldId.length() > 128) return false;
 		String endingLevelId = captureLocalLevelId(client);
+		String endingServerAddress = captureServerAddress(client);
+		// The snapshot clause is what lets the second, window-capturing call through. Without it an
+		// identity-only lock written moments earlier would satisfy this and the snapshot would never
+		// be taken at all.
 		if (locked && encounter.equals(encounterId) && endingOutcome == outcome
-				&& endingWorldId.equals(worldId) && endingLevelId.equals(levelId)) return true;
+				&& endingWorldId.equals(worldId) && endingLevelId.equals(levelId)
+				&& endingServerAddress.equals(serverAddress)
+				&& (!captureWindow || windowSnapshot != null)) return true;
 		Properties properties = new Properties();
-		properties.setProperty("version", "3");
+		properties.setProperty("version", LOCK_VERSION);
 		properties.setProperty("encounter", encounter.toString());
 		properties.setProperty("worldId", endingWorldId);
 		properties.setProperty("levelId", endingLevelId);
+		properties.setProperty("serverAddress", endingServerAddress);
 		properties.setProperty("outcome", endingOutcome.name());
 		properties.setProperty("lockedAt", Long.toString(System.currentTimeMillis()));
-		WindowSnapshot captured = client == null || client.getWindow() == null
+		WindowSnapshot captured = !captureWindow || client == null || client.getWindow() == null
 				? null : WindowSnapshot.capture(client);
 		if (captured != null) captured.write(properties);
 		if (!writeAtomically(lockPath(), properties)) return false;
 		encounterId = encounter;
 		worldId = endingWorldId;
 		levelId = endingLevelId;
+		serverAddress = endingServerAddress;
 		outcome = endingOutcome;
 		windowSnapshot = captured;
 		locked = true;
@@ -122,6 +178,7 @@ public final class FailureMenuLockState {
 			encounterId = null;
 			worldId = "";
 			levelId = "";
+			serverAddress = "";
 			outcome = WorldInterfaceProtocol.Outcome.FAILURE;
 			windowSnapshot = null;
 			return true;
@@ -147,6 +204,7 @@ public final class FailureMenuLockState {
 			encounterId = null;
 			worldId = "";
 			levelId = "";
+			serverAddress = "";
 			outcome = WorldInterfaceProtocol.Outcome.FAILURE;
 			windowSnapshot = null;
 			return;
@@ -155,16 +213,23 @@ public final class FailureMenuLockState {
 		try (InputStream input = Files.newInputStream(path)) {
 			properties.load(input);
 			String version = properties.getProperty("version");
-			if (!"1".equals(version) && !"2".equals(version) && !"3".equals(version)) {
+			if (!"1".equals(version) && !"2".equals(version) && !"3".equals(version)
+					&& !LOCK_VERSION.equals(version)) {
 				throw new IOException("Unknown lock version");
 			}
 			encounterId = UUID.fromString(properties.getProperty("encounter", ""));
 			worldId = !"1".equals(version) ? properties.getProperty("worldId", "") : "";
 			if (worldId.length() > 128) throw new IOException("Invalid world id");
-			levelId = "3".equals(version) ? properties.getProperty("levelId", "") : "";
+			levelId = "3".equals(version) || LOCK_VERSION.equals(version)
+					? properties.getProperty("levelId", "") : "";
 			if (!levelId.isBlank() && EndingWorldQuarantine.markerPath(levelId).isEmpty()) {
 				throw new IOException("Invalid local level id");
 			}
+			// A lock written before version 4 never recorded which server it came from, so it seals
+			// no server. That is the correct way for the narrowing to land on an existing lock: it
+			// can only ever seal less than it did, never something it was not told about.
+			serverAddress = LOCK_VERSION.equals(version) ? properties.getProperty("serverAddress", "") : "";
+			if (serverAddress.length() > 255) throw new IOException("Invalid server address");
 			outcome = !"1".equals(version)
 					? WorldInterfaceProtocol.Outcome.valueOf(properties.getProperty("outcome", "FAILURE"))
 					: WorldInterfaceProtocol.Outcome.FAILURE;
@@ -177,6 +242,7 @@ public final class FailureMenuLockState {
 			encounterId = null;
 			worldId = "";
 			levelId = "";
+			serverAddress = "";
 			outcome = WorldInterfaceProtocol.Outcome.FAILURE;
 			windowSnapshot = null;
 			TheFourthFrequency.LOGGER.error("Failure menu lock is damaged; keeping the client locked", exception);
@@ -194,6 +260,20 @@ public final class FailureMenuLockState {
 			return "";
 		}
 		return worldDirectory.getFileName().toString();
+	}
+
+	/**
+	 * The address of the remote server the run ended on, or empty when it did not end on one.
+	 *
+	 * <p>Taken from {@code ServerData} rather than from the resolved socket, because that is the
+	 * string the server list itself keys on - so what gets sealed is the entry the player will
+	 * actually click, in the form they typed it.</p>
+	 */
+	private static String captureServerAddress(Minecraft client) {
+		if (client == null || client.hasSingleplayerServer()) return "";
+		ServerData current = client.getCurrentServer();
+		if (current == null || current.ip == null || current.ip.isBlank()) return "";
+		return current.ip.length() > 255 ? "" : current.ip;
 	}
 
 	private static Path endingDirectory() {

@@ -20,6 +20,7 @@ public final class TerminalNetworking {
 		PayloadTypeRegistry.playS2C().register(TerminalToolSnapshotPayload.TYPE, TerminalToolSnapshotPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TerminalNavigationPayload.TYPE, TerminalNavigationPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TerminalClosedPayload.TYPE, TerminalClosedPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(TerminalAutoOpenPayload.TYPE, TerminalAutoOpenPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TerminalNoticePayload.TYPE, TerminalNoticePayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(AnomalyStartS2C.TYPE, AnomalyStartS2C.CODEC);
 		PayloadTypeRegistry.playS2C().register(AnomalyPhaseS2C.TYPE, AnomalyPhaseS2C.CODEC);

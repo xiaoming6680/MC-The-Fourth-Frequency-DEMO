@@ -11,14 +11,20 @@ import com.xm.thefourthfrequency.networking.TerminalSnapshotPayload;
 import com.xm.thefourthfrequency.networking.TerminalToolSnapshotPayload;
 import com.xm.thefourthfrequency.terminal.SkyInstrumentPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalControlPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalGlyphSettle;
 import com.xm.thefourthfrequency.terminal.TerminalMotion;
 import com.xm.thefourthfrequency.terminal.TerminalOnboardingPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalOnboardingTransition;
+import com.xm.thefourthfrequency.terminal.OscilloscopeWaveformPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalPage;
+import com.xm.thefourthfrequency.terminal.TerminalProfileQuestionnaire;
+import com.xm.thefourthfrequency.terminal.TerminalRecordPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
 import com.xm.thefourthfrequency.terminal.TerminalStructureTarget;
 import com.xm.thefourthfrequency.terminal.TerminalTaskService;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
 import com.xm.thefourthfrequency.terminal.TerminalUiLayout;
+import com.xm.thefourthfrequency.terminal.TerminalUnreadPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalNavigationMath;
 import com.xm.thefourthfrequency.terminal.TuningTransition;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -156,6 +162,19 @@ public final class TerminalScreen extends Screen {
 	private final TerminalMotionState motion = new TerminalMotionState();
 	private final TerminalOnboardingOverlay onboardingOverlay = new TerminalOnboardingOverlay();
 	private TerminalOnboardingPolicy.Phase onboardingPhase = TerminalOnboardingPolicy.Phase.DONE;
+	private int profileQuestionShown = -1;
+	private long profileQuestionStartedAtMillis;
+	private int profileHeldTicks;
+	private int profileHeldOption = -1;
+	private boolean profileEverLocked;
+	/** Whether the dial has moved since this question appeared. No movement, no commit. */
+	private boolean profileTuned;
+	/** Which first-boot scene was drawn last, so the seam can notice when it changes. */
+	private int onboardingSceneKey = Integer.MIN_VALUE;
+	private boolean onboardingAdvanceHovered;
+	private long onboardingSceneStartedAtMillis;
+	/** When the closing acknowledgement started. Zero until the server says the profile is taken. */
+	private long profileRecordedAtMillis;
 	private long onboardingStartedAtMillis;
 	private long onboardingReleasedAtMillis = -1L;
 	private int onboardingDoneAtAge = Integer.MIN_VALUE;
@@ -172,8 +191,8 @@ public final class TerminalScreen extends Screen {
 	private TerminalNavigationPayload navigation = new TerminalNavigationPayload(
 			TerminalNavigationPayload.CURRENT_PROTOCOL_VERSION, 0, false, false, 0, 0, 0, 0.0F);
 	private boolean navigationInitialized;
-	private double northNeedle;
-	private double northNeedleTarget;
+	private double facingNeedle;
+	private double facingNeedleTarget;
 	private double mineralNeedle;
 	private double mineralNeedleTarget;
 	private double displayedObjectiveFraction;
@@ -207,7 +226,7 @@ public final class TerminalScreen extends Screen {
 	private long diaryUnlockStartedAtMillis = -1L;
 	private final List<NavigationHit> navigationHits = new ArrayList<>();
 	/** Click regions for the shortcut that turns an optional-investigation record into an action. */
-	private final List<TerminalUiLayout.Bounds> recordNavigationHits = new ArrayList<>();
+	private final List<NavigationHit> recordNavigationHits = new ArrayList<>();
 	/**
 	 * Wrapped rows for the two scrolling surfaces, rebuilt only when their input changes.
 	 *
@@ -219,6 +238,17 @@ public final class TerminalScreen extends Screen {
 	 * {@code font.split} at the display refresh rate.</p>
 	 */
 	private List<RecordRow> cachedRecordRows;
+	/** Armed on leaving Records, spent on arriving, so the settle plays once per visit. */
+	private boolean recordsSettleArmed = true;
+	private boolean previousRunReported;
+	private long recordsSettleStartMillis;
+	/**
+	 * Per-screen noise seed for the records settle.
+	 *
+	 * <p>Fixed for the life of one open terminal so a line resolves the same way every frame, and
+	 * different between opens so re-reading the archive is not a recording of the last time.
+	 */
+	private final long recordsSettleSeed = System.nanoTime();
 	private List<FileRow> cachedFileRows;
 
 	public TerminalScreen(TerminalSnapshotPayload payload) {
@@ -240,12 +270,116 @@ public final class TerminalScreen extends Screen {
 		// needed after a disconnect. Past that task the walkthrough is over regardless.
 		int visitedTabs = snapshot.objectiveId().equals("learn_terminal")
 				? snapshot.objectiveProgress() : TerminalTaskService.PAGE_COUNT;
-		this.onboardingPhase = TerminalOnboardingPolicy.initial(snapshot.onboardingRequired(), visitedTabs);
+		this.onboardingPhase = TerminalOnboardingPolicy.initial(snapshot.onboardingRequired(), visitedTabs,
+				profileTaken());
+		// Kept for the ending, which happens long after every terminal has been surrendered to the core.
+		PreviousRunClient.rememberProfile(snapshot);
 		this.onboardingStartedAtMillis = nowMillis();
 	}
 
 	private boolean onboardingLocksExit() {
 		return TerminalOnboardingPolicy.locksExit(onboardingPhase);
+	}
+
+	/**
+	 * Whether the server considers this terminal's profile finished.
+	 *
+	 * <p>Read off the question index rather than carried as its own flag: the server sends {@code -1}
+	 * exactly when there is no question to ask, so the two can never disagree about whether the
+	 * profile is over.
+	 */
+	private boolean profileTaken() {
+		return snapshot.profileQuestion() < 0;
+	}
+
+	/**
+	 * Whether the profile owns the screen, including the two seconds it spends acknowledging.
+	 *
+	 * <p>Not gated on there still being a question. The server drops {@code profileQuestion} to
+	 * {@code -1} the instant the last answer lands, and if that also ended this the closing line
+	 * would never be drawn at all.
+	 */
+	private boolean profileActive() {
+		return onboardingPhase == TerminalOnboardingPolicy.Phase.PROFILE;
+	}
+
+	/** Whether there is still a question on screen, as opposed to the closing acknowledgement. */
+	private boolean profileAsking() {
+		return profileActive() && snapshot.profileQuestion() >= 0;
+	}
+
+	/** Whether every question actually got an answer, as opposed to being ended by the failsafe. */
+	private boolean profileComplete() {
+		for (int question = 0; question < TerminalProfileQuestionnaire.questionCount(); question++) {
+			if (!TerminalProfileQuestionnaire.validAnswer(question, snapshot.profileAnswer(question))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * One tick of the profile: hold-to-commit, and the assist sweep for a player who found nothing.
+	 *
+	 * <p>Nothing here decides an answer. Holding a lock for a second asks the server to record one and
+	 * the server advances its own question; if it declines, the next snapshot simply still shows the
+	 * question it showed before. The client cannot move the profile forward on its own, which is the
+	 * same rule the four tab steps already live under.
+	 */
+	private void tickProfile() {
+		int question = snapshot.profileQuestion();
+		if (question < 0) return;
+		if (question != profileQuestionShown) {
+			profileQuestionShown = question;
+			profileQuestionStartedAtMillis = nowMillis();
+			profileHeldTicks = 0;
+			profileHeldOption = -1;
+			profileEverLocked = false;
+			profileTuned = false;
+		}
+		int locked = TerminalProfileQuestionnaire.lockedOption(question, tuning);
+		// Nothing commits until the player has actually turned the dial on this question. The option
+		// placement already keeps the resting position clear of every answer, but that is an
+		// arrangement and this is a rule: a profile is a record of what somebody chose, so it must
+		// not be able to contain something they never did.
+		if (TerminalProfileQuestionnaire.requiresMovement() && !profileTuned) {
+			profileHeldTicks = 0;
+			profileHeldOption = -1;
+		} else if (locked < 0) {
+			profileHeldTicks = 0;
+			profileHeldOption = -1;
+		} else if (locked != profileHeldOption) {
+			// Arriving on a station, in the receiver's own vocabulary. Not a detent: setTuning already
+			// clicks one per notch of movement, and a second click on the same frame would read as the
+			// dial having moved twice. The lock tone is also the one the receiver tool uses when it
+			// catches a target, which is the whole point - this is that instrument, before the player
+			// has been given it.
+			profileHeldOption = locked;
+			profileHeldTicks = 0;
+			profileEverLocked = true;
+			TerminalClientAudio.lock();
+		} else if (TerminalProfileQuestionnaire.commits(++profileHeldTicks)) {
+			profileHeldTicks = 0;
+			profileHeldOption = -1;
+			TerminalClientAudio.noticeStable();
+			send(TerminalControlPayload.ANSWER_PROFILE, locked);
+		}
+		// No question may be a dead end: the walkthrough is only allowed to hold the exit because it
+		// ends. A player who has never locked anything gets the device sweeping to the nearest option
+		// for them - they can accept it or keep tuning, but they are no longer stuck.
+		if (TerminalProfileQuestionnaire.assistDue(nowMillis() - profileQuestionStartedAtMillis,
+				profileEverLocked)) {
+			int nearest = TerminalProfileQuestionnaire.nearestOption(question, tuning);
+			if (nearest >= 0) {
+				tuning = TerminalProfileQuestionnaire.optionTuning(question, nearest);
+				retargetTuningVisual(tuning, nowMillis());
+				// Counts as movement, because at this point the device has taken the dial on purpose.
+				// Without this the sweep would park on an option and then refuse to commit it, which
+				// would turn the one escape from a stuck question into a dead end - the exact thing it
+				// exists to prevent. The player still has the hold to move off it.
+				profileTuned = true;
+			}
+		}
 	}
 
 	/** Whether the walkthrough is currently writing into the status strip instead of the readout. */
@@ -290,7 +424,23 @@ public final class TerminalScreen extends Screen {
 	private void tickOnboarding() {
 		if (onboardingPhase == TerminalOnboardingPolicy.Phase.DONE) return;
 		onboardingPhase = TerminalOnboardingPolicy.afterBoot(onboardingPhase,
-				nowMillis() - onboardingStartedAtMillis);
+				nowMillis() - onboardingStartedAtMillis, profileTaken());
+		// The server owns when the profile is over, so this only ever reads the answer back. A client
+		// that decided for itself would be a way to skip the questions by claiming they were done.
+		//
+		// The hold is client-side because it is presentation only: the answers are already recorded
+		// and nothing the player does during it can change them. Delaying the phase rather than
+		// drawing over it keeps the exit held for those two seconds, which is what stops the
+		// acknowledgement from being something a player can walk out of half-read.
+		if (onboardingPhase == TerminalOnboardingPolicy.Phase.PROFILE && profileTaken()
+				&& profileRecordedAtMillis == 0L) {
+			profileRecordedAtMillis = nowMillis();
+		}
+		if (profileRecordedAtMillis == 0L
+				|| nowMillis() - profileRecordedAtMillis >= TerminalProfileQuestionnaire.RECORDED_HOLD_MILLIS) {
+			onboardingPhase = TerminalOnboardingPolicy.afterProfile(onboardingPhase, profileTaken());
+		}
+		if (onboardingPhase == TerminalOnboardingPolicy.Phase.PROFILE) tickProfile();
 		if (!onboardingLocksExit()) return;
 		var player = minecraft == null ? null : minecraft.player;
 		if (player == null) {
@@ -327,6 +477,12 @@ public final class TerminalScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
+		// Tells the server whether this machine holds a previous run, so it can file the recovered
+		// fragment - or drop it again after an F8 reset. Only the existence travels; the words never do.
+		if (!previousRunReported) {
+			previousRunReported = true;
+			send(TerminalControlPayload.REPORT_PREVIOUS_RUN, PreviousRunClient.present() ? 1 : 0);
+		}
 		if (!initialRecordsAcknowledged && page == TerminalPage.RECORDS) {
 			initialRecordsAcknowledged = true;
 			send(TerminalControlPayload.VISIT_PAGE, TerminalPage.RECORDS.ordinal());
@@ -416,14 +572,14 @@ public final class TerminalScreen extends Screen {
 					+ ", client=" + TerminalNavigationPayload.CURRENT_PROTOCOL_VERSION);
 		}
 		navigation = payload;
-		northNeedleTarget = TerminalNavigationMath.northNeedleDegrees(payload.playerYaw());
+		facingNeedleTarget = TerminalNavigationMath.facingNeedleDegrees(payload.playerYaw());
 		if (payload.navigable()) {
 			mineralNeedleTarget = TerminalNavigationMath.targetNeedleDegrees(
-					payload.targetDx(), payload.targetDz(), payload.playerYaw());
+					payload.targetDx(), payload.targetDz());
 		}
 		if (!navigationInitialized) {
 			navigationInitialized = true;
-			northNeedle = northNeedleTarget;
+			facingNeedle = facingNeedleTarget;
 			mineralNeedle = mineralNeedleTarget;
 		}
 	}
@@ -456,14 +612,78 @@ public final class TerminalScreen extends Screen {
 	@Override
 	public void tick() {
 		age++;
-		northNeedle = TerminalNavigationMath.interpolateDegrees(northNeedle, northNeedleTarget, 0.35D);
+		facingNeedle = TerminalNavigationMath.interpolateDegrees(facingNeedle, facingNeedleTarget, 0.35D);
 		if (navigation.navigable()) {
 			mineralNeedle = TerminalNavigationMath.interpolateDegrees(mineralNeedle, mineralNeedleTarget, 0.35D);
 		}
 		tickSkyInstrument();
 		tickOnboarding();
+		// Idempotent: starts the carrier the first time and only retunes it afterwards. Driven from
+		// the tick rather than from init so that it follows the stage the server is currently
+		// reporting, and so there is no ordering question about whether a snapshot had arrived yet.
+		TerminalClientAudio.carrierOn(snapshot.visualStage());
 		tickCompletionHold();
+		tickUnreadAcknowledgement();
 		TerminalClientAudio.tick();
+	}
+
+	/**
+	 * Acknowledges an unread marker whose contents the player is already looking at.
+	 *
+	 * <p>Without this, a record arriving while the player sits on the Records page lights the tab
+	 * and the handheld lamp for something whose text is on screen in front of them, and only a
+	 * click on the tab they are already on will put it out. The acknowledgement is the same packet
+	 * that click sends.</p>
+	 *
+	 * <p>Gated on the scrolled viewport rather than the page, because "the player is on the page"
+	 * is not the same claim as "the player has been shown this". A long log scrolled away from the
+	 * new line, or a directory row below the fold, stays unread until it is actually brought into
+	 * view - the marker is then still doing its job, which is to say there is something here you
+	 * have not seen.</p>
+	 *
+	 * <p>Runs on tick rather than in {@link #update}: a snapshot can arrive before the screen has
+	 * laid out, and the scroll offsets are only clamped against real content once drawn.</p>
+	 */
+	private void tickUnreadAcknowledgement() {
+		if (page == TerminalPage.RECORDS && !recordsAcknowledged && snapshot.unreadCount() > 0
+				&& showsUnreadRecordRow()) {
+			send(TerminalControlPayload.MARK_RECORDS_READ, 0);
+			recordsAcknowledged = true;
+		}
+		if (page == TerminalPage.FILES && !filesAcknowledged && snapshot.unreadFileCount() > 0
+				&& showsUnreadFileRow()) {
+			send(TerminalControlPayload.MARK_FILES_SEEN, 0);
+			filesAcknowledged = true;
+		}
+	}
+
+	/** Whether any unread record's first wrapped line is inside the Records viewport. */
+	private boolean showsUnreadRecordRow() {
+		List<RecordRow> rows = recordRows();
+		int scroll = Math.clamp(recordsScrollRow, 0, recordsMaxScroll());
+		int visible = recordsVisibleRows();
+		for (int index = 0; index < rows.size(); index++) {
+			// marker() is set on the first row of an unread entry, which is the one carrying its
+			// timestamp - seeing a later wrapped line of it is not seeing the record arrive.
+			if (rows.get(index).marker() && TerminalUnreadPolicy.rowVisible(index, scroll, visible)) return true;
+		}
+		return false;
+	}
+
+	/** Whether any file the unread badge is counting has its directory row inside the file list. */
+	private boolean showsUnreadFileRow() {
+		List<TerminalFilePayload> files = snapshot.files();
+		if (files.isEmpty()) return false;
+		long[] unlockedTimes = new long[files.size()];
+		for (int index = 0; index < files.size(); index++) {
+			TerminalFilePayload file = files.get(index);
+			unlockedTimes[index] = file.unlocked() ? file.unlockedGameTime() : -1L;
+		}
+		int scroll = Math.clamp(fileListScroll, 0, TerminalUiLayout.fileMaxScrollRow(files.size()));
+		for (int row : TerminalUnreadPolicy.unreadFileRows(unlockedTimes, snapshot.unreadFileCount())) {
+			if (TerminalUnreadPolicy.rowVisible(row, scroll, TerminalUiLayout.FILE_LIST_VISIBLE_ROWS)) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -542,6 +762,9 @@ public final class TerminalScreen extends Screen {
 		motion.updateHover(controlAt(localMouse[0], localMouse[1]));
 		hoveredFile = page == TerminalPage.FILES
 				? TerminalUiLayout.fileIndexAt(localMouse[0], localMouse[1], fileListScroll, snapshot.files().size()) : -1;
+		// Computed here with every other hover rather than inside drawOnboarding, because this is the
+		// one place in the frame that holds the pointer in panel coordinates.
+		onboardingAdvanceHovered = TerminalUiLayout.ONBOARD_NEXT.contains(localMouse[0], localMouse[1]);
 		hoveredToolSlot = -1;
 		if (page == TerminalPage.TOOLS && selectedTool == null) {
 			int slot = TerminalUiLayout.toolSlotAt(localMouse[0], localMouse[1]);
@@ -585,7 +808,11 @@ public final class TerminalScreen extends Screen {
 		// Nothing is drawn during the self test. The terminal has not finished starting, so a home
 		// card sitting there would be claiming the machine is further along than it is - and it is
 		// what forced the boot text to carry an opaque plate to hide it.
-		if (onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT) return;
+		//
+		// The profile is the same case for the same reason. The device has not been bound yet, so it
+		// has no holder to show a task card to, and no tab is reachable from there anyway.
+		if (onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT
+				|| onboardingPhase == TerminalOnboardingPolicy.Phase.PROFILE) return;
 		var body = TerminalUiLayout.PAGE_BODY;
 		double progress = motion.pageProgress(renderNowMillis);
 		if (progress >= 1.0D) {
@@ -607,6 +834,10 @@ public final class TerminalScreen extends Screen {
 	}
 
 	private void drawCurrentPage(GuiGraphics graphics) {
+		// The settle is anchored to arriving on the page, so leaving it arms the next arrival. Kept
+		// here rather than in selectPage because the page can also change under a slide that this
+		// method is the only witness to.
+		if (page != TerminalPage.RECORDS) recordsSettleArmed = true;
 		switch (page) {
 			case HOME -> drawHome(graphics);
 			case TOOLS -> drawTools(graphics);
@@ -637,6 +868,26 @@ public final class TerminalScreen extends Screen {
 		page = next;
 	}
 
+	/**
+	 * How long the first-boot scene on screen has been the scene.
+	 *
+	 * <p>Sampled while drawing rather than pushed from the tick, because a scene can also change
+	 * because a snapshot arrived - the server advancing the profile question is not a client-side
+	 * event anybody could have hooked. Comparing the key every frame catches all of them with one
+	 * rule instead of one hook per cause.
+	 */
+	private long onboardingTransitionMillis() {
+		int key = TerminalOnboardingTransition.sceneKey(onboardingPhase, snapshot.profileQuestion());
+		if (key != onboardingSceneKey) {
+			onboardingSceneKey = key;
+			onboardingSceneStartedAtMillis = renderNowMillis;
+			// One soft contact per step. The seam is quiet enough that without it a scene change can
+			// be missed entirely by a player who happened to be looking at the slider.
+			TerminalClientAudio.keypress();
+		}
+		return renderNowMillis - onboardingSceneStartedAtMillis;
+	}
+
 	/** The self test, the step pointer, or the brief "setup complete" note - whichever applies. */
 	private void drawOnboarding(GuiGraphics graphics) {
 		if (onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT) {
@@ -645,11 +896,31 @@ public final class TerminalScreen extends Screen {
 					renderNowMillis - onboardingStartedAtMillis, pageAccent());
 			return;
 		}
+		if (profileAsking()) {
+			// No loading bar here. It was added on the reasoning that an empty beat wants something in
+			// it, and in play it read as the game waiting on itself - a question the player is meant
+			// to answer should not look like a question the device is still fetching. The blank and
+			// the lines arriving carry the seam on their own.
+			onboardingOverlay.drawProfile(graphics, font, snapshot.profileQuestion(), tuning,
+					TerminalProfileQuestionnaire.lockedOption(snapshot.profileQuestion(), tuning),
+					profileHeldTicks, recordsSettleSeed, TerminalGlyphSettle.bucket(renderNowMillis),
+					onboardingTransitionMillis(), pageAccent());
+			return;
+		}
+		if (profileActive()) {
+			// Every question answered, or gaps the failsafe left. The terminal says which, because a
+			// file it knows is incomplete and reports as finished would be the quietly-wrong-but-
+			// plausible value the safety rules exist to forbid.
+			onboardingOverlay.drawProfileRecorded(graphics, font, profileComplete(), recordsSettleSeed,
+					TerminalGlyphSettle.bucket(renderNowMillis), onboardingTransitionMillis(), pageAccent());
+			return;
+		}
 		if (onboardingLocksExit()) {
 			// The page field, not the one the slide is still catching up to: the brief describes what
 			// the player is on, and every other part of the screen already answers for the new page
 			// from the instant of the click.
-			onboardingOverlay.drawStep(graphics, font, onboardingPhase, page, renderAge, pageAccent());
+			onboardingOverlay.drawStep(graphics, font, onboardingPhase, page, renderAge,
+					onboardingTransitionMillis(), pageAccent(), onboardingAdvanceHovered);
 			return;
 		}
 		if (onboardingDoneAtAge == Integer.MIN_VALUE
@@ -661,6 +932,21 @@ public final class TerminalScreen extends Screen {
 		var strip = TerminalUiLayout.STATUS_BAR;
 		Component done = Component.translatable("terminal.thefourthfrequency.onboarding.complete");
 		drawCenteredFitted(graphics, done, strip, CLAIMABLE);
+	}
+
+	/**
+	 * Whether a click landed on the walkthrough's advance button while it was open.
+	 *
+	 * <p>The readiness test is the same one the drawing uses, so a button that looks unavailable is
+	 * unavailable. Without that a player could press through the explanation before it finished
+	 * printing, which is the one thing the typing is there to prevent.
+	 */
+	private boolean onboardingAdvanceClicked(double x, double y) {
+		return TerminalOnboardingPolicy.target(onboardingPhase) != null
+				&& TerminalUiLayout.ONBOARD_NEXT.contains(x, y)
+				&& TerminalOnboardingPolicy.advanceReady(onboardingTransitionMillis(),
+						TerminalOnboardingOverlay.longestDetailCodePoints(
+								TerminalOnboardingPolicy.briefSubject(onboardingPhase, page)));
 	}
 
 	private void advanceOnboarding(TerminalPage visited) {
@@ -946,24 +1232,38 @@ public final class TerminalScreen extends Screen {
 					hovered ? AMBER : available ? GREEN : DIM);
 			if (!available) drawPixelLock(graphics, cell.right() - 14, cell.top() + 5);
 		}
-		drawLockedToolHint(graphics);
+		drawToolHint(graphics);
 	}
 
 	/**
-	 * Names the condition behind a padlock, under the grid.
+	 * The single line under the grid that explains whatever the pointer is on.
 	 *
-	 * <p>A locked cell is rejected by the detail-opening boundary, which is deliberate - there is
-	 * nothing inside a tool the player does not have yet. The cost was that {@code lockedLine} could
-	 * never be reached from anywhere, so the padlock was a dead end: click it, nothing happens, and
-	 * the terminal never says what would unlock it. The reason belongs on the grid, where the lock
-	 * is.</p>
+	 * <p>It started as the padlock hint alone. A locked cell is rejected by the detail-opening
+	 * boundary, which is deliberate - there is nothing inside a tool the player does not have yet -
+	 * so without this the padlock was a dead end: click it, nothing happens, and the terminal never
+	 * says what would unlock it.
+	 *
+	 * <p>It now answers for unlocked cells too, because the grid had the same gap pointing the other
+	 * way: six glyphs and six nouns, and the only way to learn what any of them reported was to open
+	 * it. Both answers go in the same place rather than in a floating tooltip - the terminal draws
+	 * inside a scissored, pose-transformed display area, and a box that follows the cursor is the
+	 * kind of thing that ends up clipped away or drawn at the wrong origin.
+	 *
+	 * <p>Green for a tool you have, dim for one you do not, which is the same colour language the
+	 * cells themselves already use.
 	 */
-	private void drawLockedToolHint(GuiGraphics graphics) {
-		TerminalTool hovered = TerminalTool.fromSlot(hoveredToolSlot);
-		TerminalTool subject = hovered != null && !tools.available(hovered) ? hovered : lockedHintTool;
-		if (subject == null || tools.available(subject)) return;
+	private void drawToolHint(GuiGraphics graphics) {
 		var grid = TerminalUiLayout.TOOLS_GRID;
 		var line = new TerminalUiLayout.Bounds(grid.left(), grid.bottom() - 2, grid.right(), grid.bottom() + 10);
+		TerminalTool hovered = TerminalTool.fromSlot(hoveredToolSlot);
+		if (hovered != null && tools.available(hovered)) {
+			drawCenteredFitted(graphics, tools.hintLine(hovered), line, GREEN);
+			return;
+		}
+		// Falls back to the last locked cell the pointer visited, so the reason does not vanish the
+		// instant the player moves off the padlock to read it.
+		TerminalTool subject = hovered != null ? hovered : lockedHintTool;
+		if (subject == null || tools.available(subject)) return;
 		drawCenteredFitted(graphics, tools.lockedLine(subject), line, DIM);
 	}
 
@@ -1156,7 +1456,7 @@ public final class TerminalScreen extends Screen {
 				if (tools.mineralScanning()) {
 					lines.add(mineralScanningLine());
 				} else if (mineralTargetLocated()) {
-					lines.add(snapshot.navigationLine(navigation, tools.playerY()));
+					lines.add(TerminalSnapshot.navigationLine(navigation, tools.playerY()));
 				} else if (tools.mineralBearingReading()) {
 					lines.add(tools.mineralBearingLine());
 				} else if (tools.mineralProbeHeardNothing()) {
@@ -1173,7 +1473,7 @@ public final class TerminalScreen extends Screen {
 			// different one that still looks trustworthy.
 			case WEATHER -> lines.add(tools.weatherLine(SkyInstrumentRenderer.readoutLost(renderAge)));
 			case NAVIGATION -> {
-				if (navigation.targetKind() != 0) lines.add(snapshot.navigationLine(navigation, tools.playerY()));
+				if (navigation.targetKind() != 0) lines.add(TerminalSnapshot.navigationLine(navigation, tools.playerY()));
 				int omitted = omittedNavigationTargets();
 				if (omitted > 0) lines.add(Component.translatable(
 						"terminal.thefourthfrequency.navigation.more_targets", omitted));
@@ -1277,7 +1577,7 @@ public final class TerminalScreen extends Screen {
 						TerminalUiLayout.TOOL_ACTION_FULL);
 			}
 			case NAVIGATION -> {
-				if (tools.guidanceTool() == tool || localNavigationTargetChosen) drawGuidanceToggle(graphics, tool,
+				if (tools.guidanceTool() == tool || navigationTargetChosen()) drawGuidanceToggle(graphics, tool,
 						TerminalUiLayout.TOOL_ACTION_FULL);
 			}
 			case STRONGHOLD -> {
@@ -1311,15 +1611,33 @@ public final class TerminalScreen extends Screen {
 		List<RecordRow> rows = recordRows();
 		int visible = recordsVisibleRows();
 		recordsScrollRow = Math.clamp(recordsScrollRow, 0, recordsMaxScroll());
+		if (recordsSettleArmed) {
+			recordsSettleArmed = false;
+			recordsSettleStartMillis = renderNowMillis;
+		}
+		long settleElapsed = renderNowMillis - recordsSettleStartMillis;
+		long settleBucket = TerminalGlyphSettle.bucket(renderNowMillis);
 		int y = body.top() + 5;
 		for (int index = recordsScrollRow; index < rows.size() && index < recordsScrollRow + visible; index++) {
 			RecordRow row = rows.get(index);
 			if (row.marker()) graphics.fill(body.left() + 4, y + 2, body.left() + 6, y + 7, row.color());
-			if (row.text() != null) graphics.drawString(font, row.text(), body.left() + row.indent(), y, row.color(), false);
+			if (row.settleText() != null) {
+				// Staggered by position on screen, not by position in the list. A backfill is a
+				// hundred and sixty entries; staggering by absolute index would take the last one
+				// nineteen seconds to arrive, and the player would be looking at a settled page long
+				// before then anyway. Off-screen rows have nothing to animate.
+				TerminalGlyphRenderer.drawSettling(graphics, font, row.settleText(),
+						body.left() + row.indent(), y, row.color(), recordsSettleSeed, index,
+						TerminalGlyphSettle.rowProgress(settleElapsed, index - recordsScrollRow),
+						settleBucket);
+			} else if (row.text() != null) {
+				graphics.drawString(font, row.text(), body.left() + row.indent(), y, row.color(), false);
+			}
 			if (row.shortcut()) drawRecordNavigationShortcut(graphics, body, row, y);
 			y += ROW_HEIGHT;
 		}
 	}
+
 
 	private int recordsVisibleRows() {
 		return Math.max(1, (TerminalUiLayout.RECORDS_BODY.height() - 10) / ROW_HEIGHT);
@@ -1350,31 +1668,51 @@ public final class TerminalScreen extends Screen {
 				Component.translatable("terminal.thefourthfrequency.records.open_navigation"));
 		List<RecordRow> rows = new ArrayList<>();
 		boolean navigator = tools.available(TerminalTool.NAVIGATION);
+		// Exactly what the navigation page draws its own unstable-signal option from.
+		boolean investigationOffered = tools.unstableSignalAvailable();
 		// The navigator gate lives in recordEntries so every reader of the log agrees on what is in
 		// it - the home card's "recent" line is the first entry of this same list.
 		for (TerminalLogEntryPayload entry : snapshot.recordEntries(navigator)) {
 			int color = entry.unread() ? AMBER : GREEN;
 			Component line = Component.literal("[" + snapshot.signalTime(entry) + "] ")
 					.append(snapshot.signalEvent(entry));
+			if (TerminalSnapshot.settlesIn(entry)) {
+				// Wrapped against the clean text, then carried as plain strings. Wrapping once and
+				// never again is what keeps the line breaks from moving while the glyphs resolve.
+				for (net.minecraft.network.chat.FormattedText piece
+						: font.getSplitter().splitLines(line, Math.max(1, width),
+								net.minecraft.network.chat.Style.EMPTY)) {
+					rows.add(new RecordRow(null, color, RECORD_INDENT, false, -1, piece.getString()));
+				}
+				continue;
+			}
 			List<FormattedCharSequence> wrapped = font.split(line, Math.max(1, width));
-			if (wrapped.isEmpty()) rows.add(new RecordRow(null, color, RECORD_INDENT, entry.unread(), false));
+			if (wrapped.isEmpty()) rows.add(new RecordRow(null, color, RECORD_INDENT, entry.unread(), -1));
 			for (int index = 0; index < wrapped.size(); index++) {
 				rows.add(new RecordRow(wrapped.get(index), color, RECORD_INDENT,
-						entry.unread() && index == 0, false));
+						entry.unread() && index == 0, -1));
 			}
-			if (!entry.type().startsWith("fragment_candidate_")) continue;
+			// A lead whose fragment has since been found keeps its line - the log says what happened -
+			// but loses the shortcut, because the server refuses to retarget at a fragment already in
+			// hand and a control that silently does nothing is worse than no control.
+			//
+			// The same reason is why the whole class of shortcut hangs off the server's own answer to
+			// "is this investigation on offer" rather than off the row: the two used to be decided
+			// separately and drifted, so the page drew a shortcut the click was refused for.
+			int candidate = TerminalRecordPolicy.candidateEncodedIndex(entry.type());
+			if (candidate < 0 || !investigationOffered || snapshot.candidateFragmentFound(entry.type())) continue;
 			RecordRow last = rows.getLast();
 			int textEnd = body.left() + last.indent() + (last.text() == null ? 0 : font.width(last.text()));
 			if (textEnd + RECORD_SHORTCUT_GAP + shortcutWidth <= body.right() - 5) {
-				rows.set(rows.size() - 1, last.withShortcut());
+				rows.set(rows.size() - 1, last.withShortcut(candidate));
 			} else {
-				rows.add(new RecordRow(null, color, RECORD_SHORTCUT_INDENT, false, true));
+				rows.add(new RecordRow(null, color, RECORD_SHORTCUT_INDENT, false, candidate));
 			}
 		}
 		if (rows.isEmpty()) {
 			for (FormattedCharSequence wrapped : font.split(
 					Component.translatable("terminal.thefourthfrequency.records.empty"), Math.max(1, width))) {
-				rows.add(new RecordRow(wrapped, DIM, RECORD_INDENT, false, false));
+				rows.add(new RecordRow(wrapped, DIM, RECORD_INDENT, false, -1));
 			}
 		}
 		return List.copyOf(rows);
@@ -1391,15 +1729,27 @@ public final class TerminalScreen extends Screen {
 		int textEnd = body.left() + row.indent() + (row.text() == null ? 0 : font.width(row.text()));
 		int left = row.text() == null ? textEnd : textEnd + RECORD_SHORTCUT_GAP;
 		graphics.drawString(font, label, left, y, CLAIMABLE, false);
-		recordNavigationHits.add(new TerminalUiLayout.Bounds(left - 2, y - 1, left + width + 2, y + 9));
+		recordNavigationHits.add(new NavigationHit(
+				new TerminalUiLayout.Bounds(left - 2, y - 1, left + width + 2, y + 9),
+				TerminalControlPayload.SELECT_FRAGMENT_TARGET, row.candidate()));
 	}
 
+	/**
+	 * Sends the player to the lead on <em>this</em> line, then opens the tool.
+	 *
+	 * <p>It used to only open the tool, leaving the player to press the navigator's own "unstable
+	 * signal" button - which selects the nearest lead. With leads in two directions the shortcut
+	 * therefore pointed somewhere other than the line it was drawn on, and nothing said so.
+	 *
+	 * <p>Aim before opening: both requests travel the same ordered channel, so the tool page opens
+	 * onto a selection the server has already made rather than onto the previous target.
+	 */
 	private boolean handleRecordNavigationClick(double x, double y) {
-		for (TerminalUiLayout.Bounds hit : recordNavigationHits) {
-			if (hit.contains(x, y)) {
-				openTool(TerminalTool.NAVIGATION);
-				return true;
-			}
+		for (NavigationHit hit : recordNavigationHits) {
+			if (!hit.bounds().contains(x, y)) continue;
+			send(hit.action(), hit.value());
+			openTool(TerminalTool.NAVIGATION);
+			return true;
 		}
 		return false;
 	}
@@ -1647,14 +1997,14 @@ public final class TerminalScreen extends Screen {
 		if (targetNeedleVisible(tools.guidanceTool() != null, navigation.navigable(), flashAge)) {
 			drawTargetNeedle(graphics, cx, cy, mineralNeedle);
 		}
-		drawNorthNeedle(graphics, cx, cy, northNeedle);
+		drawFacingNeedle(graphics, cx, cy, facingNeedle);
 		graphics.fill(cx - 2, cy - 2, cx + 3, cy + 3, INSTRUMENT_WELL);
 		graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, AMBER);
 	}
 
 	/**
-	 * One cardinal label on the dial. North is drawn in the needle's own red so the two read as the
-	 * same statement; the other three stay dim, because they are a scale rather than a reading.
+	 * One cardinal label on the dial. North stays the highlighted one because it is the reference the
+	 * whole face is oriented to; the other three are dim, being a scale rather than a reading.
 	 */
 	private void drawCompassLabel(GuiGraphics graphics, int x, int y, String direction, int color) {
 		String label = Component.translatable("terminal.thefourthfrequency.compass." + direction).getString();
@@ -1664,7 +2014,24 @@ public final class TerminalScreen extends Screen {
 	private void drawReceiverSlider(GuiGraphics graphics) {
 		var slider = TerminalUiLayout.RECEIVER_SLIDER;
 		graphics.fill(slider.left(), slider.top(), slider.right(), slider.bottom(), INSTRUMENT_WELL);
-		graphics.renderOutline(slider.left(), slider.top(), slider.width(), slider.height(), BRASS_BEZEL);
+		// While the profile is asking, the control answers for itself. Players looked at a screen of
+		// options and went hunting for something to click, because nothing on the panel said the
+		// answer was over here - and no amount of hint text fixes that, since the hint is on the same
+		// side of the screen as the problem. Lighting the physical control is the shortest sentence
+		// available: the thing that is going to move is the thing that is glowing.
+		//
+		// A raised cosine, the same curve the walkthrough's tab pointer breathes on. Continuous, so
+		// there is no state change owing a minimum hold, and at one cycle per two seconds it is
+		// nowhere near the flicker ceiling.
+		if (profileAsking()) {
+			double pulse = TerminalMotion.breathe(renderAge, TerminalOnboardingPolicy.PULSE_PERIOD_TICKS);
+			int ring = TerminalMotion.lerpColor(pageAccent(), CLAIMABLE, pulse);
+			graphics.renderOutline(slider.left() - 1, slider.top() - 1,
+					slider.width() + 2, slider.height() + 2, ring);
+			graphics.renderOutline(slider.left(), slider.top(), slider.width(), slider.height(), ring);
+		} else {
+			graphics.renderOutline(slider.left(), slider.top(), slider.width(), slider.height(), BRASS_BEZEL);
+		}
 		int trackY = (slider.top() + slider.bottom()) / 2;
 		graphics.fill(slider.left() + 3, trackY - 1, slider.right() - 3, trackY + 2, 0xFF423D23);
 		for (int tick = 0; tick <= 10; tick++) {
@@ -1674,7 +2041,8 @@ public final class TerminalScreen extends Screen {
 		}
 		int displayedTuning = (int) Math.round(tuningTransition.valueAt(renderNowMillis));
 		int thumb = TerminalUiLayout.sliderX(displayedTuning);
-		graphics.fill(thumb - 3, slider.top() + 3, thumb + 4, slider.bottom() - 3, 0xFFB9A561);
+		graphics.fill(thumb - 3, slider.top() + 3, thumb + 4, slider.bottom() - 3,
+				profileAsking() ? CLAIMABLE : 0xFFB9A561);
 		graphics.renderOutline(thumb - 3, slider.top() + 3, 7, slider.height() - 6, 0xFFF1D98B);
 	}
 
@@ -1686,7 +2054,24 @@ public final class TerminalScreen extends Screen {
 		Component lineTwo;
 		int lineOneColor = GREEN;
 		int lineTwoColor = DIM;
-		if (receiverGameplayActive()) {
+		if (profileAsking()) {
+			// The profile's own readout. The receiver tool is not unlocked yet, so the gameplay branch
+			// below would leave the meter dead - and the meter is the only thing orienting a player who
+			// is being asked to find an answer they cannot read yet. Same strings as the tool, because
+			// this is that instrument: what the player learns here is how the receiver behaves.
+			int question = snapshot.profileQuestion();
+			int strength = TerminalProfileQuestionnaire.strength(question, tuning);
+			int locked = TerminalProfileQuestionnaire.lockedOption(question, tuning);
+			lineOne = Component.translatable("terminal.thefourthfrequency.receiver.strength", strength);
+			if (locked < 0) {
+				lineTwo = Component.translatable("terminal.thefourthfrequency.receiver.search");
+				lineTwoColor = HOT;
+			} else {
+				lineTwo = Component.translatable("terminal.thefourthfrequency.receiver.locking",
+						profileHeldTicks, TerminalProfileQuestionnaire.COMMIT_HOLD_TICKS);
+				lineTwoColor = AMBER;
+			}
+		} else if (receiverGameplayActive()) {
 			int strength = receiverStrength(tuning);
 			boolean locked = receiverLocked(tuning);
 			lineOne = Component.translatable("terminal.thefourthfrequency.receiver.strength", strength);
@@ -1736,7 +2121,16 @@ public final class TerminalScreen extends Screen {
 		double morph = waveformMorphTransition.valueAt(nowMillis);
 		double pulse = AmbientAnomalyClient.pulse();
 		double anomaly = pulse <= 0.0F ? 0.0D : Math.exp(-Math.pow((sample % 43 - 14) / 4.0D, 2.0D)) * pulse * 12.0D;
-		return Math.clamp(receiver + (electrocardiogram - receiver) * morph - anomaly * 0.55D,
+		// The approach term. Deliberately not a separate shape the eye could learn to name - it rides
+		// on the trace that is already there and makes it restless, so what a player eventually
+		// notices is "the scope has been strange for a bit" rather than a symbol appearing. See
+		// OscilloscopeWaveformPolicy for why an instrument is allowed to know this and a label is not.
+		double approach = OscilloscopeWaveformPolicy.disturbance(snapshot.anomalyApproach());
+		double restlessness = approach == 0.0D ? 0.0D
+				: Math.sin(x * 2.7D + phaseAge * 5.3D) * Math.sin(x * 0.61D - phaseAge * 3.1D)
+						* approach * 6.5D;
+		return Math.clamp(receiver + (electrocardiogram - receiver) * morph - anomaly * 0.55D
+						+ restlessness,
 				-17.0D, 17.0D);
 	}
 
@@ -1822,8 +2216,29 @@ public final class TerminalScreen extends Screen {
 		// While the walkthrough holds the exit, the only control on the panel is the tab it is
 		// pointing at. selectPage refuses the wrong one, so this only has to route tab clicks.
 		if (onboardingLocksExit()) {
-			TerminalPage tab = tabAt(local[0], local[1]);
-			if (tab != null) return selectPage(tab);
+			// The profile is answered on the dial, so the dial has to be reachable while it is up.
+			// This gate used to route tab clicks and refuse everything else, which was right when the
+			// only thing the walkthrough ever asked for was a tab - and silently made the receiver
+			// unusable the moment a step started asking for something else.
+			if (profileAsking() && TerminalUiLayout.RECEIVER_SLIDER.contains(local[0], local[1])) {
+				draggingTuner = true;
+				updateTuningFromSlider(local[0]);
+				return true;
+			}
+			// The walkthrough's own button. It does not advance anything by itself: it issues the
+			// exact page visit the tab click would have, down to the same selectPage call, so the
+			// server still sees an ordinary visit and learn_terminal still completes off the visit
+			// rather than off the client saying it played an animation. What it removes is the
+			// hunt - a new player no longer has to find the one tab in four that is not dimmed.
+			if (onboardingAdvanceClicked(local[0], local[1])) {
+				TerminalPage target = TerminalOnboardingPolicy.target(onboardingPhase);
+				return target != null && selectPage(target);
+			}
+			// The tab strip is not a control while the walkthrough holds the terminal. It used to be -
+			// clicking the one tab that was not dimmed is how the walkthrough originally advanced - and
+			// leaving it live after the button arrived meant the strip was three quarters dead and one
+			// quarter secretly live, which is a worse thing for a first-boot tutorial to teach than
+			// either extreme. One control, in one place, doing the advancing.
 			refuseOnboardingInput();
 			return true;
 		}
@@ -1917,13 +2332,33 @@ public final class TerminalScreen extends Screen {
 		return false;
 	}
 
+	/**
+	 * Whether the navigator has a destination to start guiding to.
+	 *
+	 * <p>{@link #localNavigationTargetChosen} only ever tracked the <em>structure</em> targets: it is
+	 * set optimistically when one of the option buttons is pressed and then recomputed from
+	 * {@code selectedNavigationTarget}, which is {@code NONE} for an optional investigation. So the
+	 * one destination that does not come from those buttons - a lead, chosen either from the records
+	 * page shortcut or from the navigator's own option - reached the server, showed up in the readout,
+	 * and had no "start guidance" button under it. The optimistic flag hid this for a frame or two
+	 * after a press on the option itself, then the next tool snapshot cleared it and the button went
+	 * away again while the target was still selected.
+	 *
+	 * <p>The lead's own answer therefore comes from the navigation payload, which is where the server
+	 * says what the target actually is.</p>
+	 */
+	private boolean navigationTargetChosen() {
+		return localNavigationTargetChosen
+				|| navigation.targetKind() == TerminalNavigationPayload.UNSTABLE_SIGNAL;
+	}
+
 	private boolean canToggleGuidance(TerminalTool tool) {
 		if (tools.guidanceTool() == tool) return true;
 		return switch (tool) {
 			case HOME -> tools.payload().homeKnown();
 			case MINERALS -> mineralTargetLocated();
 			case PORTAL -> tools.payload().portalKnown();
-			case NAVIGATION -> localNavigationTargetChosen;
+			case NAVIGATION -> navigationTargetChosen();
 			case STRONGHOLD -> tools.payload().strongholdKnown();
 			case WEATHER -> false;
 		};
@@ -2076,11 +2511,33 @@ public final class TerminalScreen extends Screen {
 		// Swallows everything the walkthrough is not asking for, Escape included. shouldCloseOnEsc
 		// already refuses vanilla's own Escape path; this stops the key reaching anything else on
 		// the way there.
-		if (onboardingLocksExit()) {
-			if (event.key() >= GLFW.GLFW_KEY_1 && event.key() <= GLFW.GLFW_KEY_4) {
-				selectPage(TerminalPage.fromIndex(event.key() - GLFW.GLFW_KEY_1));
-				return true;
+		// The profile is answered on a control that is eighty-four pixels wide with a commit window of
+		// about ten. Leaving it to the mouse alone would put a narrative beat behind a test of fine
+		// motor control, in the one sequence the player is not allowed to leave. Arrows step the dial,
+		// shift jumps a station, and Enter is the hold - all of which route through exactly the same
+		// paths the mouse does, so the keyboard cannot reach anything the mouse could not.
+		if (profileActive()) {
+			switch (event.key()) {
+				case GLFW.GLFW_KEY_LEFT -> setTuning(tuning - profileTuningStep(event));
+				case GLFW.GLFW_KEY_RIGHT -> setTuning(tuning + profileTuningStep(event));
+				case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER, GLFW.GLFW_KEY_SPACE -> {
+					int locked = TerminalProfileQuestionnaire.lockedOption(snapshot.profileQuestion(), tuning);
+					if (locked < 0) {
+						refuseOnboardingInput();
+					} else {
+						profileHeldTicks = 0;
+						profileHeldOption = -1;
+						TerminalClientAudio.noticeStable();
+						send(TerminalControlPayload.ANSWER_PROFILE, locked);
+					}
+				}
+				default -> refuseOnboardingInput();
 			}
+			return true;
+		}
+		if (onboardingLocksExit()) {
+			// The number keys are the tab strip by another name, and they are refused for the same
+			// reason: while the walkthrough is up, the button is the only thing that turns a page.
 			refuseOnboardingInput();
 			return true;
 		}
@@ -2098,6 +2555,17 @@ public final class TerminalScreen extends Screen {
 			return true;
 		}
 		return super.keyPressed(event);
+	}
+
+	/**
+	 * How far one arrow press moves the dial during the profile.
+	 *
+	 * <p>One unit normally, so a player can creep onto a station. Held with shift it steps by the
+	 * lock radius, which crosses the band in a dozen presses instead of ninety - the difference
+	 * between a keyboard path that exists and one that is usable.
+	 */
+	private static int profileTuningStep(KeyEvent event) {
+		return event.hasShiftDown() ? TerminalProfileQuestionnaire.LOCK_RADIUS : 1;
 	}
 
 	private boolean pageKeyPressed(KeyEvent event) {
@@ -2204,9 +2672,16 @@ public final class TerminalScreen extends Screen {
 	}
 
 	private void setTuning(int value) {
-		if (!receiverMechanicalInteractive()) return;
+		// The profile is exempt. receiverMechanicalInteractive answers "is the receiver tool usable",
+		// which is a question about a tool the player has not been given yet - the profile runs before
+		// binding, before the tool snapshot means anything, and before any of that is unlocked. Asking
+		// it here was the second of two gates silently refusing the dial: the click gate above let the
+		// press through and this one threw the value away, so the slider took input and never moved,
+		// and the arrow keys did nothing either because they land here too.
+		if (!profileAsking() && !receiverMechanicalInteractive()) return;
 		int safe = TerminalControlPolicy.tuning(value);
 		if (safe == tuning) return;
+		profileTuned = true;
 		boolean gameplay = receiverGameplayActive();
 		boolean receiverLockBefore = gameplay && receiverLocked(tuning);
 		retargetTuningVisual(safe, nowMillis());
@@ -2306,6 +2781,21 @@ public final class TerminalScreen extends Screen {
 		return target == null ? -1 : target.ordinal();
 	}
 	public void setTuningForTesting(int value) { setTuning(value); }
+	/** The profile question on screen, or {@code -1}. Paired with {@link #setTuningForTesting}. */
+	public int profileQuestionForTesting() { return profileAsking() ? snapshot.profileQuestion() : -1; }
+	/**
+	 * Parks the receiver on one option of the question being asked.
+	 *
+	 * <p>Deliberately does not send the answer. It tunes and leaves, so the commit still has to come
+	 * out of the real path - lock detection, the one-second hold, the packet, the server advancing its
+	 * own question index. A hook that shortcut to the packet would test the server and skip the only
+	 * part of this that is on screen.
+	 */
+	public void tuneToProfileOptionForTesting(int option) {
+		int question = snapshot.profileQuestion();
+		if (question < 0 || !TerminalProfileQuestionnaire.validAnswer(question, option)) return;
+		setTuning(TerminalProfileQuestionnaire.optionTuning(question, option));
+	}
 	/** Whether the home card is still showing the task that was just completed and paid for. */
 	public boolean taskCompletionHeldForTesting() { return completedTask != null; }
 	public String objectiveIdForTesting() { return snapshot.objectiveId(); }
@@ -2333,6 +2823,18 @@ public final class TerminalScreen extends Screen {
 		selectPage(TerminalPage.FILES);
 		openDirectoryEntry(Math.max(0, value));
 	}
+	/**
+	 * Tells the server this client holds a previous run, without touching the real config.
+	 *
+	 * <p>The recovered fragment is the one catalogue entry that is conditionally served, so a test
+	 * that wants a full FILES list has to ask for it. Sending the control directly rather than
+	 * writing a previous run into {@code ConfigManager} keeps the test off the config file of
+	 * whoever happens to be running it.
+	 */
+	public void reportPreviousRunForTesting(boolean present) {
+		send(TerminalControlPayload.REPORT_PREVIOUS_RUN, present ? 1 : 0);
+	}
+
 	public void openLogDirectoryForTesting() {
 		selectPage(TerminalPage.FILES);
 		resetLogView();
@@ -2384,6 +2886,7 @@ public final class TerminalScreen extends Screen {
 	public double displayedTuningForTesting(long nowMillis) { return tuningTransition.valueAt(nowMillis); }
 	public int selectedFileForTesting() { return selectedFile; }
 	public int fileScrollRowForTesting() { return fileListScroll; }
+	public int recordsScrollRowForTesting() { return recordsScrollRow; }
 	public int fileContentScrollForTesting() { return fileContentScroll; }
 	public int fileCountForTesting() { return snapshot.files().size(); }
 	public String fileIdForTesting(int index) { return snapshot.files().get(index).id(); }
@@ -2403,6 +2906,19 @@ public final class TerminalScreen extends Screen {
 	}
 	public void moveFileSelectionForTesting(int delta) { moveFileSelection(delta); }
 	public void openSelectedFileForTesting() { openDirectoryEntry(selectedFile); }
+
+	/**
+	 * The one guaranteed teardown.
+	 *
+	 * <p>{@code onClose} is not it: the screen can also be replaced, or torn down with the world, and
+	 * a carrier left running through either would be a hum with no terminal under it. Stopping here
+	 * means every exit path is covered by one line instead of by remembering to add a line to each.
+	 */
+	@Override
+	public void removed() {
+		TerminalClientAudio.carrierOff();
+		super.removed();
+	}
 
 	@Override
 	public void onClose() {
@@ -2525,7 +3041,7 @@ public final class TerminalScreen extends Screen {
 		graphics.fill(endX, endY - 1, endX + 1, endY + 2, AMBER);
 	}
 
-	private static void drawNorthNeedle(GuiGraphics graphics, int cx, int cy, double degrees) {
+	private static void drawFacingNeedle(GuiGraphics graphics, int cx, int cy, double degrees) {
 		double radians = Math.toRadians(degrees);
 		int endX = cx;
 		int endY = cy;
@@ -2570,10 +3086,34 @@ public final class TerminalScreen extends Screen {
 
 	private enum LogView { DIRECTORY, DETAIL, LOCKED_DIARY }
 	/** One rendered line of the Records list. {@code shortcut} means the navigation control sits here. */
+	/**
+	 * One drawn line of the records page.
+	 *
+	 * <p>{@code settleText} is non-null only for backfilled anomaly lines, and it holds the clean
+	 * string rather than a laid-out sequence. The settle has to be drawn glyph by glyph at the clean
+	 * text's own advances: this font is not monospace - {@code i} is two pixels and {@code #} is six -
+	 * so substituting characters into a laid-out line would make it change width as it resolves, and
+	 * the page would appear to breathe. Positioning by the original character's advance means the
+	 * junk lands exactly where the real glyph will, and nothing moves at all.
+	 */
+	/**
+	 * @param candidate the encoded lead this row's navigation shortcut aims at, or {@code -1} for the
+	 *                  rows that carry no shortcut. Carried per row rather than resolved at click
+	 *                  time because the page collapses several leads that share a location into one
+	 *                  line, so the row is the only thing that still knows which lead it stands for.
+	 */
 	private record RecordRow(FormattedCharSequence text, int color, int indent, boolean marker,
-			boolean shortcut) {
-		private RecordRow withShortcut() {
-			return new RecordRow(text, color, indent, marker, true);
+			int candidate, String settleText) {
+		private RecordRow(FormattedCharSequence text, int color, int indent, boolean marker, int candidate) {
+			this(text, color, indent, marker, candidate, null);
+		}
+
+		private RecordRow withShortcut(int encoded) {
+			return new RecordRow(text, color, indent, marker, encoded, settleText);
+		}
+
+		private boolean shortcut() {
+			return candidate >= 0;
 		}
 	}
 	private record FileRow(FormattedCharSequence text, int color, float scale, int height) {

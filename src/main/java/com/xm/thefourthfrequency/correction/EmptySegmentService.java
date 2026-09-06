@@ -46,12 +46,16 @@ public final class EmptySegmentService {
 	}
 
 	private static void updateServer(MinecraftServer server) {
-		if (!FinaleRuntimePolicy.backgroundSystemsAllowed(FrequencyWorldData.get(server))) {
-			for (ActiveEvent event : Map.copyOf(ACTIVE_EVENTS).values()) {
-				finish(server, event, server.getPlayerList().getPlayer(event.playerId));
-			}
-			ACTIVE_EVENTS.clear();
-			return;
+		// Per player rather than per world. A running encounter has to take the gaps away from the
+		// people in it, and used to take them from everybody - so eight players walking into the End
+		// ended a ninth player's empty segment in the Overworld, mid-effect, for reasons that had
+		// nothing to do with them.
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		for (ActiveEvent event : Map.copyOf(ACTIVE_EVENTS).values()) {
+			ServerPlayer owner = server.getPlayerList().getPlayer(event.playerId);
+			if (owner != null && FinaleRuntimePolicy.ambientPressureAllowed(data, owner)) continue;
+			finish(server, event, owner);
+			ACTIVE_EVENTS.remove(event.playerId);
 		}
 		for (ActiveEvent event : Map.copyOf(ACTIVE_EVENTS).values()) {
 			ServerPlayer player = server.getPlayerList().getPlayer(event.playerId);
@@ -86,7 +90,7 @@ public final class EmptySegmentService {
 			if (camera == null) {
 				return false;
 			}
-			var forward = ViewpointOrientationPolicy.facePlayerForward(player.getYRot());
+			var forward = ViewpointOrientationPolicy.facePlayerForward(player.getYRot(), player.getXRot());
 			camera.snapTo(player.getX() + 4.0, player.getY() + 2.0, player.getZ() + 4.0,
 					forward.yaw(), forward.pitch());
 			camera.setInvisible(true);

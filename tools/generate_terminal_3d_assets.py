@@ -12,7 +12,7 @@ in hand and the panel on screen are recognisably the same machine:
 
   left  : one large recessed CRT
   right : oscilloscope, round compass, tuning slider, two-line LCD, close hint
-  right of the oscilloscope: the small amber unread lamp, dark on even forms and lit on odd ones
+  right of the oscilloscope: the small red unread lamp, dark on even forms and lit on odd ones
 
 The six forms differ only in materials:
 
@@ -68,10 +68,13 @@ LCD_TEXT = [(120, 208, 136), (118, 214, 206), (232, 96, 90)]
 # rim, which is the same progression the panel art uses.
 OXIDE = [None, (58, 116, 112), (112, 40, 38)]
 
-LAMP_DARK = (44, 38, 26)
-LAMP_DARK_RIM = (86, 72, 48)
-LAMP_LIT = (255, 178, 62)
-LAMP_LIT_CORE = (255, 226, 150)
+# Kept in step with TerminalVisualTheme.LAMP_DARK / LAMP_LIT / LAMP_LIT_CORE by hand. The panel
+# draws the lamp and these bake it into the item, so the two have to agree or the terminal in the
+# player's hand contradicts the one on their screen.
+LAMP_DARK = (44, 30, 26)
+LAMP_DARK_RIM = (86, 58, 48)
+LAMP_LIT = (255, 55, 34)
+LAMP_LIT_CORE = (255, 154, 136)
 
 # --- atlas regions --------------------------------------------------------------------------
 # Pixel rectangles in the 128x128 atlas. Model UVs are these divided by eight (128 / 16).

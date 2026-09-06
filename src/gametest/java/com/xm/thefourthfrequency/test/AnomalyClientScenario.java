@@ -21,6 +21,25 @@ public record AnomalyClientScenario(int catalogNumber, String id, int tier, long
 	public enum Completion { CLIENT_RESTORE_REPORT, CLIENT_RESTORE_WITH_PERSISTENT_TRACE }
 	public enum Cleanup { FULL_RESTORE, PERMANENT_DOOR_ONLY, PERSISTENT_TRACE_ONLY, EXACT_CAMERA_RESTORE }
 
+	/**
+	 * Catalogue entries this harness deliberately does not drive, and the reason it cannot.
+	 *
+	 * <p>Every scenario below is an instruction to {@code AnomalyPresentationController}: put the
+	 * player in a fixture, run the anomaly, assert the named overlays at the peak tick, assert the
+	 * world is restored afterwards. The unrendered layer has none of those parts. Its presentation
+	 * is owned by {@code UnrenderedLayerClient} instead, because the controller tears itself down
+	 * the moment {@code client.level} changes and the layer's whole first second <em>is</em> a level
+	 * change; there is no fixture, because the player is not in the world the fixture would build;
+	 * and there is no restore to assert, because what ends it is a teleport rather than an overlay
+	 * being lifted.
+	 *
+	 * <p>Listed rather than quietly skipped. The coverage check below is the thing that stops an
+	 * anomaly shipping with no client test at all, and the way to keep it doing that job is to make
+	 * the one exception cost an edit here and a sentence explaining it. Anything added to this set
+	 * needs its own coverage somewhere else - the layer's lives in the unrendered GameTest suite.
+	 */
+	public static final java.util.Set<String> UNCOVERED = java.util.Set.of("unrendered_layer");
+
 	private static final List<AnomalyClientScenario> DEFINITIONS = create();
 
 	public AnomalyClientScenario {
@@ -35,7 +54,8 @@ public record AnomalyClientScenario(int catalogNumber, String id, int tier, long
 	}
 
 	public static void assertCatalogCoverage() {
-		List<String> catalog = AnomalyCatalog.definitions().stream().map(AnomalyDefinition::id).toList();
+		List<String> catalog = AnomalyCatalog.definitions().stream().map(AnomalyDefinition::id)
+				.filter(id -> !UNCOVERED.contains(id)).toList();
 		List<String> scenarios = DEFINITIONS.stream().map(AnomalyClientScenario::id).toList();
 		if (!catalog.equals(scenarios)) throw new AssertionError("Anomaly client scenarios differ from catalog: "
 				+ scenarios + " vs " + catalog);
@@ -48,10 +68,9 @@ public record AnomalyClientScenario(int catalogNumber, String id, int tier, long
 
 	private static List<AnomalyClientScenario> create() {
 		Map<String, Builder> values = new LinkedHashMap<>();
-		put(values, "phantom_echo", 0x1100A11L, Fixture.CAVE).sounds(1, 1);
-		put(values, "light_dropout", 0x2200B22L, Fixture.LIGHTS);
-		put(values, "surface_fracture", 0x3300C33L, Fixture.WALL)
+		put(values, "phantom_echo", 0x1100A11L, Fixture.CAVE)
 				.overlays("surface_fracture", "glitch_impact").sounds(1, 1);
+		put(values, "light_dropout", 0x2200B22L, Fixture.LIGHTS);
 		put(values, "silent_world", 0x404D404L, Fixture.EMPTY).overlays("ambient_silenced");
 		put(values, "peripheral_residue", 0x4400D44L, Fixture.EMPTY)
 				.overlays("glitch_impact").sounds(1, 0);
@@ -66,24 +85,29 @@ public record AnomalyClientScenario(int catalogNumber, String id, int tier, long
 				.cleanup(Cleanup.EXACT_CAMERA_RESTORE);
 		put(values, "door_cascade", 900_001L, Fixture.DOORS).cleanup(Cleanup.PERMANENT_DOOR_ONLY);
 		put(values, "organ_misread", 0xAA040AAL, Fixture.INVENTORY).misread(8, 8);
-		put(values, "temporal_drift", 0x505E505L, Fixture.HORIZON).overlays("sky_desynchronised");
 		put(values, "experience_gap", 0xBB050BBL, Fixture.SAFE_PATH).overlays("blackout").locks(true, true);
 		put(values, "local_rule_collapse", 0xDD070DDL, Fixture.WORLD_INVARIANTS)
-				.overlays("missing_texture_proxies", "missing_texture_proxies_rendered")
+				.overlays("missing_texture_proxies", "missing_texture_proxies_rendered", "lighting_unsolved")
 				.completion(Completion.CLIENT_RESTORE_WITH_PERSISTENT_TRACE).cleanup(Cleanup.PERSISTENT_TRACE_ONLY);
-		put(values, "metric_drift", 0x606F606L, Fixture.EMPTY).overlays("readout_skewed");
+		put(values, "metric_drift", 0x606F606L, Fixture.HORIZON)
+				.overlays("readout_skewed", "sky_desynchronised");
 		put(values, "red_horizon", 0xEE080EEL, Fixture.HORIZON).overlays("red_horizon", "red_world_fog");
 		put(values, "window_pulse", 0x101A101L, Fixture.META_FALLBACK).overlays("window_fallback").metaDegraded();
 		put(values, "channel_override", 0x202B202L, Fixture.CHANNEL).overlays("channel_override").input(true);
 		put(values, "desktop_presence", 0x303C303L, Fixture.META_FALLBACK).overlays("notepad_fallback").metaDegraded();
 
+		// Numbered against the full catalogue rather than against the filtered list, so an exempt
+		// entry does not renumber the scenarios after it. The ordinal ends up in screenshot
+		// filenames, and a baseline comparison is only worth anything if the same anomaly keeps the
+		// same number across the change that exempted a different one.
 		List<AnomalyDefinition> catalog = AnomalyCatalog.definitions();
 		return java.util.stream.IntStream.range(0, catalog.size()).mapToObj(index -> {
 			AnomalyDefinition definition = catalog.get(index);
+			if (UNCOVERED.contains(definition.id())) return null;
 			Builder builder = values.get(definition.id());
 			if (builder == null) throw new IllegalStateException("Missing anomaly scenario builder: " + definition.id());
 			return builder.build(index + 1, definition);
-		}).toList();
+		}).filter(java.util.Objects::nonNull).toList();
 	}
 
 	private static Builder put(Map<String, Builder> values, String id, long seed, Fixture fixture) {

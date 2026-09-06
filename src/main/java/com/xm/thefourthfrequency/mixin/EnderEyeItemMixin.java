@@ -1,13 +1,8 @@
 package com.xm.thefourthfrequency.mixin;
 
-import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.ending.EndBossEncounterService;
 import com.xm.thefourthfrequency.ending.StrongholdPortalService;
-import com.xm.thefourthfrequency.pursuit.PursuitProgressPolicy;
-import com.xm.thefourthfrequency.terminal.TerminalNoticeService;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
-import com.xm.thefourthfrequency.world.FrequencyWorldData;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -21,29 +16,18 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * The twelfth Eye prepares the world interface, and nothing here gates it.
+ *
+ * <p>There used to be a refusal on the final Eye for a player who had not yet lived through a
+ * pursuit. It was a per-player condition on a world-level, party-visible action, which is the worst
+ * shape a gate can have in a shared world: one member of a table could place it and another could
+ * not, with no way to read why from where either of them was standing. It also bought nothing -
+ * the first pursuit opens on being bound plus one completed anomaly plus any activity at all, which
+ * every route through the early game satisfies long before twelve Eyes exist.</p>
+ */
 @Mixin(EnderEyeItem.class)
 public abstract class EnderEyeItemMixin {
-	@Inject(method = "useOn", at = @At("HEAD"), cancellable = true)
-	private void thefourthfrequency$requirePursuitBeforeFinalEye(UseOnContext context,
-			CallbackInfoReturnable<InteractionResult> callback) {
-		if (context.getLevel().isClientSide()
-				|| !(context.getPlayer() instanceof ServerPlayer player)) return;
-		var state = context.getLevel().getBlockState(context.getClickedPos());
-		if (!(state.getBlock() instanceof EndPortalFrameBlock)
-				|| state.getValue(EndPortalFrameBlock.HAS_EYE)) return;
-		var center = StrongholdPortalService.findPortalRingNear(
-				context.getLevel(), context.getClickedPos(), 4).orElse(null);
-		if (center == null || StrongholdPortalService.eyeCount(context.getLevel(), center) != 11) return;
-		int encountered = FrequencyWorldData.get(player.level().getServer())
-				.terminalRecord(player.getUUID())
-				.map(tag -> tag.getIntOr(TerminalData.PURSUIT_ENCOUNTERED_CHASES, 0))
-				.orElse(0);
-		if (PursuitProgressPolicy.finalEyeReady(encountered)) return;
-		TerminalNoticeService.denied(player,
-				"message.thefourthfrequency.world_interface.final_eye_requires_pursuit");
-		callback.setReturnValue(InteractionResult.FAIL);
-	}
-
 	/**
 	 * Runs after vanilla has actually inserted the eye. This avoids preparing the
 	 * End for cancelled or failed interactions and makes the twelfth eye the sole

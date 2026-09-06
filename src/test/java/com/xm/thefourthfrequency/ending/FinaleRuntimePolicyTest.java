@@ -34,6 +34,46 @@ final class FinaleRuntimePolicyTest {
 				WorldInterfaceStage.COMPLETE, WorldInterfaceState.Outcome.SUCCESS)));
 	}
 
+	/**
+	 * Nothing ambient reaches the player while the encounter is being fought.
+	 *
+	 * <p>This is the gap {@code backgroundSystemsAllowed} left: it closes at the resolution, so the
+	 * summon and all three phases were open to anomalies and empty segments. {@code silent_world}
+	 * mutes MUSIC, AMBIENT and HOSTILE and is sustained for two to three minutes, and every attack
+	 * cue the encounter plays is HOSTILE - one roll of it during the summon takes the score, the
+	 * telegraphs and the hit feedback away for most of the fight.</p>
+	 */
+	@Test
+	void noAmbientPressureReachesAFightInProgress() {
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.SUMMONING,
+				WorldInterfaceStage.PHASE_1, WorldInterfaceStage.PHASE_2,
+				WorldInterfaceStage.PHASE_3)) {
+			assertFalse(FinaleRuntimePolicy.ambientPressureAllowed(
+							snapshot(true, true, stage, WorldInterfaceState.Outcome.NONE)),
+					() -> "ambient pressure must be shut off at " + stage);
+		}
+		// Everything after the fight is already covered by the resolution gate, and must stay shut.
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.SUCCESS_RESOLUTION,
+				WorldInterfaceStage.FAILURE_RESOLUTION, WorldInterfaceStage.PORTAL_OPEN,
+				WorldInterfaceStage.COMPLETE)) {
+			assertFalse(FinaleRuntimePolicy.ambientPressureAllowed(
+							snapshot(true, true, stage, WorldInterfaceState.Outcome.SUCCESS)),
+					() -> "ambient pressure must stay shut at " + stage);
+		}
+		// Before the roster is even frozen the run is still the run, and the background is the run.
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.UNPREPARED,
+				WorldInterfaceStage.ARENA_READY, WorldInterfaceStage.WAITING_TERMINALS)) {
+			assertTrue(FinaleRuntimePolicy.ambientPressureAllowed(
+							snapshot(true, true, stage, WorldInterfaceState.Outcome.NONE)),
+					() -> "ambient pressure must still run at " + stage);
+		}
+		// A damaged save is not a running encounter, and must not silence a world by accident.
+		assertTrue(FinaleRuntimePolicy.ambientPressureAllowed(snapshot(true, false,
+				WorldInterfaceStage.PHASE_2, WorldInterfaceState.Outcome.NONE)));
+		assertTrue(FinaleRuntimePolicy.ambientPressureAllowed(snapshot(false, true,
+				WorldInterfaceStage.UNPREPARED, WorldInterfaceState.Outcome.NONE)));
+	}
+
 	@Test
 	void theBackgroundClosesAtTheResolutionAndNeverReopens() {
 		// Up to the resolution the world is still losing its grip, so the background belongs.
@@ -113,6 +153,6 @@ final class FinaleRuntimePolicyTest {
 				List.of(), List.of(), Set.of(), Map.of(), false, Optional.empty(),
 				0.0D, 0.0D, 0L, -1L, 0L, Optional.empty(),
 				0L, 0L, 0, 0L, -1L, Map.of(), 0, 0, Map.of(), Map.of(), List.of(),
-				Optional.empty(), BlockPos.ZERO, false, 0, -1L);
+				Optional.empty(), BlockPos.ZERO, false, 0, -1L, -1L);
 	}
 }

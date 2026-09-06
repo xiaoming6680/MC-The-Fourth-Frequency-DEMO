@@ -1,7 +1,6 @@
 package com.xm.thefourthfrequency.world;
 
 import com.xm.thefourthfrequency.content.TerminalData;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 import com.xm.thefourthfrequency.terminal.TerminalNoticeService;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
@@ -46,7 +45,7 @@ public final class GuidanceArrivalService {
 	}
 
 	public static void updatePlayer(ServerPlayer player) {
-		if (PursuitDimensions.isMirror(player.level())) return;
+		if (PrivateDimensions.isPrivate(player.level())) return;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag tag = data.terminalRecord(player.getUUID()).orElse(null);
 		if (tag == null) return;

@@ -11,12 +11,14 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -103,6 +105,51 @@ public abstract class ItemInHandRendererTerminalMixin {
 	}
 
 	/**
+	 * Whether the terminal has finished arriving in the hand and is simply being carried.
+	 *
+	 * <p>Latched rather than recomputed, because the question is not "is a terminal held" but "has
+	 * its equip already played out". See {@link #thefourthfrequency$presentTerminalInBothHands}.</p>
+	 */
+	@Unique
+	private boolean thefourthfrequency$terminalSettled;
+
+	/**
+	 * Keeps the latch in step with the hand, once per tick rather than per frame.
+	 *
+	 * <p>Set when vanilla's equip counter has reached the top with a terminal in the main hand, and
+	 * cleared the moment the main hand holds something else - which is what lets the device sink
+	 * back down normally when the player selects another slot.</p>
+	 */
+	@Inject(method = "tick", at = @At("TAIL"))
+	private void thefourthfrequency$trackTerminalCarry(CallbackInfo callback) {
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (player == null || !player.getMainHandItem().is(ModItems.OLD_TERMINAL)) {
+			this.thefourthfrequency$terminalSettled = false;
+		} else if (this.mainHandHeight >= 0.999F) {
+			this.thefourthfrequency$terminalSettled = true;
+		}
+	}
+
+	/**
+	 * Stops a right-click from yanking the device down at the exact moment it starts rising.
+	 *
+	 * <p>All {@code itemUsed} does is set the hand height to zero, and {@code Minecraft.startUseItem}
+	 * calls it on every successful use. For an ordinary item that punch-and-recover <em>is</em> the
+	 * feedback for using it. Right-clicking the terminal is not a use in that sense - it is the start
+	 * of a deliberate lift toward the lens - so the two motions land on the same frame pointing in
+	 * opposite directions, and the device visibly drops before it comes up.</p>
+	 *
+	 * <p>Cancelled rather than compensated for downstream: nothing about the terminal wants that
+	 * counter moved, and leaving it moved would mean every reader of it has to know to ignore it.</p>
+	 */
+	@Inject(method = "itemUsed", at = @At("HEAD"), cancellable = true)
+	private void thefourthfrequency$keepTerminalSteadyWhenUsed(InteractionHand hand,
+			CallbackInfo callback) {
+		ItemStack held = hand == InteractionHand.MAIN_HAND ? this.mainHandItem : this.offHandItem;
+		if (held.is(ModItems.OLD_TERMINAL)) callback.cancel();
+	}
+
+	/**
 	 * Draws the terminal in both hands, in place of vanilla's whole first-person pass.
 	 *
 	 * <p>Order matters: the hands are drawn before the device is scaled up, so they stay life-sized
@@ -113,10 +160,24 @@ public abstract class ItemInHandRendererTerminalMixin {
 			SubmitNodeCollector collector, LocalPlayer player, int light, CallbackInfo callback) {
 		if (!this.mainHandItem.is(ModItems.OLD_TERMINAL) || !this.offHandItem.isEmpty()) return;
 		if (AnomalyPresentationController.isFirstPersonHandHidden()) return;
-		TerminalHandheldPose.Presentation pose = TerminalHandheldAnimator.presentation();
+		// Vanilla's swing, on vanilla's own condition: the progress belongs to whichever arm is
+		// swinging, so an off-hand swing must not shove a device the other hand is holding. Cancelling
+		// this method is what dropped it in the first place - the terminal was the one held item in the
+		// game that did not react to hitting anything.
+		float swing = TerminalHandheldAnimator.swingShown(
+				player.swingingArm == InteractionHand.OFF_HAND ? 0.0F : player.getAttackAnim(partialTick));
+		TerminalHandheldPose.Presentation pose = TerminalHandheldAnimator.presentation(swing);
 		// Vanilla's own equip counter, so switching to the terminal still raises it into frame and
 		// switching away still drops it - without this the device would pop in fully placed.
-		float stowed = 1.0F - Mth.lerp(partialTick, this.oMainHandHeight, this.mainHandHeight);
+		//
+		// Only while it is actually arriving or leaving, though. That counter is not "how equipped is
+		// this item": it is driven to zero by itemUsed() on every right-click, and it dives and climbs
+		// back on any tick where the cached stack loses its identity - which a terminal that rewrites
+		// its own components does routinely. Once the equip has played out, the device is carried, and
+		// the only thing allowed to move it is the opening performance the player is meant to be
+		// reading. The latch clears the moment another slot is selected, so the stow still plays.
+		float stowed = this.thefourthfrequency$terminalSettled ? 0.0F
+				: 1.0F - Mth.lerp(partialTick, this.oMainHandHeight, this.mainHandHeight);
 		float drop = stowed * -0.6F;
 
 		poseStack.pushPose();
@@ -152,7 +213,11 @@ public abstract class ItemInHandRendererTerminalMixin {
 		// FIXED rather than a first-person context: it is the one transform that leaves the model
 		// centred on the origin at unit scale, which is what lets every number above be read as an
 		// absolute position in the frame instead of an offset from wherever an arm ended up.
-		this.renderItem(player, this.mainHandItem, ItemDisplayContext.FIXED, poseStack, collector, light);
+		// The stack as it should be *drawn* this frame, which differs from the held one only while
+		// the unread lamp is in the dark half of its blink. It is a copy; the player's own stack is
+		// never written, or the blink would be re-equipping the device several times a second.
+		this.renderItem(player, TerminalHandheldAnimator.displayedStack(this.mainHandItem),
+				ItemDisplayContext.FIXED, poseStack, collector, light);
 		poseStack.popPose();
 		// The two lines vanilla ends this method with, and the reason cancelling it is not enough on
 		// its own. renderItem only *submits* nodes; they are drawn when the dispatcher is flushed,

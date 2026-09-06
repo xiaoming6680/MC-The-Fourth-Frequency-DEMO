@@ -10,12 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class SkyInstrumentPolicyTest {
 	private static final int RED_HORIZON_TICKS = 800;
-	private static final int TEMPORAL_DRIFT_TICKS = 3_600;
+	private static final int METRIC_DRIFT_TICKS = 3_600;
 
 	@Test
 	void onlyTheTwoSkyAnomaliesDisturbThisPage() {
 		assertTrue(SkyInstrumentPolicy.isSkyAnomaly("red_horizon"));
-		assertTrue(SkyInstrumentPolicy.isSkyAnomaly("temporal_drift"));
+		assertTrue(SkyInstrumentPolicy.isSkyAnomaly("metric_drift"));
 		assertFalse(SkyInstrumentPolicy.isSkyAnomaly("silent_world"));
 		assertFalse(SkyInstrumentPolicy.isSkyAnomaly(null));
 		// An unrelated anomaly must leave the weather tool completely alone.
@@ -69,20 +69,20 @@ final class SkyInstrumentPolicyTest {
 	}
 
 	/**
-	 * temporal_drift runs for minutes and is meant to stay deniable. Capping its envelope below
+	 * metric_drift runs for minutes and is meant to stay deniable. Capping its envelope below
 	 * the stage-2 threshold makes "no tearing, no flood, ever" structural rather than a tuning
 	 * choice someone can undo by nudging a constant.
 	 */
 	@Test
 	void aSustainedAnomalyNeverTearsOrFloods() {
-		for (int elapsed = 0; elapsed <= TEMPORAL_DRIFT_TICKS; elapsed += 7) {
-			int remaining = TEMPORAL_DRIFT_TICKS - elapsed;
+		for (int elapsed = 0; elapsed <= METRIC_DRIFT_TICKS; elapsed += 7) {
+			int remaining = METRIC_DRIFT_TICKS - elapsed;
 			float instability = SkyInstrumentPolicy.instability(
-					"temporal_drift", elapsed, remaining, TEMPORAL_DRIFT_TICKS);
+					"metric_drift", elapsed, remaining, METRIC_DRIFT_TICKS);
 			assertTrue(instability < 0.40F,
-					"temporal_drift reached " + instability + " at tick " + elapsed);
+					"metric_drift reached " + instability + " at tick " + elapsed);
 			int stage = SkyInstrumentPolicy.stage(instability, elapsed);
-			assertTrue(stage <= 1, "temporal_drift reached stage " + stage + " at tick " + elapsed);
+			assertTrue(stage <= 1, "metric_drift reached stage " + stage + " at tick " + elapsed);
 			assertEquals(0, SkyInstrumentPolicy.errorLineCount(stage, elapsed));
 			assertEquals(Integer.MIN_VALUE, SkyInstrumentPolicy.rollBarTop(elapsed, 100, stage));
 		}

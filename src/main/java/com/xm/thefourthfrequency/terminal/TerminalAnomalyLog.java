@@ -8,7 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TerminalAnomalyLog {
-	public static final int MAX_ENTRIES = 32;
+	/**
+	 * Sized by {@link AnomalyBackfillPolicy}, not by this class.
+	 *
+	 * <p>It was 32 for as long as nothing read this store. The backfill turns the same list into a
+	 * full account of one playthrough, and the two numbers have to be the same number or the wire
+	 * clamp and the storage cap will disagree about which end gets dropped.
+	 */
+	public static final int MAX_ENTRIES = AnomalyBackfillPolicy.MAX_ENTRIES;
 
 	private TerminalAnomalyLog() {
 	}

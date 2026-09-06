@@ -5,6 +5,7 @@ import com.xm.thefourthfrequency.content.ModBlocks;
 import com.xm.thefourthfrequency.entity.StabilityAnchorEntity;
 import com.xm.thefourthfrequency.mixin.EndDragonFightAccessor;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -85,6 +86,15 @@ public final class EndBossArenaService {
 	 * Newly added entities can be accepted by the persistent entity manager before the visible UUID
 	 * index exposes them. Retain only the ten bounded arena references so same-tick reconciliation
 	 * cannot try to add a second entity with the same deterministic UUID.
+	 *
+	 * <p><b>The weak key does not collect this map on its own, which is why {@link #initialize}
+	 * clears it explicitly.</b> The values are {@code StabilityAnchorEntity}, and an entity holds a
+	 * reference to its own {@code Level} - so every value in here reaches its own key, and a
+	 * {@code WeakHashMap} whose value strongly references its key never drops the entry. Any world
+	 * left with a surviving anchor therefore pinned its whole {@code ServerLevel}, and with it the
+	 * chunk and entity storage hanging off it, for the rest of the process. {@link #RUNTIMES} does
+	 * not have this problem - {@code ArenaRuntime} holds nothing but block positions - but it is
+	 * cleared alongside for the same reason the rest of the ending package clears its tables.
 	 */
 	private static final Map<ServerLevel, Map<UUID, StabilityAnchorEntity>> KNOWN_ANCHORS =
 			Collections.synchronizedMap(new WeakHashMap<>());
@@ -97,6 +107,16 @@ public final class EndBossArenaService {
 		if (initialized) return;
 		initialized = true;
 		ServerTickEvents.END_SERVER_TICK.register(EndBossArenaService::tickServer);
+		// Matched on the owning server rather than on Level.END, because this runs after the server
+		// has stopped and must not depend on its level map still answering lookups.
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			synchronized (RUNTIMES) {
+				RUNTIMES.keySet().removeIf(level -> level.getServer() == server);
+			}
+			synchronized (KNOWN_ANCHORS) {
+				KNOWN_ANCHORS.keySet().removeIf(level -> level.getServer() == server);
+			}
+		});
 	}
 
 	/**
@@ -445,27 +465,65 @@ public final class EndBossArenaService {
 	/**
 	 * Writes the altar and clears the air above it. The shape itself lives in {@link AltarShape} so
 	 * that this and {@code ResonanceCoreBlock.buildAltar} cannot drift into two different altars.
+	 *
+	 * <p>Every cell that already holds a block entity is left exactly as it is. The altar is fixed at
+	 * the origin of the native main island, which is where a shared world puts its return portal, its
+	 * storage and its dragon-fight staging - so on any server that has been to the End before, this
+	 * build lands on somebody's chests. {@link #EDIT_FLAGS} carries no {@code UPDATE_NEIGHBORS}, so
+	 * the contents would not even spill: the block entity would simply cease to exist, along with
+	 * everything in it, at a moment nobody chose and with nothing left to read. That is the silent
+	 * swallowing this mod promises never to do, and it is worth a hole in a wall to avoid.
+	 *
+	 * <p>The resonance core is exempt because it is the one block entity the altar places itself; a
+	 * re-prepare would otherwise refuse to rebuild around its own core.
 	 */
 	private static void buildAltar(ServerLevel level, BlockPos center, boolean includeCore) {
+		BlockPos core = AltarShape.corePosition(center);
+		int preserved = 0;
 		for (int dx = -ALTAR_RADIUS; dx <= ALTAR_RADIUS; dx++) {
 			for (int dz = -ALTAR_RADIUS; dz <= ALTAR_RADIUS; dz++) {
 				int top = AltarShape.topOffset(dx, dz);
 				for (int dy = 0; dy <= top; dy++) {
-					level.setBlock(center.offset(dx, dy, dz), AltarShape.state(dx, dy, dz, top), EDIT_FLAGS);
+					BlockPos position = center.offset(dx, dy, dz);
+					if (holdsForeignBlockEntity(level, position)) {
+						preserved++;
+						continue;
+					}
+					level.setBlock(position, AltarShape.state(dx, dy, dz, top), EDIT_FLAGS);
 				}
 				for (int dy = top + 1; dy <= top + AltarShape.HEADROOM; dy++) {
 					BlockPos clearance = center.offset(dx, dy, dz);
 					BlockState existing = level.getBlockState(clearance);
-					if (clearance.equals(AltarShape.corePosition(center)) && existing.is(ModBlocks.RESONANCE_CORE)) continue;
+					if (clearance.equals(core) && existing.is(ModBlocks.RESONANCE_CORE)) continue;
+					if (holdsForeignBlockEntity(level, clearance)) {
+						preserved++;
+						continue;
+					}
 					if (!existing.isAir() && !existing.is(Blocks.BEDROCK)) {
 						level.setBlock(clearance, Blocks.AIR.defaultBlockState(), EDIT_FLAGS);
 					}
 				}
 			}
 		}
-		if (includeCore) {
-			level.setBlock(AltarShape.corePosition(center), ModBlocks.RESONANCE_CORE.defaultBlockState(), EDIT_FLAGS);
+		if (includeCore && !holdsForeignBlockEntity(level, core)) {
+			level.setBlock(core, ModBlocks.RESONANCE_CORE.defaultBlockState(), EDIT_FLAGS);
 		}
+		if (preserved > 0) {
+			TheFourthFrequency.LOGGER.warn("Relay altar left {} cell(s) unbuilt: something with stored "
+					+ "contents already stood at the End origin, and it was kept rather than erased", preserved);
+		}
+	}
+
+	/**
+	 * Whether this position holds a block entity the altar did not put there.
+	 *
+	 * <p>Read per position rather than per chunk, unlike the station's own siting probe: that one is
+	 * choosing between hundreds of candidate footprints and can afford no per-block cost, while this
+	 * one has a single fixed footprint of a few hundred cells and runs once.
+	 */
+	private static boolean holdsForeignBlockEntity(ServerLevel level, BlockPos position) {
+		return level.getBlockEntity(position) != null
+				&& !level.getBlockState(position).is(ModBlocks.RESONANCE_CORE);
 	}
 
 	private static List<BlockPos> buildGateways(ServerLevel level) {

@@ -6,7 +6,7 @@
 				"discipline": "制作",
 				"titles": [
 					{
-						"title": "主创 / 制作人",
+						"title": "主创 / 制作人 / 全部设计",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -14,28 +14,22 @@
 				]
 			},
 			{
-				"discipline": "设计",
+				"discipline": "开发",
 				"titles": [
 					{
-						"title": "游戏与系统设计",
+						"title": "程序 · 客户端、服务端与渲染",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
-						"title": "终端与交互设计",
+						"title": "美术 · 模型、贴图与界面",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
-						"title": "异象与个人追逐设计",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "末地终局设计",
+						"title": "音频实现",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -46,98 +40,13 @@
 				"discipline": "叙事",
 				"titles": [
 					{
-						"title": "世界观与剧本",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "文件与终末之诗",
+						"title": "世界观 · 剧本 · 文件与终末之诗",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
 						"title": "本地化（简体中文 / English）",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "程序",
-				"titles": [
-					{
-						"title": "客户端与服务端",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "网络协议与存档",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "渲染与动画",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Mixin 与兼容",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "美术",
-				"titles": [
-					{
-						"title": "模型与贴图",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "界面与演出",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "音频",
-				"titles": [
-					{
-						"title": "选曲与音频实现",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "质量保证",
-				"titles": [
-					{
-						"title": "测试与版本验收",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "文档",
-				"titles": [
-					{
-						"title": "架构文档与世界圣经",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -157,19 +66,28 @@
 						"names": [
 							"School Rooftop — hisohkah, WMD",
 							"Comfort Chain — instupendo",
+							"Six Forty Seven — instupendo",
 							"千禧梦（中式梦核）— LUSTN",
 							"天使は感動する (feat. Aiobahn +81) — NEEDY GIRL OVERDOSE, Aiobahn +81",
 							"Are You Lost — Park Bird",
-							"Hi — TEMPOREX"
+							"Hi — TEMPOREX",
+							"snowfall — Øneheart, reidenshi",
+							"ON TOP — the girl next door, WMD"
 						]
 					},
 					{
 						"title": "主菜单 BGM",
 						"names": [
-							"frutiger aero — amirthetrash",
 							"green to blue (Sped Up) — Aurenth",
 							"Hi（纯钢琴梦核）— 弹琴老周",
-							"nop — 陈越龙"
+							"nop — 陈越龙",
+							"Comfort Chain — instupendo"
+						]
+					},
+					{
+						"title": "未渲染层",
+						"names": [
+							"Nice Boys（好男孩）— TEMPOREX"
 						]
 					},
 					{
@@ -179,16 +97,23 @@
 						]
 					},
 					{
+						"title": "末地 · 召唤之前",
+						"names": [
+							"Anyone can find love (except you) — Cloudrift"
+						]
+					},
+					{
 						"title": "世界接口战斗",
 						"names": [
-							"NCPD Prowl — Marcin Przybyłowicz",
+							"Anyone can find love (especially you.) — ZXK",
+							"Lovve (Hikkamorg Remix) — skayanskiy",
 							"WAKE UP! (Sped Up) — MoonDeity"
 						]
 					},
 					{
 						"title": "终末之诗 · 胜利",
 						"names": [
-							"Reverie — ILLENIUM, Dana Salah"
+							"ME & YOU — VIKI"
 						]
 					},
 					{

@@ -6,59 +6,7 @@
 				"discipline": "Production",
 				"titles": [
 					{
-						"title": "Creator & Producer",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "Design",
-				"titles": [
-					{
-						"title": "Game & Systems Design",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Terminal & Interaction Design",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Anomaly & Pursuit Design",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "End Encounter Design",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "Narrative",
-				"titles": [
-					{
-						"title": "World Bible & Script",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Documents & End Poem",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Localization (Simplified Chinese / English)",
+						"title": "Creator, Producer & Design",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -69,25 +17,19 @@
 				"discipline": "Engineering",
 				"titles": [
 					{
-						"title": "Client & Server",
+						"title": "Programming · Client, Server & Rendering",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
-						"title": "Networking & Persistence",
+						"title": "Art · Models, Textures & UI",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
-						"title": "Rendering & Animation",
-						"names": [
-							"XIAOMING6680"
-						]
-					},
-					{
-						"title": "Mixins & Compatibility",
+						"title": "Audio Implementation",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -95,49 +37,16 @@
 				]
 			},
 			{
-				"discipline": "Art",
+				"discipline": "Narrative",
 				"titles": [
 					{
-						"title": "Models & Textures",
+						"title": "World Bible, Script, Documents & End Poem",
 						"names": [
 							"XIAOMING6680"
 						]
 					},
 					{
-						"title": "UI & Visual Effects",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "Audio",
-				"titles": [
-					{
-						"title": "Music Selection & Implementation",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "Quality Assurance",
-				"titles": [
-					{
-						"title": "Testing & Release Acceptance",
-						"names": [
-							"XIAOMING6680"
-						]
-					}
-				]
-			},
-			{
-				"discipline": "Documentation",
-				"titles": [
-					{
-						"title": "Architecture Docs & World Bible",
+						"title": "Localization (Simplified Chinese / English)",
 						"names": [
 							"XIAOMING6680"
 						]
@@ -157,19 +66,28 @@
 						"names": [
 							"School Rooftop — hisohkah, WMD",
 							"Comfort Chain — instupendo",
+							"Six Forty Seven — instupendo",
 							"千禧梦 (Chinese Dreamcore) — LUSTN",
 							"天使は感動する (feat. Aiobahn +81) — NEEDY GIRL OVERDOSE, Aiobahn +81",
 							"Are You Lost — Park Bird",
-							"Hi — TEMPOREX"
+							"Hi — TEMPOREX",
+							"snowfall — Øneheart, reidenshi",
+							"ON TOP — the girl next door, WMD"
 						]
 					},
 					{
 						"title": "Main Menu BGM",
 						"names": [
-							"frutiger aero — amirthetrash",
 							"green to blue (Sped Up) — Aurenth",
 							"Hi (Piano Dreamcore) — 弹琴老周",
-							"nop — 陈越龙"
+							"nop — 陈越龙",
+							"Comfort Chain — instupendo"
+						]
+					},
+					{
+						"title": "The Unrendered Layer",
+						"names": [
+							"Nice Boys — TEMPOREX"
 						]
 					},
 					{
@@ -179,16 +97,23 @@
 						]
 					},
 					{
+						"title": "The End, Before the Summon",
+						"names": [
+							"Anyone can find love (except you) — Cloudrift"
+						]
+					},
+					{
 						"title": "World Interface Encounter",
 						"names": [
-							"NCPD Prowl — Marcin Przybyłowicz",
+							"Anyone can find love (especially you.) — ZXK",
+							"Lovve (Hikkamorg Remix) — skayanskiy",
 							"WAKE UP! (Sped Up) — MoonDeity"
 						]
 					},
 					{
 						"title": "End Poem - Victory",
 						"names": [
-							"Reverie — ILLENIUM, Dana Salah"
+							"ME & YOU — VIKI"
 						]
 					},
 					{

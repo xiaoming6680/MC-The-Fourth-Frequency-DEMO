@@ -1,12 +1,13 @@
 package com.xm.thefourthfrequency.world;
 
 import com.xm.thefourthfrequency.content.TerminalData;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 import com.xm.thefourthfrequency.state.NavigationState;
 import com.xm.thefourthfrequency.state.PlayerPatternState;
+import com.xm.thefourthfrequency.terminal.SignalBand;
 import com.xm.thefourthfrequency.terminal.TerminalResource;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
+import com.xm.thefourthfrequency.terminal.TerminalSignalLog;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -260,25 +261,55 @@ public final class ResourceGuidanceService {
 			Block block = level.getBlockState(candidate).getBlock();
 			TerminalResource resource = surveyResource(block);
 			if (!MineralSurveyPolicy.unlocked(probe.unlockedMask, resource)
-					|| distanceSquared > squared(MineralSurveyPolicy.probeRadius(resource))
-					|| MineralSurveyPolicy.reportPriority(resource)
-							<= MineralSurveyPolicy.reportPriority(probe.found)) continue;
-			probe.found = resource;
-			probe.foundPosition = candidate.immutable();
-			probe.foundBlockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+					|| distanceSquared > squared(MineralSurveyPolicy.probeRadius(resource))) continue;
+			String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+			// Two running maxima over one walk. The offsets are ordered by distance, so the first hit
+			// of any ore is already its nearest instance and neither branch ever needs to look back.
+			if (MineralSurveyPolicy.reportPriority(resource)
+					> MineralSurveyPolicy.reportPriority(probe.found)) {
+				probe.found = resource;
+				probe.foundPosition = candidate.immutable();
+				probe.foundBlockId = blockId;
+			}
+			if (MineralSurveyPolicy.exactReading(resource, offsetComponent(packed, 14),
+					offsetComponent(packed, 7), offsetComponent(packed, 0))
+					&& MineralSurveyPolicy.reportPriority(resource)
+							> MineralSurveyPolicy.reportPriority(probe.nameable)) {
+				probe.nameable = resource;
+				probe.nameablePosition = candidate.immutable();
+				probe.nameableBlockId = blockId;
+			}
 		}
 	}
 
+	/**
+	 * Reports a hit it can name over a rarer one it can only gesture at.
+	 *
+	 * <p>The probe used to answer with the rarest ore in range, full stop, and the sweep upgrades to
+	 * anything rarer at any distance. So coal three blocks under the player's feet was routinely
+	 * thrown away in favour of diamond fifteen blocks off - which is outside diamond's exact radius,
+	 * so what came back was a bearing and a distance band. <b>That is why pressing the probe so often
+	 * produced only a rough direction: the tool was systematically discarding the one hit it could
+	 * have given an address for.</b>
+	 *
+	 * <p>Rarity still orders everything within each of the two answers, and the rare bearing is still
+	 * what comes back when nothing is close enough to name. What changed is that "I can tell you
+	 * exactly where this is" now outranks "something rarer is somewhere over there" - which is also
+	 * the more honest instrument, since one of those is a reading and the other is a guess with a
+	 * percentage attached.
+	 */
 	private static void commitProbe(ServerPlayer player, FrequencyWorldData data, ProbeState probe, long now) {
-		TerminalResource resource = probe.found;
-		BlockPos found = probe.foundPosition;
-		String blockId = probe.foundBlockId;
+		boolean preferNameable = probe.nameable != TerminalResource.NONE && probe.nameablePosition != null;
+		TerminalResource resource = preferNameable ? probe.nameable : probe.found;
+		BlockPos found = preferNameable ? probe.nameablePosition : probe.foundPosition;
+		String blockId = preferNameable ? probe.nameableBlockId : probe.foundBlockId;
 		String dimension = probe.dimension;
 		BlockPos origin = probe.origin;
 		data.updateTerminalRecord(player.getUUID(), record -> {
 			record.putLong(TerminalData.MINERAL_SCAN_READY_GAME_TIME, 0L);
 			if (resource == TerminalResource.NONE || found == null) {
 				clearReading(record);
+				if (forgeEmptyResult(player, record, dimension, origin, now)) return;
 				record.putInt(TerminalData.MINERAL_READING_KIND, READING_EMPTY);
 				record.putString(TerminalData.MINERAL_READING_DIMENSION, dimension);
 				return;
@@ -288,7 +319,7 @@ public final class ResourceGuidanceService {
 			int dx = found.getX() - origin.getX();
 			int dy = found.getY() - origin.getY();
 			int dz = found.getZ() - origin.getZ();
-			if (MineralSurveyPolicy.exactReading(dx, dy, dz)) {
+			if (MineralSurveyPolicy.exactReading(resource, dx, dy, dz)) {
 				record.putInt(TerminalData.MINERAL_READING_KIND, READING_EXACT);
 				record.putInt(TerminalData.MINERAL_READING_DX, 0);
 				record.putInt(TerminalData.MINERAL_READING_DZ, 0);
@@ -312,6 +343,47 @@ public final class ResourceGuidanceService {
 		});
 		TerminalRuntimeService.synchronizeProjection(player);
 		TerminalRuntimeService.refresh(player);
+	}
+
+	/**
+	 * The single forged reading, filed together with the line that gives it away.
+	 *
+	 * <p>Both halves are written inside the same record update. That is the whole safety property:
+	 * there is no ordering in which the player can be shown a wrong reading that has no trace behind
+	 * it, not even across a crash, because the two are one write.
+	 *
+	 * <p>The trace is filed unread on purpose. A badge would be the terminal pointing at its own lie,
+	 * and being told is not the same experience as finding out - the player is meant to walk to the
+	 * bearing, dig, find nothing, and only then go back and look.
+	 *
+	 * @return whether the empty result was replaced, in which case the caller must not write
+	 *         {@code READING_EMPTY} over it
+	 */
+	private static boolean forgeEmptyResult(ServerPlayer player, CompoundTag record, String dimension,
+			BlockPos origin, long now) {
+		if (!MineralDeceptionPolicy.eligible(record.getIntOr(TerminalData.ANOMALY_TIER, 0),
+				record.getBooleanOr(TerminalData.MINERAL_READING_FORGED, false), true)) return false;
+		MineralDeceptionPolicy.Forgery forgery = MineralDeceptionPolicy.forge(
+				player.getUUID().getLeastSignificantBits() ^ now);
+		MineralSurveyPolicy.Bearing bearing = forgery.bearing();
+		record.putBoolean(TerminalData.MINERAL_READING_FORGED, true);
+		record.putInt(TerminalData.SELECTED_RESOURCE, forgery.resource().wireId());
+		record.putString(TerminalData.MINERAL_READING_DIMENSION, dimension);
+		record.putInt(TerminalData.MINERAL_READING_KIND, READING_BEARING);
+		record.putInt(TerminalData.MINERAL_READING_DX, bearing.dx());
+		record.putInt(TerminalData.MINERAL_READING_DZ, bearing.dz());
+		record.putInt(TerminalData.MINERAL_READING_MIN_DISTANCE, forgery.bandMinimum());
+		record.putInt(TerminalData.MINERAL_READING_MAX_DISTANCE, forgery.bandMaximum());
+		// Exactly the shape an honest out-of-radius answer has, down to never becoming a waypoint.
+		new NavigationState(forgery.resource().id(), resourceItem(forgery.resource()), false, "", 0L,
+				dimension, now).writeTo(record);
+		// variant carries what was displayed; the spare integer carries bearing and distance, which
+		// is all the line needs to reprint the reading after it has been cleared from the tool.
+		TerminalSignalLog.append(record, SignalBand.UNKNOWN, "mineral_reading_forged",
+				now, player.level().getDayTime(), dimension, origin.asLong(),
+				forgery.resource().wireId(),
+				MineralDeceptionPolicy.packTrace(forgery.octant(), forgery.distance()), false);
+		return true;
 	}
 
 	// ------------------------------------------------------------------ reading upkeep
@@ -414,10 +486,23 @@ public final class ResourceGuidanceService {
 	// ------------------------------------------------------------------ passive survey
 
 	private static boolean autoSurveyEligible(ServerPlayer player, CompoundTag record) {
-		return player.isAlive() && !player.isSpectator() && !PursuitDimensions.isMirror(player.level())
+		return player.isAlive() && !player.isSpectator() && !PrivateDimensions.isPrivate(player.level())
 				&& !TerminalToolService.toolsDisabled(record, player.level().getGameTime())
-				&& TerminalToolService.guidanceTool(record) != TerminalTool.MINERALS.slot()
+				&& !guidingOffSharedNavigation(record)
 				&& (TerminalToolService.availableToolsMask(player, record) & 1 << TerminalTool.MINERALS.slot()) != 0;
+	}
+
+	/**
+	 * Whether some tool is currently following the navigation state this survey would overwrite.
+	 *
+	 * <p>{@link #scanAuto} writes a whole {@code NavigationState} on a hit, and more than one tool
+	 * reads that state - see {@link TerminalTool#usesSharedNavigationState}. The survey is only
+	 * allowed to run while the terminal is shut, which is precisely when somebody is walking
+	 * somewhere, so anything it overwrites it overwrites mid-route.
+	 */
+	private static boolean guidingOffSharedNavigation(CompoundTag record) {
+		TerminalTool guiding = TerminalTool.fromSlot(TerminalToolService.guidanceTool(record));
+		return guiding != null && guiding.usesSharedNavigationState();
 	}
 
 	private static boolean autoSurveyStatePresent(CompoundTag record) {
@@ -659,6 +744,15 @@ public final class ResourceGuidanceService {
 		private TerminalResource found = TerminalResource.NONE;
 		private BlockPos foundPosition;
 		private String foundBlockId = "";
+		/**
+		 * The best hit the terminal could actually name, tracked alongside the rarest one.
+		 *
+		 * <p>Costs nothing extra to keep: the sweep already visits every block the rarity search
+		 * needs, so this is a second running maximum over the same walk rather than a second walk.
+		 */
+		private TerminalResource nameable = TerminalResource.NONE;
+		private BlockPos nameablePosition;
+		private String nameableBlockId = "";
 
 		private ProbeState(BlockPos origin, String dimension, int unlockedMask) {
 			this.origin = origin.immutable();

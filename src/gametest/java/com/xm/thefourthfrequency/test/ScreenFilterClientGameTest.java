@@ -38,13 +38,14 @@ public final class ScreenFilterClientGameTest implements FabricClientGameTest {
 			"signal_still_1", "signal_still_2", "signal_still_3", "signal_still_4",
 			"pursuit_low_res_distant", "pursuit_low_res", "pursuit_low_res_close",
 			"pursuit_low_res_contact",
-			"world_interface_lock", "world_interface_lock_peak", "world_interface_expulsion");
+			"world_interface_lock", "world_interface_lock_peak", "world_interface_expulsion",
+			"world_interface_dispersion", "world_interface_dispersion_far");
 
 	/** One from each family, photographed against a real frame rather than against a flat colour. */
 	private static final List<String> PHOTOGRAPHED = List.of(
 			"signal_2", "signal_4", "signal_still_4", "pursuit_low_res_distant",
 			"pursuit_low_res_contact", "world_interface_lock", "world_interface_lock_peak",
-			"world_interface_expulsion");
+			"world_interface_expulsion", "world_interface_dispersion");
 
 	@Override
 	public void runTest(ClientGameTestContext context) {

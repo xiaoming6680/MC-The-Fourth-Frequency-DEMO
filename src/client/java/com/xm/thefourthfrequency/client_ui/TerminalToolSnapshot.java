@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.client_ui;
 
 import com.xm.thefourthfrequency.networking.TerminalToolSnapshotPayload;
+import com.xm.thefourthfrequency.terminal.NavigationConvergencePolicy;
 import com.xm.thefourthfrequency.terminal.TerminalNavigationMath;
 import com.xm.thefourthfrequency.terminal.TerminalResource;
 import com.xm.thefourthfrequency.terminal.TerminalTool;
@@ -195,6 +196,24 @@ public record TerminalToolSnapshot(TerminalToolSnapshotPayload payload) {
 		return Component.translatable("terminal.thefourthfrequency.tool." + tool.id() + ".locked");
 	}
 
+	/**
+	 * One line saying what a tool the player already has actually does.
+	 *
+	 * <p>The grid was readable and uninformative: six glyphs and six nouns, with no way to find out
+	 * what "矿物" or "导航" would report until you opened it and interpreted the readout. The padlock
+	 * hint had solved exactly this problem for locked tools and left the unlocked ones alone, which
+	 * is backwards - a player who cannot open a tool at least knows why, while a player who can open
+	 * six has to open six.
+	 *
+	 * <p>Reuses the {@code .summary} line the detail page already shows rather than adding a second
+	 * key per tool. The two would say the same thing in two places and drift, and the detail page is
+	 * where a player checks after opening a tool - which is precisely the trip this is meant to save
+	 * them, so the sentence that answers it there is the sentence that belongs here.
+	 */
+	public Component hintLine(TerminalTool tool) {
+		return Component.translatable("terminal.thefourthfrequency.tool." + tool.id() + ".summary");
+	}
+
 	public boolean receiverAvailable() {
 		return payload.receiverAvailable();
 	}
@@ -213,15 +232,41 @@ public record TerminalToolSnapshot(TerminalToolSnapshotPayload payload) {
 
 	public Component strongholdLine() {
 		int samples = Math.max(0, payload.eyeSampleCount());
-		if (samples < SurvivalProgressService.REQUIRED_EYE_SAMPLES || !payload.strongholdKnown())
-			return Component.translatable("terminal.thefourthfrequency.tool.stronghold.samples",
-					samples, SurvivalProgressService.REQUIRED_EYE_SAMPLES);
+		// Says how to get a sample, not just how many are missing.
+		//
+		// The count alone was the whole readout before three of them existed, which is the state
+		// every player meets this tool in - and "0/3 Eye of Ender samples recorded" describes a
+		// scoreboard without ever mentioning that throwing one is what scores. Nothing else in the
+		// terminal says so either, so a player who had not already learned the vanilla mechanic
+		// elsewhere could unlock the instrument built for this job and still be stuck.
+		if (samples < SurvivalProgressService.REQUIRED_EYE_SAMPLES || !payload.strongholdKnown()) {
+			return Component.empty()
+					.append(Component.translatable("terminal.thefourthfrequency.tool.stronghold.samples",
+							samples, SurvivalProgressService.REQUIRED_EYE_SAMPLES))
+					.append(" ")
+					.append(Component.translatable(
+							"terminal.thefourthfrequency.tool.stronghold.hint.throw_to_sample"));
+		}
 		if (!payload.strongholdSameDimension()) return Component.translatable(
 				"terminal.thefourthfrequency.tool.stronghold.other_dimension", payload.strongholdDimension());
-		return Component.translatable("terminal.thefourthfrequency.tool.stronghold.estimate",
+		int minimum = Math.max(0, payload.strongholdMinDistance());
+		int maximum = Math.max(0, payload.strongholdMaxDistance());
+		Component estimate = Component.translatable("terminal.thefourthfrequency.tool.stronghold.estimate",
 				Component.translatable("terminal.thefourthfrequency.direction."
 						+ TerminalNavigationMath.direction(payload.strongholdDx(), payload.strongholdDz())),
-				Math.max(0, payload.strongholdMinDistance()), Math.max(0, payload.strongholdMaxDistance()), samples);
+				minimum, maximum, samples);
+		// What to do about it, if there is anything worth doing.
+		//
+		// The level is read back out of the band the server already sent rather than carried as its
+		// own field: the width of that band *is* the precision, so deriving it needs no protocol
+		// change and cannot fall out of step with the number printed beside it. Without this the
+		// estimate narrows silently and a player standing in one doorway throwing eye after eye has
+		// no way to learn that where they are standing is the problem.
+		String hint = NavigationConvergencePolicy.hintId(
+				NavigationConvergencePolicy.levelForUncertainty(Math.max(0, (maximum - minimum) / 2)));
+		if (hint == null) return estimate;
+		return Component.empty().append(estimate).append(" ").append(Component.translatable(
+				"terminal.thefourthfrequency.tool.stronghold.hint." + hint));
 	}
 
 	public int playerY() {

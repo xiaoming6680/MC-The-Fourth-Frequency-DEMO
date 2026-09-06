@@ -26,10 +26,10 @@
 # 因此方法签名引用 Minecraft 类型的测试类不会再被静默跳过。XML 输出到 build/test-results/unit
 .\gradlew.bat unitTest --no-daemon
 
-# check/build 都依赖上述 unitTest，现在可以作为全绿门禁
+# check 依赖 unitTest 与服务端 runGameTest，可以作为全绿门禁；客户端套件仍需单独跑
 .\gradlew.bat check --no-daemon
 
-# 干净构建；任务图会依次执行 unitTest 与服务端 GameTest
+# 干净构建；`check` 依赖 unitTest 与 runGameTest 两者，都通过之后才产出 JAR 并部署
 .\gradlew.bat clean build --no-daemon
 
 # 服务端 GameTest
@@ -45,9 +45,11 @@
 .\gradlew.bat runClientGameTest -PtffClientTestSuite=world-interface --no-daemon
 ```
 
-`build` 的最后一步只在前置编译与测试全部成功后执行：把 `remapJar` 产出的可运行 JAR 复制到本地实例的 `mods` 目录。默认路径写在 `build.gradle`，用 `-PtffDeployDir=<路径>` 覆盖、`-PtffDeployDir=` 关闭；目标盘不存在时跳过而不是让构建失败。它不复制 sources JAR、不删除其他 MOD；单独运行 `remapJar` 只生成 `build/libs/` 产物，不触发部署。
+`build` 的最后一步只在前置编译与测试全部成功后执行：把 `remapJar` 产出的可运行 JAR 复制到本地实例的 `mods` 目录。**它默认关闭**——目标路径属于某一台机器，不写进仓库；在用户级 `~/.gradle/gradle.properties` 里设 `tffDeployDir=<路径>` 长期启用，或用 `-PtffDeployDir=<路径>` 临时指定、`-PtffDeployDir=` 临时关闭。未配置只打印一行说明，目标盘不存在时跳过，都不会让构建失败（见[仓库维护指南](maintenance.md#本地部署)）。它不复制 sources JAR、不删除其他 MOD；单独运行 `remapJar` 只生成 `build/libs/` 产物，不触发部署。
 
-允许的客户端套件 ID：`all`、`default`、`mainline`、`tools-ui`、`notice-entry`、`alpha-relaunch`、`anomalies`、`anomaly-meta-smoke`、`rework-forms`、`watcher-model`、`world-interface`、`terminal-3d`、`screen-filters`。`all` 覆盖主线、工具 UI、异象、校正者、观察者模型、World Interface 和手持终端；告知/重启类套件仍独立运行。仅 `anomalies` 套件允许额外指定 `-PtffAnomaly=<id>`。
+允许的客户端套件 ID：`all`、`default`、`mainline`、`tools-ui`、`notice-entry`、`alpha-relaunch`、`anomalies`、`anomaly-meta-smoke`、`rework-forms`、`watcher-model`、`world-interface`、`terminal-3d`、`screen-filters`。`all` 覆盖主线全程、工具 UI、异象、校正者、观察者模型、World Interface（含末地天气）、手持终端和屏幕滤镜；告知/重启类套件仍独立运行。仅 `anomalies` 套件允许额外指定 `-PtffAnomaly=<id>`。
+
+**`all` 必须是 `mainline` 的真超集。** 它一度不是：主线测试里那句提前 `return` 被 `runsToolsUi()` 守着，而该谓词对 `all` 与 `tools-ui` 同时为真，于是完整套件跑完工具 UI 检查就返回，静默丢掉主线后半段（波段推进、四份破损文件、日记解锁、下界往返连续性、终端能力模型、Alpha 主菜单版本戳），**而且仍然报绿**。现在由 `ClientGameTestSelection.stopsAfterToolsUi()` 只让 `tools-ui` 停在那里，`AnomalyClientAutomationContractTest` 对三个套件双向断言这条谓词。一个报绿的覆盖缺口比没有这个套件更糟。
 
 ### `terminal-3d`：手持终端
 
@@ -60,6 +62,7 @@
 | 待机双手捧持、手与设备各自深度 | 断言 + 截图 |
 | **转向不移动设备** | 断言（四个视角下姿态的 z / scale / handSpread 必须逐位相同）+ 四张截图 |
 | 抬起、FOV 收窄、转正、落回、视野复原 | 断言 + 截图 |
+| **挥击顿挫**：真实 `swing()` 后设备向前下方移动并自行收回；开合演出期间同样的挥击进度被拒绝 | 断言 + 截图 |
 | 副手占用退回单手，且副手物品照常显示 | 截图 |
 | 六形态逐一 | 截图 |
 
@@ -75,24 +78,79 @@
 | --- | --- |
 | 筛选纯逻辑测试 | 异象池/节奏、五形态策略、终端外观、动态区块窗口和不跳形态规则 |
 | 聚合 JUnit/资源契约 | schema、载荷版本、资源键、数据表、迁移、策略公式与恢复规则；当前全绿 |
-| 服务端 GameTest | 世界事件、目标推进、多人权威状态、方块/实体交互、镜像拓扑与持久化 |
+| 服务端 GameTest | 世界事件、目标推进、多人权威状态、方块/实体交互、镜像拓扑与持久化（含全服单追逐槽、按名单选取攻击目标、门被强制打开而非破坏） |
 | 客户端 GameTest | 终端 UI、告知/重启、异象呈现、模型、世界接口、诗篇与视距 |
 | 人工验收 | 音画安全、多人反馈、窗口/桌面演出、LAN 房主体验与重玩流程 |
 
 ## 当前证据
 
-以下结果于 **2026-08-08** 在 `mod_version=1.0.0-rc.1` 的当前工作区实际运行完成。
+**只列本轮实际跑完的结果。** 未运行、超时或被并行构建干扰的项必须写明。逐次改动的复跑流水不在本文，只保留在本地归档 `archive/superseded-docs/testing-history.md`——那些数字只对写下它们的那一轮成立，留在正文里只会和当前工作区打架。
+
+以下结果于 **2026-08-30** 在 `mod_version=1.0.0-rc.1` 的当前工作区实际运行完成。
+
+> **这批数字有时间边界。** 每次改动之后都必须重跑并把新数字换进这张表——上一版这张表记的「完整客户端 GameTest 通过」是在 `M0ClientGameTest` 加入渲染距离锁定断言**之前**跑的，于是那条断言从未通过过，而表上写着绿。数字过期不只是数字过期。
 
 | 验证 | 结果 | 边界 |
 | --- | --- | --- |
-| `compileJava` / `compileClientJava` / `processResources` | 通过 | 四个 source set 均可编译 |
-| 聚合 `unitTest` | **519/519 通过**，99 个容器，0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
-| 服务端 GameTest | **64/64 通过**（批 0 五十项、批 1 十四项） | `All 64 required tests passed` |
-| 中英文语言 JSON | 各 **773** 个键，解析通过且键集合完全对称 | 当前资源树 |
-| 完整（`all`）客户端 GameTest | **本轮未运行** | 定向冒烟不能替代未筛选的完整客户端套件 |
-| 发布 remap JAR | **本轮未构建** | RC 制品需按下节流程重新生成并记录 |
+| `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | 通过 | 四个 source set 均可编译 |
+| 聚合 `unitTest` | **794/794 通过**（137 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
+| 服务端 GameTest | **91/91 通过** | `All 91 required tests passed`。此前是 87，再往前是 80——`TerminalBackfillAndProfileGameTests` 从未写进 `src/gametest/resources/fabric.mod.json`，那 6 个测试一次也没跑过。现在由 `ResourceContractTest` 双向盯住注册表。新增 4 项来自 `PursuitRuntimeGameTests`：追逐此前有 10 个纯策略单测和 1 个只检查维度文件是否打包的 GameTest，退款账本与镜像放置规则两条玩家能感知的链路一条也没被覆盖 |
+| 完整（`all`）客户端 GameTest | **通过**（7 分 36 秒，退出码 0），产出 166 张截图 | 目录 18 项、覆盖 17 项：未渲染层按名字在 `AnomalyClientScenario.UNCOVERED` 中显式豁免。日志中 `unrendered_layer` 与六个镜像维度均正常加载并存盘，这是数据包三件套与生成器编解码器在真实运行时可用的**直接**证据。本轮它抓到两处：终端开屏会顶掉玩家自己打开的界面，以及 `terminal-3d` 里「没人开过终端就该静止」这条在自动开屏上线后不再成立的旧断言。**注意**：与另一个 Gradle／Minecraft 进程并行跑会争用 `build/run/clientGameTest`，表现为存档写不完加原生崩溃，看起来像主线断言失败 |
+| `notice-entry` 定向客户端 GameTest | **本轮未重跑**（上次通过 45 秒） | 它不在 `all` 里——`ClientGameTestSelection.runsNoticeEntry()` 只对这个套件为真，所以完整套件绿并不覆盖它。上次是在 `thefourthfrequency.mixins.json` 重排/重缩进之后单独复跑的，确认 7 条 common + 50 条 client mixin 全部解析——清单是 `defaultRequire: 1`，格式化打错一个名字就是 bootstrap 崩溃，而不是静默降级 |
+| 中英文语言 JSON | 各 **902** 个键，解析通过且键集合完全对称，`%s` 占位符数量逐键一致 | 当前资源树 |
+| 音频编码 | 仓库里全部 **211** 个 OGG（模组自有 140 个，其中音乐 21 个；随包的 Golden Days 资源包 71 个）逐个实测 `codec_name == vorbis` | 扩展名骗得过所有断言，编码不对时 Minecraft 只是静默不出声 |
+| 干净 `clean build` | **本轮未重跑** | 上一次通过是 2026-08-29（53 秒）。本轮改的是 GameTest 注册、客户端开屏与文档，四个 source set 已单独编译并跑完 `unitTest` / `runGameTest` / 完整客户端套件；发版前仍需补一次 |
+| 本地部署（`build`，路径来自用户级 `~/.gradle/gradle.properties`） | **通过**（34 秒） | `build.gradle` 的默认值改为空之后复跑：日志给出 `Deployed remapped mod JAR to …`，目标文件与源 JAR 的字节数（54,262,874）和 SHA-256 完全一致。未配置 `tffDeployDir` 时同一条路径只打印一行说明并跳过 |
 
-历史逐次改动的复跑记录已移出本文，只保留在本地归档 `archive/superseded-docs/testing-history.md`。
+## 关键测试设计
+
+这一节只记录**为什么某几条测试写成现在这个形状**。它们都是被真实缺陷逼出来的；改回直觉写法会重新打开同一个洞。
+
+### `all` 必须是 `mainline` 的真超集
+
+它一度不是（详见上文《常用命令》）。一个报绿的覆盖缺口比没有这个套件更糟，所以 `ClientGameTestSelection.stopsAfterToolsUi()` 现在只让 `tools-ui` 提前返回，`AnomalyClientAutomationContractTest` 对三个套件双向断言这条谓词。
+
+### 闸门要量结束态，不要量峰值
+
+`experience_gap` 的位移闸门曾经间歇性失败，两次失败的读数一字不差（4.0498077…）。根因不是走路不稳，而是**量错了时刻**：`AnomalyServerEffects.MovementTask` 按**服务端 tick** 推进玩家，场景却按**客户端 tick** 数到峰值就量距离；满载跑 `all` 时集成服务器落在客户端后面，位移于是成了服务端 tick 数的干净函数——输掉竞速时每次都停在同一处。
+
+现在峰值处只断言移动租约仍在驱动玩家（`activeLeaseCount() == 1`），≥8.0 格的闸门原样搬进清理断言——那里的第一条检查已经是 `activeLeaseCount() == 0`，也就是 36 个服务端 tick 一个不落地跑完。**阈值没有降低**：它的意义是证明这是一次真实寻路移动而不是一次轻推。
+
+### 不连续才是缺陷，速度不是
+
+模型动画的第一版断言写成「任何骨头每 Tick 位移不得超过 N 格」，跑出 425 处越界，其中大部分是**有意的快速动作**（抓取会以每 Tick 2.5 格把颅骨拽过半秒）。改成「某一帧的位移超过前后各 4 帧均值的 4 倍且绝对值大于 1 格」之后降到 56 处，每一处都指向真实成因，逐一修完后为 0。
+
+这条测试反过来找出了两处此前未知的缺陷：`action 0`（纯待机）也在固定 Tick 跳动，来自 `idleHeads()` 用时间戳绕回做相位、产生乱序关键帧表；以及抓取抛掷的收势只有 1 Tick。两者都不是从玩家反馈里能定位到的位置。
+
+### 自动开终端：判据在客户端，因此断言也在客户端那一侧
+
+「发终端的那一次进服，终端自己打开」的难点不是要不要开，而是**什么时候**。服务端看不到玩家眼前是世界还是加载画面，而在加载画面底下 `setScreen` 出来的界面会被原版在加载结束时关掉——玩家什么都看不到，日志里也什么都没有。
+
+所以判据整个落在 `TerminalAutoOpenPolicy`（main，纯类），`TerminalAutoOpenPolicyTest` 按决策表断言四件事：世界没显示出来时**既不开也不超时**（首次建世界可以比整个预算还久）；终端始终不在手上时**会放弃**而不是几分钟后突然弹出来；玩家自己右键了就让位；以及那一拍 20 Tick 的缓冲短于 600 Tick 的预算。
+
+同一个测试类还钉住三处它自己看不见的接线：offer 只从 `issueTerminalIfNeeded` 返回真的那一支发出（否则每次重进都会重开一遍）、载荷类型在 `playS2C` 注册过（没注册会直接把收到它的客户端踢下线）、以及客户端**不自己 `setScreen`** 而是发右键那条请求（否则整条服务端校验被绕过）。
+
+**判据对了，落地没对——这一条只有客户端套件抓得到。** 决策表管的是「什么时候发请求」，而请求发出去之后还有一整个来回加半秒开合动画，`TerminalHandheldAnimator.presentScreen` 从前是无条件 `setScreen` 的。于是这个窗口里玩家自己打开的任何界面——背包、暂停菜单、视频设置——都会在动画结束时被终端顶掉。自动开屏把窗口拉长了一个来回，又拿掉了唯一能替它辩解的理由：右键至少是玩家半秒前自己按的，问候则没人要求过。
+
+抓到它的是 M0 那条锁定渲染距离的断言：它打开视频设置去读选项列表，拿到的却是 `TerminalScreen`、`children=[]`。现在动画器只在屏幕本来就是空的时候才接管；被盖住就整个放弃这次开启，并补发一条 `CLOSE`，否则服务端会一直握着一个没人在看的视图。那条断言也就顺势成了这条规则的回归防线——它是套件里唯一会在开合窗口里主动开另一个界面的地方。
+
+### 读不到帧缓冲时，钉住的是纯函数
+
+导航读数在客户端逐帧合成，服务端只发一个二十字节的载荷，所以真正要钉的是两件事：淡出窗口必须显著大于下发间隔（否则丢一个包就闪烁），以及 HUD 与终端首页必须调用**同一个方法**（否则两处渲染同一个方位，迟早不一致）。两条都是纯函数，写成了单测；像素层面的观感只能人工确认。
+
+同理，`terminal-3d` 里真正的回归防线只有「转向不移动设备」那一条断言（四个视角下姿态的 z / scale / handSpread 必须逐位相同）；其余多数截图是"给人看的证据"——读不到帧缓冲，"设备在画面正中"就写不成断言。
+
+### 未渲染层：四层分工与一处显式豁免
+
+- **单元**：`UnrenderedMazePolicyTest` 断言产品端点而不是哈希公式——任意入口都是四向通的交叉点、从任意入口都能**走到**一处出口（区块级泛洪，且泛洪把假墙当通路，因为它在游戏里本来就不挡人）、出口是"假墙壳 + 假地板芯"、假墙与实心墙处处互斥、每 32×32 单元恰好一处出口且完整落在自己的分区方格内、主干走廊 4000 格无阻断。`UnrenderedBearingPolicyTest` 守终端那条读数：八方位取以自身为中心的扇形（差半个扇区的写法能通过所有正南正北断言而在大半个圆上是错的）、MC 的 −Z 是北 +X 是东（写反会自洽地把每个玩家送向反方向）、太近时不给方位。`UnrenderedPlacementTest` 断言 16 个槽位 × 64 个访问变体两两相距 10 万格以上、全在世界边界内、全部可站立，以及**视距与生成距离的配对关系**（生成距离必须大于可见距离，两个常量在不同文件里，没有别的东西看着它们）。
+- **GameTest**：`UnrenderedLayerGameTests` 只断言运行期才能回答的事——三个数据包文件互相指认一致且 `min_y`/`height` 与 `UnrenderedLayerLayout` 一致、生成器编解码器确实注册到 `BuiltInRegistries.CHUNK_GENERATOR` 且 id 与维度文件一致、实体类型注册且默认属性真的挂上了（`FabricDefaultAttributeRegistry` 是独立一次调用，漏了不会编译失败，只会在第一次生成时抛）、两条音频事件与文件都在。
+- **契约**：`MultiplayerIsolationContractTest` 从源码断言十二个环境系统都走 `PrivateDimensions.isPrivate` 而不是只认镜像。
+- **刻意不做**：客户端自动化场景。`AnomalyClientScenario.UNCOVERED` 里按名字豁免了这一项并写明理由——该套件驱动的是 `AnomalyPresentationController`，而这一项的演出归 `UnrenderedLayerClient`，没有 fixture、没有 overlay、也没有可断言的"还原"。豁免是显式列出的，因此新增异象仍然不可能悄悄没有客户端覆盖。
+- **速度是量出来的**：`theBacteriaSpeedLandsBetweenSprintingAndSprintJumping` 在真实物理下铺一段平地跑一遍，取稳定段峰值位移换算成格/秒。它抓到过一次真错误——推算值 0.335 实测只有 4.94 格/秒，**比疾跑还慢**，照那样上线细菌就是布景。
+
+### 契约测试抓到过什么
+
+它们的价值不在"再跑一遍已知正确的东西"，而在于每一条都对应一个只在真实运行时才会现形的失败。近期实例：`unrendered_heartbeat` 是固定半径事件却在 `sounds.json` 里写成裸字符串（无法携带 `attenuation_distance`）；一句注释被 `ShadowFieldOwnershipTest` 的正则当成 `@Shadow` 字段；一条终端文案触发了「中文术语必须用『异象』」的检查（按"仪器读数、非异象系统"的理由加进白名单并写明原因）；一个源 `.ogg` 实为 FLAC-in-Ogg，容器检查全绿而游戏静默不出声。
 
 ## 个人追逐关键不变量
 
@@ -101,7 +159,7 @@
 - 每个形态必须先完成安全演示；安全条件通过后固定执行 200 Tick 前置：80 Tick 终端阅读、80 Tick 只做渐进掉帧、40 Tick 输入锁定/卡死音效；前置不绘制滤镜或干扰遮罩。
 - 卡死音效为随机变体池而非单文件：`alpha_corruption_collapse` 与 `alpha_corruption_warning` 各至少 3 个，`ResourceContractTest` 断言数量下限、无重复条目、全部为真实 Ogg 且每个 > 16 KB。变体的听感只能人工验收，测试挡不住"不好听"。
 - 黑屏只由服务端时序切换；入场等待目标维度中玩家周围 7×7 区块全部就绪并连续稳定 8 Tick，最多等待 200 Tick。从镜像复制到返程来源世界与加载界面消失前，加载画面都必须被遮蔽。
-- 全服最多两场并发；两名玩家使用不同镜像槽位，第三人安全延后。
+- 全服同一时刻只有一场；第二名玩家被安全延后，并收到有序、可读的等待说明而不是静默拒绝。六个镜像维度仍全部注册，恢复要能找到被旧存档留在其中任意一个里的玩家。
 - 初始快照为 5×5、垂直 ±48 格、每会话每 Tick 8192 方块；水平随玩家区块流式扩展，不存在固定 30 格折返。
 - 已复制区块不再覆盖；复制落后只暂停在最近安全位置并暂停追逐计时。
 - 初始生成探针覆盖玩家周围完整圆环（25–42 格），正前方也可能生成；42 格/5 秒、18 格外断视线/8 秒和玩家亲自击杀均可权威结算成功。
@@ -115,10 +173,10 @@
 
 ## 世界接口关键不变量
 
-- 参战名单为 1—8 名在线非旁观者，提交前可撤回，提交失败必须返还终端。
+- 参战名单由交出终端的玩家构成（1—8 人），旁人上下线与之无关；窗口内可撤回，窗口失效或提交失败必须返还终端；开始战斗需要显式召唤。
 - 生命为 `600 × (1 + 0.5 × (冻结人数 - 1))`，即 1 人 600、8 人 2700；三形态只前进不倒退。
 - 崩塌为 12000 Tick（10 分钟）；全员离线暂停；同 Tick 超时优先于致命伤。
-- 10 个稳定锚按当前公式影响回复、承伤、冷却与半径 8 格稳定区，但不影响 Boss 移动或崩塌进度；稳定区同步保护玩家伤害与地形侵蚀。第一次正伤害玩家攻击立即拆锚，每次拆除在 HUD 上播放约 60 Tick 金光并显示“重构↓ / 活性↑”。
+- 10 个稳定锚按当前公式影响回复、承伤、冷却与半径 8 格稳定区，但不影响 Boss 移动或崩塌进度；稳定区同步保护玩家伤害与地形侵蚀。第一次正伤害玩家攻击立即拆锚，每次拆除在 HUD 上播放约 60 Tick 金光并把锚标签替换为“承伤增加 · 出手更密”。
 - 稳定锚由 `StabilityAnchorEntity` 承载。`StabilityAnchorGeometryTest` 锁定几何与时序纯规则（模型总高 44 单位＝碰撞高 2.75 格、总宽 28 单位＝1.75 格且不超过 2 格、中继核统一在原点上方 2 格、四段坍缩相位无缝且不可逆、粒子有单 Tick 与整场双重上限）；`StabilityAnchorContractTest` 锁定跨层契约（实体/模型层/渲染器注册、四爪五级链与开放式发射端、贴图尺寸与稀疏 emissive 掩码、双语键、牵引束端点来自共享常量且随 BOSS 三维位置变化、旧带标签水晶可迁移、坍缩特效不含爆炸/方块写入/掉落物）。`ResourceContractTest` 另外确认 `EndCrystalMixin` 已从清单与源码中彻底移除，普通末影水晶回到原版行为。
 - 服务端运行时由 `WorldInterfaceGameTests` 覆盖：场地严格创建 10 个唯一索引与确定性 UUID 的锚、活锚缺失可恢复、毁锚不复活、零伤害/非玩家/旁观者/非战斗阶段不能拆锚、拆锚当 Tick 更新承伤与稳定区但不改变固定崩塌计时。
 - 八类行动的预警、精确伤害、数量上限与排他控制保持稳定。激光、龙息弹、天降光束、抓取抛天和触手抽击才是目标锁；武器扣押与热栏清空使用不可规避的剥夺预告。只有被扣押武器进恢复账本，热栏物品保持普通世界掉落。
@@ -132,7 +190,9 @@
 - 三条颈链在三个形态与全部行动演出中都不得互相穿透：`WorldInterfaceRigTest` 分别按静止形状（严格：两骷髅半径之和）与动画全程（宽松：不得进入彼此内部）断言，偏航与翻滚一律以"向外为正"由 `WorldInterfaceAnatomy` 带符号给出。
 - 箭矢与三叉戟按 2.5 倍结算，倍率先乘、锚承伤系数后乘；两参数的 `adjustedIncomingDamage` 仍是近战语义，不得默默获得加成。
 - 固定范围音效的注册半径与 `sounds.json` 的 `attenuation_distance` 必须一致；变量范围事件不得声明 `attenuation_distance`。
-- 多曲目配乐事件（`music_game`、`music_menu`）不得连续播放同一首；`MusicRotationPolicy.rotatingEvents()` 与 `sounds.json` 中池大小大于 1 的 `music_*` 事件必须双向一致，单曲事件不得参与轮换。
+- 多曲目配乐事件（`music_game`、`music_menu`）必须放完整池才允许重复，且轮次接缝处不得连放同一首；`MusicRotationPolicy.rotatingEvents()` 与 `sounds.json` 中池大小大于 1 的 `music_*` 事件必须双向一致，单曲事件不得参与轮换。
+- 一轮结束必须由 `passComplete(事件, 池大小)` 的计数判定，而不是由重抽次数用尽推断：按实际入库的池大小（4 与 9）用真随机源连跑 400 轮，每一轮都必须恰好用满整个池；重抽用尽只能造成一次重复，不得重置本轮、不得丢掉尚未播放的曲目。
+- 配乐的四份清单必须描述同一套曲目：`sounds/music` 下的文件、`sounds.json` 的 `music_*` 事件、两份 lang 的「正在播放」键，以及终末之诗名单里按情境分的曲目段落。`ResourceContractTest` 逐条对齐（文件存在、不被两个事件同时引用、每个文件都有双语键、没有指向已删曲目的残留键），名单按**条数**匹配而不是按名字——名单是给玩家读的，不是清单。曾经名单里挂着两首早就被换掉的曲子，就是因为没有任何东西在看这件事。
 - 永久伤痕总预算为 8192 格，每 Tick 32 格，且不能破坏受保护结构和方块实体。
 - 成功时序固定为：本体 0–180 Tick、空场 180–220、召唤 220–340、龙出现于 340、开门 340–500；第一句台词在 410，第二句与出口同在 500。
 - 结算开放 3×3 出口，并沿原版 WinScreen/重生路径完成返程；只有世界接口分支替换诗篇、制作人员名单与 `postcredits_*.txt`。
@@ -144,30 +204,28 @@
 
 ## 文档与资源静态检查
 
-- 中英文 JSON 均可解析，各 773 个键且集合完全对称。
+- 中英文 JSON 均可解析，各 902 个键且集合完全对称。
 - README（中英）与 `docs/**` 的相对链接全部可解析。
 - 旧测试数字、旧血量公式与已退休终局语义扫描无残留。
+- `sounds.json` 共 81 个事件、160 条引用；仓库里 211 个 OGG 与它的引用逐条对得上，双向差集为 0，且全部实测为 Ogg Vorbis。
 
 候选包人工流程见[人工验收清单](acceptance.md)。
 
 ## 发布物
 
-RC 1.0.0 的制品**尚未生成**。发版时按以下步骤重建并把实际结果填回本表：
-
-```powershell
-.\gradlew.bat clean build --no-daemon
-```
+由 **2026-08-29** 的干净 `clean build` 产出。**这批产物早于上面记录的改动**（GameTest 注册、开屏规则与 CLOSE 拆分），因此不构成当前工作区的证据——发版前仍欠一次干净构建：
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 待填 | 待填 |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 待填 | 待填 |
+| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 54,262,874 | `AEF844BDDD4760486611CAC3A6D8259A202494BD88F242983160540C2A272097` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 53,728,263 | `DBBDEC69584B89FA6A7DBCE9304F60F465F772438253BABDCEE96CC89217C739` |
+
+可运行 JAR 共 6,247 个条目。随后一次带 `tffDeployDir` 的 `build` 已把它部署到本地实例，目标文件与源 JAR 的字节数和 SHA-256 完全一致。
 
 只记录**在最后一次生产源码/资源修改之后**完成的干净构建；更旧的 JAR 不作为发布证据。
 
 ## 发布前仍需完成
 
-- 复跑未筛选的完整（`all`）客户端 GameTest。
-- 使用两个真实客户端验证不同形态并发、断线重连、满背包退款和动态区块追赶。
+- 使用两个真实客户端验证追逐排队（第二人被延后且看得懂为什么）、断线重连、满背包退款和动态区块追赶。
 - 在目标硬件上检查混音、强闪烁、多屏/DPI、LAN 房主分流和长时间 TPS。
 - 按[人工验收清单](acceptance.md)完成全部人工项，尤其是多人世界接口战斗的 2 人与 4 人各一轮。

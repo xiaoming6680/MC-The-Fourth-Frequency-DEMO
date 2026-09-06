@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -157,8 +158,10 @@ final class PursuitPresentationContractTest {
 		String slots = Files.readString(Path.of(
 				"src/main/java/com/xm/thefourthfrequency/pursuit/PursuitSlotManager.java"),
 				StandardCharsets.UTF_8);
-		assertTrue(screen.contains("测试第 5 形态追逐"));
-		assertTrue(screen.contains("\"pursuit_test\", \"\", 5, true"));
+				// The confirmation was dropped, not the entry: a debug chase resolves and returns the player
+		// on its own, so it was never one of the actions with nothing to undo it.
+		assertTrue(screen.contains("追逐 第5形态"));
+		assertTrue(screen.contains("\"pursuit_test\", \"\", 5, false"));
 		assertTrue(service.contains("case \"pursuit_test\""));
 		assertTrue(director.contains("enterEmptyMirror(player, lease, requestedForm, true)"));
 		assertTrue(session.contains("TerminalNoticeService.pursuitWarning(player)"));
@@ -185,10 +188,14 @@ final class PursuitPresentationContractTest {
 				StandardCharsets.UTF_8);
 		String warning = zh.get("message.thefourthfrequency.pursuit.warning").getAsString();
 		assertTrue(warning.equals("终端传来剧烈震动"));
-		String combined = "检测到异常信号波动正在接近.. 做好准备...";
+		// The five forms deliberately no longer share a line. They track by five different rules, and
+		// the log entry is where a player finds out which one they survived; PursuitWarningTextContract
+		// owns the distinctness assertion, so all this needs is that the opening half is still there
+		// and still recognisable as the same instrument reporting.
+		String opening = "检测到异常信号波动正在接近..";
 		for (int form = 1; form <= 5; form++) {
 			assertTrue(zh.get("terminal.thefourthfrequency.signal.event.pursuit_warning_" + form)
-					.getAsString().equals(combined));
+					.getAsString().startsWith(opening));
 		}
 		assertTrue(zh.get("terminal.thefourthfrequency.signal.event.pursuit_return_instability")
 				.getAsString().equals("用户周围的磁场很不稳定..."));
@@ -196,6 +203,27 @@ final class PursuitPresentationContractTest {
 		assertTrue(snapshot.contains("withStyle(ChatFormatting.GREEN)"));
 		assertTrue(snapshot.contains("pursuit_warning.prepare"));
 		assertTrue(snapshot.contains("withStyle(ChatFormatting.RED)"));
+
+		// The closing line, which is the whole of what surviving a pursuit is told. It must stay a
+		// warning rather than becoming an explanation: naming what the form did would hand the player
+		// rules the next form is about to break, and would make the terminal the author of a
+		// walkthrough on the one page where its own voice is allowed.
+		assertTrue(zh.get("terminal.thefourthfrequency.signal.event.pursuit_survived.cleared")
+				.getAsString().equals("异常信号消失..."));
+		assertTrue(zh.get("terminal.thefourthfrequency.signal.event.pursuit_survived.next_time")
+				.getAsString().equals("下一次可就不一样了..."));
+		assertTrue(snapshot.contains("pursuit_survived.cleared"));
+		assertTrue(snapshot.contains("pursuit_survived.next_time"));
+		// Only a real escape files it, and only outside debug: a capture must leave the page silent.
+		String sessions = Files.readString(Path.of(
+				"src/main/java/com/xm/thefourthfrequency/pursuit/PursuitSessionService.java"),
+				StandardCharsets.UTF_8);
+		int successBranch = sessions.indexOf("if (successfulResolution) {");
+		assertTrue(successBranch >= 0);
+		int filed = sessions.indexOf("\"pursuit_survived\"", successBranch);
+		assertTrue(filed > successBranch, "the survived line must be filed on a successful resolution");
+		assertTrue(sessions.substring(successBranch, filed).contains("if (!debugSession)"),
+				"a debug pursuit must not file the survived line");
 		assertTrue(signalLog.contains("public static boolean removeTypesStartingWith"));
 		assertTrue(session.contains("removeTypesStartingWith(record, \"pursuit_warning_\")"));
 		assertTrue(session.contains("\"pursuit_return_instability\""));
@@ -268,7 +296,15 @@ final class PursuitPresentationContractTest {
 		assertTrue(controller.contains("PursuitPresentationPayload.CAPTURE_FREEZE"));
 		assertTrue(controller.contains("PursuitPresentationPayload.ESCAPE_RESOLUTION"));
 		assertTrue(controller.contains("if (!\"caught\".equals(reason))"));
-		assertTrue(controller.contains("maximumHealth.setBaseValue(adjusted)"));
+		// The write itself moved out of the controller when the unrendered layer began paying in the
+		// same currency: one clamp, one place, two callers. Asserted where it now lives, and asserted
+		// that the controller reaches it rather than keeping a second copy - a duplicate with a
+		// different floor would be invisible here and felt by every player already losing.
+		String healthAdjustment = Files.readString(Path.of(
+				"src/main/java/com/xm/thefourthfrequency/world/MaximumHealthAdjustment.java"),
+				StandardCharsets.UTF_8);
+		assertTrue(healthAdjustment.contains("maximumHealth.setBaseValue(adjusted)"));
+		assertTrue(controller.contains("MaximumHealthAdjustment.apply(player, delta)"));
 		assertTrue(payload.contains("CAPTURE_FREEZE = 4"));
 		assertTrue(payload.contains("ESCAPE_RESOLUTION = 5"));
 		assertTrue(client.contains("phase == Phase.CAPTURE_FREEZE"));
@@ -331,5 +367,26 @@ final class PursuitPresentationContractTest {
 		assertTrue(pauseMixin.contains("method = \"render\", at = @At(\"HEAD\")"));
 		assertTrue(zh.get("message.thefourthfrequency.pursuit.exit_locked").getAsString()
 				.equals("你不能就这样逃走..."));
+
+		// The exit is held by a fight the player is inside, and by nothing else.
+		//
+		// Menu erosion is driven by story progress rather than by anything happening to the player,
+		// so its LATE stage used to leave the quit button dead in the overworld, mid-build, at any
+		// hour, with nothing going on - and the only way out of the game was killing the process.
+		// That also broke the project's own rule that the pause menu may never be permanently taken
+		// by a performance. Erosion keeps its label and its grain; it does not keep the door.
+		assertTrue(pauseMixin.contains("WorldInterfaceClientState.snapshot().locksPauseExit()"),
+				"the finale must hold the exit while it is actually being fought");
+		assertTrue(pauseMixin.contains("message.thefourthfrequency.world_interface.exit_locked"));
+		assertFalse(pauseMixin.contains("case LATE -> disconnectButton.active = false"),
+				"menu erosion must never disable the exit: it is not something the player is inside");
+		int disables = pauseMixin.split("disconnectButton.active = false", -1).length - 1;
+		assertEquals(2, disables,
+				"exactly two states may disable the exit - the pursuit and the live finale");
+	}
+
+	/** Reads a source file the way every assertion in this class does. */
+	private static String read(String path) throws Exception {
+		return Files.readString(Path.of(path), StandardCharsets.UTF_8);
 	}
 }

@@ -294,4 +294,32 @@ class WorldInterfaceActionSchedulerTest {
 			assertEquals(interval, WorldInterfaceActionScheduler.baseIntervalTicks(stage, 55L, sequence));
 		}
 	}
+
+	/**
+	 * The gaze sweep is rationed per player, not per encounter.
+	 *
+	 * <p>Nine slots on the floor is a shock worth having once and a chore worth having never. Every
+	 * exclusive action already grants six hundred ticks of strong-control immunity, which leaves room
+	 * to do this to the same person ten times in one fight - so the sweep carries the eviction's
+	 * three-minute cooldown, applied per player because that is who pays for it.
+	 *
+	 * <p>The frequency falls out of it rather than being tuned separately: the pick is a shuffled deck
+	 * where every action comes up once per cycle, so there is no weight to lower, and a candidate the
+	 * cooldown has left with nobody to aim at is skipped by the scan like any other ineligible one.
+	 */
+	@Test
+	void theHotbarSweepIsRationedFarMoreTightlyThanOrdinaryExclusiveControl() {
+		assertEquals(3_600, WorldInterfaceActionScheduler.HOTBAR_SWEEP_COOLDOWN_TICKS,
+				"three minutes, matching the eviction it is paired with in cost");
+		assertTrue(WorldInterfaceActionScheduler.HOTBAR_SWEEP_COOLDOWN_TICKS
+						> WorldInterfaceActionScheduler.STRONG_CONTROL_IMMUNITY_TICKS,
+				"the shared strong-control immunity is what was too short in the first place");
+		// One fight is 12000 ticks, so the ceiling per player is under four - and in practice fewer,
+		// because the deck has to land on it while somebody is off cooldown.
+		assertTrue(WorldInterfacePolicy.COLLAPSE_DURATION_TICKS
+						/ WorldInterfaceActionScheduler.HOTBAR_SWEEP_COOLDOWN_TICKS <= 4,
+				"a whole fight must not have room to sweep one player more than a handful of times");
+		// Still an exclusive control, so it keeps the ordinary immunity underneath the long cooldown.
+		assertTrue(WorldInterfaceAction.GAZE_HOTBAR_CLEAR.requiresExclusiveControl());
+	}
 }

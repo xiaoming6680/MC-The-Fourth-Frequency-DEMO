@@ -5,9 +5,17 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import java.util.List;
 import java.util.Objects;
 
-/** Stable wire identifiers and shared bounds for the v2 world-interface protocol. */
+/** Stable wire identifiers and shared bounds for the v3 world-interface protocol. */
 public final class WorldInterfaceProtocol {
-	public static final int VERSION = 2;
+	/**
+	 * Bumped to 3 for the ritual window and the explicit summon.
+	 *
+	 * <p>{@code AltarSnapshotS2C} gained two fields and {@code AltarAction} gained a value, so a v2
+	 * client talking to a v3 server would mis-read the altar rather than fail; {@link #requireVersion}
+	 * turns that into a clean refusal instead. Retired wire ids are kept rather than reused - see
+	 * {@link AltarStatus#ROSTER_CHANGED}.</p>
+	 */
+	public static final int VERSION = 3;
 	public static final int MAX_PARTICIPANTS = 8;
 	public static final int MAX_GATEWAYS = 20;
 	public static final int MAX_ANCHORS = 10;
@@ -71,6 +79,16 @@ public final class WorldInterfaceProtocol {
 	 * same distance stretched over six times as long does not.</p>
 	 */
 	public static final int SKY_LANCE_FALL_TICKS = 3;
+	/**
+	 * How far above the impact the column starts, in blocks.
+	 *
+	 * <p>Render geometry, and shared for the same reason the tracking lag is: the client draws the
+	 * shaft down this height and the server throws the particles that come off it up the same one.
+	 * The two were separate numbers - the drawn column reached seventy-two blocks and nothing on the
+	 * server knew that - and the moment anything is emitted along the column, two numbers is two
+	 * columns.</p>
+	 */
+	public static final double SKY_LANCE_COLUMN_BLOCKS = 72.0D;
 	/** Ticks the tendrils rear up before the first lash lands. */
 	public static final int TENDRIL_WARNING_TICKS = 45;
 	/**
@@ -178,7 +196,9 @@ public final class WorldInterfaceProtocol {
 	public enum AltarAction implements WireValue {
 		DEPOSIT(1),
 		WITHDRAW(2),
-		CANCEL(3);
+		CANCEL(3),
+		/** Starts the encounter. Only a player whose own terminal is already escrowed may send it. */
+		SUMMON(4);
 
 		private final int wireId;
 		AltarAction(int wireId) { this.wireId = wireId; }
@@ -194,6 +214,12 @@ public final class WorldInterfaceProtocol {
 		ALREADY_DEPOSITED(3, "already_deposited"),
 		REVISION_MISMATCH(4, "revision_mismatch"),
 		RITUAL_NOT_WAITING(5, "ritual_not_waiting"),
+		/**
+		 * Retired with the v3 roster. Both of these described the old whole-server roster: one refused
+		 * every deposit while a ninth player was online anywhere in the world, the other tore the
+		 * ritual down whenever anybody joined or left. Neither is emitted any more and neither id is
+		 * reassigned, so a log or a save from before the change still reads as what it was.
+		 */
 		INVALID_ROSTER_SIZE(6, "invalid_roster_size"),
 		ROSTER_CHANGED(7, "roster_changed"),
 		VALID_BOUND_TERMINAL_MISSING(8, "valid_bound_terminal_missing"),
@@ -218,7 +244,18 @@ public final class WorldInterfaceProtocol {
 		PREPARED_TRANSACTION_MISSING(27, "prepared_transaction_missing"),
 		TRANSACTION_MISSING(28, "transaction_missing"),
 		SACRIFICE_NOT_READY(29, "sacrifice_not_ready"),
-		UNKNOWN(30, "unknown");
+		UNKNOWN(30, "unknown"),
+		/** The altar already holds eight terminals; this one is turned away and the eight are kept. */
+		ROSTER_FULL(31, "roster_full"),
+		INVALID_MUTATION_ROSTER_FULL(32, "invalid_mutation_roster_full"),
+		/** Pressed summon without having handed anything over. */
+		SUMMON_REQUIRES_DEPOSIT(33, "summon_requires_deposit"),
+		/** Summon pressed while some escrow entry is still mid-transaction. */
+		SUMMON_NOT_READY(34, "summon_not_ready"),
+		/** Three minutes elapsed without a summon; everything escrowed is on its way back. */
+		RITUAL_WINDOW_EXPIRED(35, "ritual_window_expired"),
+		/** A pre-v3 ritual found in a loaded save; rolled back so it can be started under the new rules. */
+		RITUAL_WINDOW_MISSING(36, "ritual_window_missing");
 
 		private final int wireId;
 		private final String key;

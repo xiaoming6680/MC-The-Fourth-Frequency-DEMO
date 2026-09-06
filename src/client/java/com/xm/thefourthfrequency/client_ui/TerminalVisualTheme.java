@@ -42,9 +42,31 @@ final class TerminalVisualTheme {
 	// at every visual stage: the lamp reports whether something is waiting, and going cyan or red
 	// with the stage would make it look like it had started reporting something else.
 	/** Unlit: a dead bulb in its housing. Dark enough to read as glass rather than as a dim light. */
-	static final int LAMP_DARK = 0xFF1C1A12;
-	static final int LAMP_AMBER = 0xFFFFB23E;
-	static final int LAMP_AMBER_CORE = 0xFFFFE296;
+	/**
+	 * The unread lamp, unlit, lit, and its filament.
+	 *
+	 * <p>Named for the job rather than the colour. These were {@code LAMP_AMBER} until the indicator
+	 * went red, and a constant called amber holding a red is the kind of thing that survives for
+	 * years because renaming it is never the task anybody is on.
+	 *
+	 * <p>{@code LAMP_DARK} is tinted toward the lit colour rather than being neutral black: the
+	 * filament lerps out of it, and an unlit lens that is the wrong temperature reads as a lamp that
+	 * has failed instead of one that is off.
+	 *
+	 * <p>The item textures bake these same three values - see {@code tools/generate_terminal_3d_assets.py}
+	 * - so changing one without regenerating the other leaves the terminal in the player's hand
+	 * disagreeing with the terminal on their screen.
+	 *
+	 * <p>{@code LAMP_LIT} is the flat inventory icon's lamp pixel exactly, from
+	 * {@code tools/pixelize_terminal_icons.py}. That icon has always drawn this indicator red while
+	 * the panel and the 3D shell drew it amber - three surfaces for one lamp, and one of them
+	 * disagreeing. Matching the number rather than picking a new red is what makes them one lamp
+	 * again; the core is paler because a filament at panel scale can be, and a three-pixel icon
+	 * cannot.
+	 */
+	static final int LAMP_DARK = 0xFF1E1210;
+	static final int LAMP_LIT = 0xFFFF3722;
+	static final int LAMP_LIT_CORE = 0xFFFF9A88;
 
 	/**
 	 * Base colour for every neutral darkening pass - scanlines, vignette, dimmed regions.

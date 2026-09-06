@@ -15,6 +15,7 @@ import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.ending.AltarShape;
 import com.xm.thefourthfrequency.ending.EndBossArenaService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceGatewayState;
+import com.xm.thefourthfrequency.ending.WorldInterfacePolicy;
 import com.xm.thefourthfrequency.ending.WorldInterfaceStage;
 import com.xm.thefourthfrequency.ending.WorldInterfaceState;
 import com.xm.thefourthfrequency.entity.WorldInterfaceEntity;
@@ -108,6 +109,8 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 				assertStrictClientSequence(fixture);
 				assertLocalRecoveryContract();
 			});
+
+			assertHeadHitboxMatchesTheDrawnHead(context, singleplayer, fixture);
 
 			captureForm(context, singleplayer, fixture, WorldInterfaceProtocol.Stage.PHASE_1,
 					WorldInterfaceProtocol.Form.LISTENING_EMBRYO, 0.92F, "world-interface-form-listening-embryo");
@@ -285,6 +288,59 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 		}
 	}
 
+	/**
+	 * The drawn head and the box a swing tests are the same pose on both sides.
+	 *
+	 * <p>Every input {@code WorldInterfaceRig.pose} reads is synchronised - except, until this test
+	 * existed, the tick count. An entity's {@code tickCount} starts when it enters <em>that side's</em>
+	 * world, so the client began counting when the body came into tracking range and the server when
+	 * it was summoned. Measured here before the fix: five ticks apart, posing the same skeleton at two
+	 * points in its hover drift and leaving the drawn head <b>0.464 blocks</b> from the hit box, of
+	 * which <b>0.446 lay along z</b> - the axis a player swings down. That is the "I can see the head
+	 * and I swing straight through it" report, and it got worse with animation amplitude: the sample
+	 * was first form, seconds in, with nothing running but the drift.
+	 *
+	 * <p>Asserted on the offset rather than on the clocks, because agreeing about the clock is only
+	 * the means. What has to be true is that the two agree about where the head <em>is</em>.
+	 */
+	private static void assertHeadHitboxMatchesTheDrawnHead(ClientGameTestContext context,
+			TestSingleplayerContext singleplayer, Fixture fixture) {
+		context.waitTicks(25);
+		long[] server = singleplayer.getServer().computeOnServer(serverInstance -> {
+			WorldInterfaceEntity body = body(requireEnd(serverInstance), fixture.bodyId());
+			var offset = body.rigPose().headOffset(0);
+			return new long[]{Math.round(offset.x * 1000.0D), Math.round(offset.y * 1000.0D),
+					Math.round(offset.z * 1000.0D)};
+		});
+		context.runOnClient(client -> {
+			if (client.level == null) throw new AssertionError("No client level for the head probe");
+			WorldInterfaceEntity body = null;
+			for (var entity : client.level.entitiesForRendering()) {
+				if (entity instanceof WorldInterfaceEntity candidate
+						&& candidate.getUUID().equals(fixture.bodyId())) {
+					body = candidate;
+					break;
+				}
+			}
+			if (body == null) throw new AssertionError("The client has no body entity to probe");
+			var offset = body.rigPose().headOffset(0);
+			double dx = offset.x - server[0] / 1000.0D;
+			double dy = offset.y - server[1] / 1000.0D;
+			double dz = offset.z - server[2] / 1000.0D;
+			double separation = Math.sqrt(dx * dx + dy * dy + dz * dz);
+			// Not zero, and it cannot be: the two reads happen on different threads a tick or two
+			// apart, and the hover drift alone carries the head about 0.09 blocks per tick. The bound
+			// is what a couple of ticks of read skew can produce - a third of the 0.464 this caught
+			// when the clocks themselves disagreed, and still nowhere near a missed swing.
+			if (separation > 0.20D) {
+				throw new AssertionError(String.format(
+						"The head a player sees and the head they can hit are %.3f blocks apart "
+								+ "(dx=%.3f dy=%.3f dz=%.3f); the rig is being posed on two clocks",
+						separation, dx, dy, dz));
+			}
+		});
+	}
+
 	private static void captureMorph(ClientGameTestContext context, TestSingleplayerContext singleplayer,
 			Fixture fixture, WorldInterfaceProtocol.BossAction action, WorldInterfaceProtocol.Form targetForm,
 			String screenshot) {
@@ -411,7 +467,8 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 			ServerPlayNetworking.send(player, new AltarSnapshotS2C(WorldInterfaceProtocol.VERSION,
 					fixture.encounterId(), next, 42L, WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(),
 					fixture.center(), roster, names, 0b101, true,
-					WorldInterfaceProtocol.AltarStatus.READY.wireId()));
+					WorldInterfaceProtocol.AltarStatus.READY.wireId(),
+					WorldInterfacePolicy.RITUAL_WINDOW_TICKS, false));
 			return next;
 		});
 		context.waitForScreen(ResonanceAltarScreen.class);
@@ -579,7 +636,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 		WorldInterfaceState.RespawnLedgerEntry respawn = new WorldInterfaceState.RespawnLedgerEntry(
 				player.getUUID(), false, "", BlockPos.ZERO, 0.0F, 0.0F, false, false);
 		snapshot = requireApplied(WorldInterfaceState.mutate(server, encounterId, snapshot.revision(), state -> {
-			state.freezeRoster(Set.of(player.getUUID()));
+			state.joinRoster(player.getUUID());
 			state.putTerminalTransaction(transaction);
 			state.putRespawn(respawn);
 			state.commitSacrifice(600.0D);
@@ -774,7 +831,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 				"A newer cross-type action payload was rejected");
 		require(!WorldInterfaceClientState.accept(new AltarSnapshotS2C(WorldInterfaceProtocol.VERSION,
 				first, 10, 1L, WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(), fixture.center(),
-				List.of(), List.of(), 0, false, WorldInterfaceProtocol.AltarStatus.WAITING.wireId())),
+				List.of(), List.of(), 0, false, WorldInterfaceProtocol.AltarStatus.WAITING.wireId(), 0, false)),
 				"A stale altar payload crossed the global sequence");
 		require(!WorldInterfaceClientState.accept(new PoemStartS2C(first, 11,
 				WorldInterfaceProtocol.Outcome.SUCCESS.wireId())), "A duplicate poem sequence was accepted");

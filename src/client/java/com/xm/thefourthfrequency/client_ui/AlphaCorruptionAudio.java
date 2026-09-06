@@ -44,9 +44,14 @@ public final class AlphaCorruptionAudio {
 	 * picture even if a frame is dropped.
 	 */
 	public static void tick(Minecraft client, int screenTicks) {
-		setTarget(client, Bed.TAPE_HISS, hissTarget(screenTicks));
-		setTarget(client, Bed.STATIC, staticTarget(screenTicks));
-		setTarget(client, Bed.DEAD_AIR, deadAirTarget(screenTicks));
+		setTarget(client, Bed.TAPE_HISS, hissTarget(screenTicks), false);
+		// The wall is the one beat in the sequence that cuts rather than ramps, so its noise floor
+		// cuts with it. Eased like everything else, the static was a full second behind the frame the
+		// picture died on, which reads as a sound cue played after a slide rather than as one signal
+		// going. Only this tick snaps; from the next one the bed eases normally again.
+		setTarget(client, Bed.STATIC, staticTarget(screenTicks),
+				screenTicks == AlphaLoadTimeline.FLOOD_START_TICK);
+		setTarget(client, Bed.DEAD_AIR, deadAirTarget(screenTicks), false);
 		if (!carrierLostPlayed && screenTicks >= AlphaLoadTimeline.LEGACY_RECOVERY_START_TICK) {
 			carrierLostPlayed = true;
 			client.getSoundManager().play(SimpleSoundInstance.forUI(
@@ -103,7 +108,14 @@ public final class AlphaCorruptionAudio {
 				AlphaLoadTimeline.BLACKOUT_START_TICK, AlphaLoadTimeline.BLACKOUT_COLLAPSE_TICKS);
 	}
 
-	private static void setTarget(Minecraft client, Bed bed, float target) {
+	/**
+	 * Points a bed at a level, easing toward it - or arriving on it outright when {@code cut}.
+	 *
+	 * <p>A cut has to be applied before {@code play}, not after: the engine reads the instance's
+	 * volume when it takes it, so a loop handed over at zero and corrected a moment later is audibly
+	 * a fade whatever the target said.</p>
+	 */
+	private static void setTarget(Minecraft client, Bed bed, float target, boolean cut) {
 		TapeLoop loop = ACTIVE.get(bed);
 		if (loop != null && loop.isStopped()) {
 			ACTIVE.remove(bed);
@@ -112,10 +124,14 @@ public final class AlphaCorruptionAudio {
 		if (loop == null) {
 			if (target <= 0.0F) return;
 			loop = new TapeLoop(bed.cue());
+			loop.target(target);
+			if (cut) loop.snap();
 			ACTIVE.put(bed, loop);
 			client.getSoundManager().play(loop);
+			return;
 		}
 		loop.target(target);
+		if (cut) loop.snap();
 	}
 
 	private enum Bed {
@@ -156,6 +172,11 @@ public final class AlphaCorruptionAudio {
 			fading = true;
 		}
 
+		/** Arrives on the current target this instant instead of easing toward it. */
+		private void snap() {
+			volume = scaledTarget();
+		}
+
 		private void forceStop() {
 			stop();
 		}
@@ -165,9 +186,13 @@ public final class AlphaCorruptionAudio {
 			return true;
 		}
 
+		private float scaledTarget() {
+			return (float) (target * RuntimeServices.config().meta().effectiveBedVolume());
+		}
+
 		@Override
 		public void tick() {
-			float scaled = (float) (target * RuntimeServices.config().meta().effectiveBedVolume());
+			float scaled = scaledTarget();
 			// Eased rather than stepped, so a bed arriving cannot be heard arriving, and the
 			// release is slower still so it cannot be heard leaving either.
 			volume += (scaled - volume) * (fading ? FADE_OUT_EASE : VOLUME_EASE);

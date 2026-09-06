@@ -57,29 +57,55 @@ final class PursuitProgressPolicyTest {
 	}
 
 	@Test
-	void formalStartRequiresPendingPermissionTutorialAndCooldown() {
-		assertFalse(PursuitProgressPolicy.canStart(false, 1, 0, true, 100L, 0L));
-		assertFalse(PursuitProgressPolicy.canStart(true, 0, 0, true, 100L, 0L));
-		assertFalse(PursuitProgressPolicy.canStart(true, 1, 0, false, 100L, 0L));
-		assertFalse(PursuitProgressPolicy.canStart(true, 1, 0, true, 99L, 100L));
-		assertTrue(PursuitProgressPolicy.canStart(true, 1, 0, true, 100L, 100L));
-		assertFalse(PursuitProgressPolicy.canStart(true, 5, 5, true, 100L, 0L));
+	void formalStartRequiresPendingPermissionAndCooldown() {
+		assertFalse(PursuitProgressPolicy.canStart(false, 1, 0, 100L, 0L));
+		assertFalse(PursuitProgressPolicy.canStart(true, 0, 0, 100L, 0L));
+		assertFalse(PursuitProgressPolicy.canStart(true, 1, 0, 99L, 100L));
+		assertTrue(PursuitProgressPolicy.canStart(true, 1, 0, 100L, 100L));
+		assertFalse(PursuitProgressPolicy.canStart(true, 5, 5, 100L, 0L));
+	}
+
+	/**
+	 * The mercy that was deliberately removed: a form no longer has to be previewed to arrive.
+	 *
+	 * <p>Written as its own case rather than folded into the one above because the old signature
+	 * would have made this exact call return false, and that difference is the product change. An
+	 * un-demonstrated form with permission, a pending slot and an expired cooldown starts.
+	 */
+	@Test
+	void anUndemonstratedFormMayArriveAsTheRealPursuit() {
+		assertTrue(PursuitProgressPolicy.canStart(true, 1, 0, 100L, 100L),
+				"the first encounter with a form is allowed to be the real thing");
+		// The cooldown is still a floor: dropping the preview must not let two pursuits stack.
+		assertFalse(PursuitProgressPolicy.canStart(true, 1, 0, 99L, 100L),
+				"removing the preview gate must not remove the pacing floor");
+	}
+
+	/**
+	 * The reliability the removed final-Eye gate used to stand in for.
+	 *
+	 * <p>Dropping that gate is only defensible if the first pursuit is something the early game
+	 * hands out on its own. It is: being bound, one completed anomaly and any one of five activity
+	 * proofs is the entire permission chain. Pinned here so a later tightening of any leg has to admit
+	 * that it is also making the finale reachable later.</p>
+	 */
+	@Test
+	void theFirstPursuitOpensOnBoundPlusOneAnomalyPlusAnyActivity() {
+		for (PursuitActivityProof proof : PursuitActivityProof.values()) {
+			assertTrue(PursuitProgressPolicy.earlyFormEligible(true, 1, proof.mask(), 0L),
+					"Activity route " + proof + " must open form one on its own");
+		}
+		assertEquals(1, PursuitProgressPolicy.allowedForm(0, 0, true));
+		assertEquals(1, PursuitProgressPolicy.actualForm(0));
+		assertTrue(PursuitProgressPolicy.pendingAfterAllowedFormUpdate(false, 0, 1, 0));
+		assertTrue(PursuitProgressPolicy.canStart(true, 1, 0, 0L, 0L));
 	}
 
 	@Test
-	void finalEyeRequiresOnlyOneEncounteredPursuit() {
-		assertFalse(PursuitProgressPolicy.finalEyeReady(-1));
-		assertFalse(PursuitProgressPolicy.finalEyeReady(0));
-		assertTrue(PursuitProgressPolicy.finalEyeReady(1));
-	}
-
-	@Test
-	void encounteredChasesCountCapturesSoTheFinaleIsNeverSkillLocked() {
+	void encounteredChasesCountCapturesAsWellAsEscapes() {
 		// A player caught on their first chase gains no resolved chase, so form progression stays
-		// put - but the encounter still counts and the final Eye must accept it.
-		int afterFirstCapture = PursuitProgressPolicy.encounteredAfterResolution(0);
-		assertEquals(1, afterFirstCapture);
-		assertTrue(PursuitProgressPolicy.finalEyeReady(afterFirstCapture));
+		// put - but the encounter still counts, which is what the record is for.
+		assertEquals(1, PursuitProgressPolicy.encounteredAfterResolution(0));
 		assertEquals(1, PursuitProgressPolicy.actualForm(0));
 
 		assertEquals(1, PursuitProgressPolicy.encounteredAfterResolution(-3));

@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.client_ui;
 
 import com.xm.thefourthfrequency.audio.ModSounds;
+import com.xm.thefourthfrequency.bootstrap.RuntimeServices;
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.mixin.MusicManagerGainAccessor;
 import com.xm.thefourthfrequency.ending.WorldInterfaceSummonTimeline;
@@ -20,14 +21,16 @@ import net.minecraft.core.Holder;
 import net.minecraft.sounds.Music;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
 
 /**
  * Decides which authored score - if any - the current situation calls for.
  *
  * <p>The mod ships a playlist per context rather than one for the whole game: the menu, ordinary
- * play, the pursuit, the encounter - which is scored twice, because its third body is a different
- * fight - and one track for each of the two ways the story can end. Everything else the vanilla
- * music manager would have chosen is deliberately dropped.</p>
+ * play, the pursuit, the unrendered layer, the End before anything is summoned, the encounter -
+ * which is scored once per body, the first of which also covers the summon - and one track for each
+ * of the two ways the story can end. Everything else the vanilla music manager would have chosen is
+ * deliberately dropped.</p>
  *
  * <p>What is <em>not</em> scored matters as much as what is. Nothing plays across a world load: a
  * loading screen is the gap between two contexts rather than a context of its own, and letting the
@@ -40,8 +43,8 @@ import net.minecraft.sounds.SoundSource;
  * the normal path, and it also gives every track a fade-in. The hard stop in {@link #tick} is for
  * the moments where a fade would be a loose end: the pursuit blackout, and the far side of a load.</p>
  *
- * <p>Two tracks replacing each other directly - the encounter taking over from ordinary play, and
- * the third body taking over from the first two - go through {@linkplain Handover a handover}
+ * <p>Tracks that replace each other directly - the summon taking over from whatever was playing,
+ * and each body taking over from the one before - go through {@linkplain Handover a handover}
  * instead of either of those. See {@link #tickHandover}.</p>
  */
 public final class MusicDirector {
@@ -55,14 +58,17 @@ public final class MusicDirector {
 	 * the drawn value is pinned to the bottom of the range by the time it is used; the upper bound
 	 * states the intent and little else.</p>
 	 *
-	 * <p>Vanilla's pacing was written for one playlist covering a whole game. Seven tracks averaging
-	 * two minutes eleven, played on that schedule, leave the score audible less than a fifth of the
-	 * time and take some eighty minutes to come round once - long enough that a player can finish a
-	 * stretch of the main line without hearing half of them. At four minutes the score is present
-	 * about a third of the time and the playlist turns over in roughly forty, which is inside a
-	 * normal sitting and as far as this can go before it starts working against the mod: silence is
-	 * the default state here, and a track playing is what tells the player the moment is authored,
-	 * therefore safe. The signal beds are what keep those gaps from reading as an empty channel.</p>
+	 * <p>Vanilla's pacing was written for one playlist covering a whole game. Ten tracks averaging
+	 * two minutes fifteen, played on that schedule, leave the score audible less than a fifth of the
+	 * time and take two hours to come round once - long enough that a player can finish a stretch of
+	 * the main line without hearing half of them. At four minutes the score is present about a third
+	 * of the time and the playlist turns over in roughly an hour. That is longer than it was at
+	 * seven tracks, and it is the price of the longer playlist rather than a fault in the interval:
+	 * shortening the gap only spends the rotation faster, and what the rotation is protecting is
+	 * that every track in a pass is one the player has not heard yet. Going lower would start
+	 * working against the mod: silence is the default state here, and a track playing is what tells
+	 * the player the moment is authored, therefore safe. The signal beds are what keep those gaps
+	 * from reading as an empty channel.</p>
 	 *
 	 * <p>The player's music-frequency option still applies. "Frequent" caps the gap at 12000 ticks,
 	 * which is above this and therefore changes nothing; "constant" is hard-coded to 100 ticks in the
@@ -70,11 +76,36 @@ public final class MusicDirector {
 	 */
 	private static final Music GAME = new Music(Holder.direct(ModSounds.MUSIC_GAME), 4_800, 7_200, false);
 	private static final Music PURSUIT = immediate(ModSounds.MUSIC_PURSUIT);
-	// The two encounter tracks are the only ones that ever replace a track that is still playing,
-	// and they are handed over rather than cut - so they must NOT carry the vanilla replace flag.
-	// It is evaluated inside the music manager's own tick, which runs before this class gets a look
-	// at the frame, so leaving it set would cut the outgoing track before the handover ever started.
-	private static final Music ENCOUNTER = handedOver(ModSounds.MUSIC_ENCOUNTER);
+	/**
+	 * The unrendered layer.
+	 *
+	 * <p>Immediate, like the other one-track contexts: the way in is a dimension change, so the
+	 * vanilla side has already stopped whatever was playing and there is never an outgoing track to
+	 * hand over from. What the player hears instead is the fade-in arriving underneath the ambience
+	 * a second or two after the floor closes over them.</p>
+	 */
+	private static final Music UNRENDERED = immediate(ModSounds.MUSIC_UNRENDERED);
+	/** How far under its own ambience the layer's track sits. See {@link #musicVolume}. */
+	private static final float UNRENDERED_MUSIC_TRIM = 0.45F;
+	/**
+	 * The End, before the interface is summoned.
+	 *
+	 * <p>Scored from arrival rather than left on the ordinary playlist: the End is where the run
+	 * stops being a survival game, and the gaps the gameplay pacing is built around would read as
+	 * the score having simply run out. Immediate rather than handed over because a dimension change
+	 * stops the music outright on the vanilla side - there is never an outgoing track to carry.</p>
+	 */
+	private static final Music END = immediate(ModSounds.MUSIC_END);
+	// The encounter tracks are the only ones that ever replace a track that is still playing, and
+	// they are handed over rather than cut - so they must NOT carry the vanilla replace flag. It is
+	// evaluated inside the music manager's own tick, which runs before this class gets a look at
+	// the frame, so leaving it set would cut the outgoing track before the handover ever started.
+	//
+	// The first body's track also scores the summon. Returning the same Music for both means the
+	// handover happens once, on the way in, and the moment the interface finishes descending is
+	// not a track change at all - which is the point: the descent and the first body are one event.
+	private static final Music ENCOUNTER_PHASE_1 = handedOver(ModSounds.MUSIC_ENCOUNTER_PHASE_1);
+	private static final Music ENCOUNTER_PHASE_2 = handedOver(ModSounds.MUSIC_ENCOUNTER_PHASE_2);
 	private static final Music ENCOUNTER_FINAL = handedOver(ModSounds.MUSIC_ENCOUNTER_FINAL);
 	private static final Music ENDING = immediate(ModSounds.MUSIC_ENDING);
 	private static final Music ENDING_FAILURE = immediate(ModSounds.MUSIC_ENDING_FAILURE);
@@ -224,14 +255,22 @@ public final class MusicDirector {
 				// under the descent - a fade-in has somewhere to go precisely because it starts
 				// from nothing, and the handover machinery is what stops it colliding with whatever
 				// was playing before.
+				//
+				// It is the first body's track, not one of the summon's own. The encounter folder
+				// no longer ships a separate summon piece: the descent and the body that lands out
+				// of it are one event, and hearing the score change between them would say they
+				// were two.
 				case SUMMONING -> {
-					return ENCOUNTER;
+					return ENCOUNTER_PHASE_1;
 				}
-				// Re-scored when the interface takes its third body: that morph is the point the
-				// encounter stops being survivable and starts being a race, and it should not be
-				// reached to the same music.
-				case PHASE_1, PHASE_2 -> {
-					return ENCOUNTER;
+				// A track per body. Each morph is a handover, so what the player hears at the
+				// moment the interface changes shape is the score changing with it rather than a
+				// single piece running underneath all three.
+				case PHASE_1 -> {
+					return ENCOUNTER_PHASE_1;
+				}
+				case PHASE_2 -> {
+					return ENCOUNTER_PHASE_2;
 				}
 				case PHASE_3 -> {
 					return ENCOUNTER_FINAL;
@@ -260,7 +299,44 @@ public final class MusicDirector {
 		// Any other boss bar that asked for its own music - the vanilla dragon, a wither - is still
 		// a fight, and the same reasoning applies.
 		if (client.gui.getBossOverlay().shouldPlayMusic()) return null;
+		// The layer has one track, mixed under its ambience.
+		//
+		// It was silent here for a long time, on the reasoning that a backing track would say the place
+		// is an event with a mood when the effect depends on it reading as somewhere that was never
+		// scored for anybody. What that reasoning missed is which track. This is not a piece written
+		// for the layer - it is one of the gameplay playlist's own, playing in a room that has no
+		// business having heard it, and a player who recognises it learns something worse about the
+		// place than silence was telling them.
+		// And only once there is something to score. The first minute down there is the layer
+		// establishing that it is empty, and a track arriving with the player says it is not - the
+		// score is the entity's, not the room's, so it starts when the entity does.
+		if (UnrenderedLayerClient.inLayer()) {
+			return UnrenderedLayerClient.hunted() ? UNRENDERED : null;
+		}
+		// The End before the summon has its own track. Read off the dimension rather than the
+		// stage, because the stage is the thing that may not have arrived yet: a player who lands
+		// in the End before the server has sent a world-interface snapshot holds no stage at all,
+		// and that is exactly the stretch this scores. The stages that are past the summon have
+		// already been answered above; the ones listed here are the ones that precede it.
+		if (inEnd(client) && beforeTheSummon(stage)) return END;
 		return GAME;
+	}
+
+	private static boolean inEnd(Minecraft client) {
+		return client.level != null && client.level.dimension() == Level.END;
+	}
+
+	/**
+	 * Whether the interface has yet to be called. A missing stage counts: the snapshot arrives with
+	 * the world, and until then nothing has been summoned by definition.
+	 *
+	 * <p>{@code COMPLETE} is deliberately not here. It is the far side of the whole encounter, and
+	 * the End it describes is not the one a player walks into.</p>
+	 */
+	private static boolean beforeTheSummon(WorldInterfaceProtocol.Stage stage) {
+		return stage == null || stage == WorldInterfaceProtocol.Stage.UNPREPARED
+				|| stage == WorldInterfaceProtocol.Stage.ARENA_READY
+				|| stage == WorldInterfaceProtocol.Stage.WAITING_TERMINALS;
 	}
 
 	/**
@@ -269,12 +345,24 @@ public final class MusicDirector {
 	 * <p>The music manager eases its category gain towards this value every tick and stops the track
 	 * outright once the gain reaches zero, so returning zero here is a fade-out rather than a cut,
 	 * and the ramp back up is the fade-in for whatever plays next.</p>
+	 *
+	 * <p>The mod's own volume trim is folded in here, and this is the only place it can be: every
+	 * track this class can choose is one the mod ships, vanilla's playlist is dropped outright, and
+	 * the category gain is the only control the music channel has. Without it the mod-volume slider
+	 * would silence every cue the mod owns while its score kept playing at whatever the vanilla music
+	 * slider said - which is the one reading of "mod volume" no player would expect.</p>
 	 */
 	public static float musicVolume(Minecraft client, float vanilla) {
-		// Remembered so a handover knows where its fade-in has to stop. The manager asks for this
+		// Remembered so a handover knows where its fade-in has to stop, and remembered *trimmed*:
+		// every other path in this class compares a written gain against this, so a raw target here
+		// would let a handover climb past the level the player asked for. The manager asks for this
 		// once at the top of every one of its own ticks, so the cached value is never stale.
-		fadeTarget = vanilla;
-		return situationalMusic(client) == null ? 0.0F : vanilla;
+		fadeTarget = vanilla * (float) RuntimeServices.config().meta().peakVolume();
+		// The layer's track sits under its ambience rather than over it. Everywhere else in the mod
+		// the score is the loudest thing in the mix; here the two sounds that carry information are
+		// the heartbeat and the player's own footsteps, and a track at full level buries both.
+		if (UnrenderedLayerClient.inLayer()) fadeTarget *= UNRENDERED_MUSIC_TRIM;
+		return situationalMusic(client) == null ? 0.0F : fadeTarget;
 	}
 
 	private static void tick(Minecraft client) {
@@ -392,8 +480,8 @@ public final class MusicDirector {
 	 * <p>Everywhere else the score changes, it changes through a stretch of deliberate silence, and
 	 * vanilla's own curve covers that: the fade target drops to zero, the outgoing track eases out
 	 * over about fifteen seconds, and whatever plays next climbs back over about ten. The encounter
-	 * is the exception. Its two tracks replace each other directly - ordinary play gives way to the
-	 * summon, and the first two bodies give way to the third - and at vanilla's pace the swap would
+	 * is the exception. Its three tracks replace each other directly - ordinary play gives way to the
+	 * summon, and each body gives way to the next - and at vanilla's pace each swap would
 	 * either be a hard cut or a twenty-five second hole in the middle of a boss fight.</p>
 	 *
 	 * <p>So the handover runs the same two curves, steeply. It empties the channel by reporting no
@@ -461,7 +549,8 @@ public final class MusicDirector {
 	 * more than it bought.
 	 */
 	private static boolean handsOver(Music wanted) {
-		return wanted == ENCOUNTER || wanted == ENCOUNTER_FINAL;
+		return wanted == ENCOUNTER_PHASE_1 || wanted == ENCOUNTER_PHASE_2
+				|| wanted == ENCOUNTER_FINAL;
 	}
 
 	private static boolean plays(SoundInstance instance, Music music) {
@@ -613,7 +702,8 @@ public final class MusicDirector {
 	 * songs, and that silence is not a fault to be repaired.
 	 */
 	private static boolean startsPromptly(Music wanted) {
-		return wanted == PURSUIT || wanted == ENCOUNTER || wanted == ENCOUNTER_FINAL
+		return wanted == PURSUIT || wanted == END || wanted == ENCOUNTER_PHASE_1
+				|| wanted == ENCOUNTER_PHASE_2 || wanted == ENCOUNTER_FINAL
 				|| wanted == ENDING || wanted == ENDING_FAILURE;
 	}
 

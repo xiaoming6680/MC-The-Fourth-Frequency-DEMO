@@ -2,6 +2,7 @@ package com.xm.thefourthfrequency.ending;
 
 import com.mojang.serialization.DynamicOps;
 import com.xm.thefourthfrequency.audio.AudioService;
+import com.xm.thefourthfrequency.bootstrap.RuntimeServices;
 import com.xm.thefourthfrequency.audio.ModSounds;
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.content.ModBlocks;
@@ -13,6 +14,7 @@ import com.xm.thefourthfrequency.terminal.TerminalNoticeService;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.PowerParticleOption;
 import net.minecraft.nbt.CompoundTag;
@@ -71,10 +73,41 @@ public final class WorldInterfaceAttackService {
 	 */
 	private static final double LASER_BURN_RADIUS = 2.2D;
 	private static final float LASER_BURN_DAMAGE = 3.0F;
-	private static final int LASER_BURN_INTERVAL_TICKS = 5;
-	private static final int LASER_SCAR_INTERVAL_TICKS = 2;
+	/**
+	 * First-form values only; the live intervals come from {@link WorldInterfacePhasePressure}.
+	 *
+	 * <p>Kept as the documented baseline the policy's first entry has to agree with, which
+	 * {@code WorldInterfacePhasePressureTest} asserts directly rather than by eye.
+	 */
+	static final int LASER_BURN_INTERVAL_TICKS = 5;
+	static final int LASER_SCAR_INTERVAL_TICKS = 2;
 	private static final int LASER_SCAR_RADIUS = 2;
 	private static final int LASER_SCAR_EDITS = 6;
+	/**
+	 * How often the shaft sheds, and how many points along it shed when it does.
+	 *
+	 * <p>Eight points every other tick, whatever the beam's length: a shot across the island and a
+	 * shot at somebody standing under the core cost the same, and the spacing between the beads is
+	 * what carries the distance instead. Sampling at a fixed interval in blocks would have made a
+	 * long shot forty packets a tick, which is the whole particle budget of the fight spent on one
+	 * attack.</p>
+	 */
+	private static final int LASER_SHAFT_INTERVAL_TICKS = 2;
+	private static final int LASER_SHAFT_SAMPLES = 8;
+	/** How far down the shaft the muzzle discharge reaches, in blocks. */
+	private static final double LASER_MUZZLE_REACH = 12.0D;
+	/** Rings stacked across the line of fire on the frame the beam leaves the core. */
+	private static final int LASER_MUZZLE_RINGS = 3;
+	/** The two threads wound around the shaft: how wide, how finely sampled, how tight. */
+	private static final double LASER_HELIX_RADIUS = 0.75D;
+	private static final int LASER_HELIX_SAMPLES = 44;
+	/** Rings travelling down the shaft, so the sleeve of light has a cross-section. */
+	private static final int LASER_COLLARS = 4;
+	private static final double LASER_HELIX_TURNS_PER_BLOCK = 0.06D;
+	/** Discharge leaving the shaft sideways: how often, how many, how far. */
+	private static final long LASER_FORK_INTERVAL_TICKS = 3L;
+	private static final int LASER_FORKS = 3;
+	private static final double LASER_FORK_REACH = 4.5D;
 	/**
 	 * How far the beam's contact detonation is felt, in blocks.
 	 *
@@ -88,6 +121,10 @@ public final class WorldInterfaceAttackService {
 	private static final double TENDRIL_SHAKE_RADIUS = 34.0D;
 	/** Ticks between the ticking that counts a lash down. */
 	private static final long TENDRIL_TELEGRAPH_CUE_INTERVAL = 8L;
+	/** The limb's descent, drawn from the core to the mark: how wide, how finely, how jagged. */
+	private static final double TENDRIL_TRACE_RADIUS = 1.5D;
+	private static final int TENDRIL_TRACE_SAMPLES = 26;
+	private static final int TENDRIL_TRACE_SEGMENTS = 10;
 	private static final int ORB_WARNING_TICKS = WorldInterfaceProtocol.ORB_WARNING_TICKS;
 	private static final int ORB_TRACKING_TICKS = WorldInterfaceEnergyOrbEntity.MAX_FLIGHT_TICKS;
 	private static final int GRAB_WARNING_TICKS = WorldInterfaceProtocol.GRAB_WARNING_TICKS;
@@ -144,7 +181,8 @@ public final class WorldInterfaceAttackService {
 	private static final int SKY_LANCE_LOCK_TICKS = WorldInterfaceProtocol.SKY_LANCE_LOCK_TICKS;
 	private static final int SKY_LANCE_CHARGE_TICKS = WorldInterfaceProtocol.SKY_LANCE_CHARGE_TICKS;
 	private static final int SKY_LANCE_STRIKE_TICKS = WorldInterfaceProtocol.SKY_LANCE_STRIKE_TICKS;
-	private static final double SKY_LANCE_RADIUS = 3.6D;
+	/** First-form value only; the live radius comes from {@link WorldInterfacePhasePressure}. */
+	static final double SKY_LANCE_RADIUS = 3.6D;
 	private static final float SKY_LANCE_DAMAGE = 15.0F;
 	/** The lance is the encounter's one true crater; it is allowed to take a bite out of the island. */
 	private static final int SKY_LANCE_SCAR_RADIUS = 7;
@@ -152,6 +190,20 @@ public final class WorldInterfaceAttackService {
 	/** Blocks around the crater rim left as missing-texture proxies rather than removed. */
 	/** Rings of the outward blast front. Each steps one lance radius further out. */
 	private static final int SKY_LANCE_SHOCK_RINGS = 4;
+	/**
+	 * Ticks before the strike that the column starts filling in above the mark.
+	 *
+	 * <p>Half the charge. The whole charge would have been a pillar of light standing over the
+	 * player for a second and a half, which is a landmark rather than a warning; a third of it is
+	 * gone before it has been noticed. This is the beat where a player who has read the mark and
+	 * decided to stay finds out they were wrong.</p>
+	 */
+	private static final long SKY_LANCE_GATHER_TICKS = SKY_LANCE_CHARGE_TICKS / 2;
+	/** Points lit along the column per emission, whatever its height. */
+	private static final int SKY_LANCE_COLUMN_SAMPLES = 9;
+	/** The threads wound down the lance column while it fills. */
+	private static final double SKY_LANCE_HELIX_RADIUS = 1.1D;
+	private static final int SKY_LANCE_HELIX_SAMPLES = 40;
 	private static final int SKY_LANCE_CORRUPTION_RADIUS = 9;
 	private static final int SKY_LANCE_CORRUPTION_EDITS = 34;
 	private static final int WEAPON_WARNING_TICKS = WorldInterfaceProtocol.WEAPON_WARNING_TICKS;
@@ -174,6 +226,15 @@ public final class WorldInterfaceAttackService {
 	private static final float TENDRIL_DAMAGE = 8.0F;
 	private static final int TENDRIL_SCAR_RADIUS = 3;
 	private static final int TENDRIL_SCAR_EDITS = 12;
+	/**
+	 * Points on the landing ring, once per lash.
+	 *
+	 * <p>Eight, and only on the frame the limb lands. Three lashes a flurry and up to two flurries
+	 * running at once in the third phase's volley lane, so this is one of the few emitters in the
+	 * fight that can genuinely be multiplied by six - which is why it is a single frame each and not
+	 * a state that lasts.</p>
+	 */
+	private static final int TENDRIL_LANDING_SAMPLES = 8;
 	/** Dragon breath is a powered particle, so the option carries the drift rather than the type. */
 	private static final PowerParticleOption CHARGE_PARTICLE =
 			PowerParticleOption.create(ParticleTypes.DRAGON_BREATH, 0.4F);
@@ -204,8 +265,21 @@ public final class WorldInterfaceAttackService {
 	 * protocol carries, so a second one would burn along a beam nobody could see. What is left is
 	 * the two attacks the server draws itself, which is enough for the sky to be full.</p>
 	 */
+	/**
+	 * What the third form's second lane may open, on top of whatever the schedule is running.
+	 *
+	 * <p>The two aimed weapons were deliberately absent and are now deliberately present. Keeping
+	 * them out made the last phase's extra lane a bolt-and-lash lane: it added pressure without ever
+	 * adding a second thing to <em>read</em>, so the fight never actually asked the player to answer
+	 * two different attacks at once. That is the one escalation the third form has left.
+	 *
+	 * <p>Listed twice each for the orb, so the barrage stays the most common thing the lane throws
+	 * and the heavy weapons remain punctuation rather than the beat.
+	 */
 	private static final List<WorldInterfaceAction> VOLLEY_ACTIONS = List.of(
-			WorldInterfaceAction.ENERGY_ORB, WorldInterfaceAction.TENDRIL_LASH);
+			WorldInterfaceAction.ENERGY_ORB, WorldInterfaceAction.ENERGY_ORB,
+			WorldInterfaceAction.TENDRIL_LASH, WorldInterfaceAction.SKY_LANCE,
+			WorldInterfaceAction.LASER_SWEEP);
 	/** Extra attacks that may be in flight at once, on top of the scheduled one, for a solo table. */
 	public static final int MAX_VOLLEY = 3;
 	/**
@@ -231,6 +305,20 @@ public final class WorldInterfaceAttackService {
 	 * returns the selection to the plain shuffle it used to be, never to something incorrect.
 	 */
 	private static final Map<UUID, Set<UUID>> EVICTED = new ConcurrentHashMap<>();
+	/**
+	 * When each player may have their hotbar swept again, by encounter.
+	 *
+	 * <p>The sweep is the least dodgeable thing the fight does that the player then has to clean up
+	 * after: nine slots on the floor, mid-fight, with the collapse clock running. It is fair as a
+	 * once-a-fight shock and oppressive as a recurring one, and the six-hundred-tick strong-control
+	 * immunity every exclusive action shares was never long enough to keep it to the former.
+	 *
+	 * <p>Transient like the two ledgers above, and acceptable for the same reason: a restart already
+	 * cancels the running attack and grants a recovery grace period, so the worst a lost cooldown
+	 * costs is one extra sweep in a ten-minute fight. Persisting it would mean a format version and a
+	 * migration for a number that only shapes pacing.
+	 */
+	private static final Map<UUID, Map<UUID, Long>> HOTBAR_SWEEPS = new ConcurrentHashMap<>();
 	private static boolean initialized;
 
 	private WorldInterfaceAttackService() {
@@ -253,6 +341,7 @@ public final class WorldInterfaceAttackService {
 			VOLLEY.clear();
 			PRESSURE.clear();
 			EVICTED.clear();
+			HOTBAR_SWEEPS.clear();
 		});
 	}
 
@@ -341,11 +430,29 @@ public final class WorldInterfaceAttackService {
 		return evicted == null ? Set.of() : Set.copyOf(evicted);
 	}
 
-	/** Drops both transient ledgers for an encounter that is over or restarting. */
+	/** Drops the transient ledgers for an encounter that is over or restarting. */
 	public static void clearLedgers(UUID encounterId) {
 		if (encounterId == null) return;
 		PRESSURE.remove(encounterId);
 		EVICTED.remove(encounterId);
+		HOTBAR_SWEEPS.remove(encounterId);
+	}
+
+	/** Whether this player's hotbar may be swept again yet. */
+	public static boolean hotbarSweepReady(UUID encounterId, UUID playerId, long elapsed) {
+		if (encounterId == null || playerId == null) return true;
+		Map<UUID, Long> sweeps = HOTBAR_SWEEPS.get(encounterId);
+		if (sweeps == null) return true;
+		Long until = sweeps.get(playerId);
+		return until == null || elapsed >= until;
+	}
+
+	/** Starts this player's sweep cooldown. Called once the sweep is actually committed. */
+	public static void recordHotbarSweep(UUID encounterId, UUID playerId, long elapsed) {
+		if (encounterId == null || playerId == null) return;
+		HOTBAR_SWEEPS.computeIfAbsent(encounterId, ignored -> new ConcurrentHashMap<>())
+				.put(playerId, Math.max(0L, elapsed)
+						+ WorldInterfaceActionScheduler.HOTBAR_SWEEP_COOLDOWN_TICKS);
 	}
 
 	public static AttackStart begin(ServerLevel level, WorldInterfaceEntity boss,
@@ -495,7 +602,16 @@ public final class WorldInterfaceAttackService {
 					(int) Math.floorMod(seed >>> 16, VOLLEY_ACTIONS.size()));
 			// Bolts stack happily - a barrage from three directions is the point. A second flurry of
 			// lashes on top of a running one would just be the same three impacts drawn twice.
-			if (action == WorldInterfaceAction.TENDRIL_LASH
+			//
+			// Lances stack too, and are meant to: several marked circles opening across the island
+			// at once is the third form's signature, and each one is still a place you can simply
+			// not be standing.
+			//
+			// Beams do not. One sweeping beam already reaches the whole island and is drawn across
+			// everybody's screen; two at once is not twice the threat, it is an unreadable frame
+			// with damage in it. So the lane will only ever add a beam when there is not one
+			// already, the schedule included.
+			if ((action == WorldInterfaceAction.TENDRIL_LASH || action == WorldInterfaceAction.LASER_SWEEP)
 					&& (scheduled == action || laneHolds(lane, action))) {
 				action = WorldInterfaceAction.ENERGY_ORB;
 			}
@@ -718,29 +834,76 @@ public final class WorldInterfaceAttackService {
 		if (target != null) runtime.recordAim(target.getEyePosition());
 		if (elapsed < LASER_WARNING_TICKS) {
 			announceLock(level, runtime, target, elapsed, LASER_WARNING_TICKS);
+			// The muzzle end of the same warning. See chargeCore: for ninety ticks this attack said
+			// nothing at all to anyone except the person it had picked.
+			chargeCore(level, boss, elapsed, LASER_WARNING_TICKS);
 			return false;
 		}
 		Vec3 start = WorldInterfaceAnatomy.coreOrigin(boss);
-		Vec3 aim = runtime.laggedAim(LASER_TRACKING_LAG_TICKS);
+		Vec3 aim = runtime.laggedAim(WorldInterfacePhasePressure.laserTrackingLagTicks(boss.form()));
 		if (aim == null) {
 			aim = target != null ? target.getEyePosition()
 					: start.add(boss.getLookAngle().scale(48.0D));
 		}
-		Vec3 end = groundUnder(level, aim);
+		Vec3 primaryEnd = groundUnder(level, aim);
 		long sweptTicks = elapsed - LASER_WARNING_TICKS;
+		int beams = WorldInterfacePhasePressure.laserBeamCount(boss.form());
 		if (sweptTicks == 0L) {
-			// Fired from both ends: the muzzle says who shot, the impact says where it landed.
+			// One cue however many beams leave, because it is one shot. Two samples fired on the
+			// same tick from the same core is a doubled sample, not a bigger gun.
 			AudioService.playBounded(level, BlockPos.containing(start),
 					ModSounds.WORLD_INTERFACE_LASER_FIRE, SoundSource.HOSTILE, 1.0F, 1.0F);
 			runtime.damageApplied = true;
 		}
-		if (sweptTicks % LASER_BURN_INTERVAL_TICKS == 0L) {
-			AABB sweepBounds = new AABB(start, end).inflate(LASER_BURN_RADIUS + 1.0D);
-			double burnSqr = LASER_BURN_RADIUS * LASER_BURN_RADIUS;
+		// Damage is deduplicated across the beams: standing where a split crosses is already worse
+		// because both halves sweep over you in turn, and paying twice on the tick they overlap is
+		// a spike nothing on the screen explains.
+		Set<UUID> burned = new HashSet<>();
+		for (int index = 0; index < beams; index++) {
+			Vec3 end = groundUnder(level, WorldInterfacePhasePressure.swingAroundY(start, primaryEnd,
+					WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(), index)));
+			sweepBeam(level, boss, runtime, start, end, sweptTicks, index, burned);
+		}
+		return elapsed >= LASER_WARNING_TICKS + LASER_SWEEP_TICKS;
+	}
+
+	/**
+	 * One beam of the sweep, from the muzzle to the floor.
+	 *
+	 * <p>Split out when the third form gained a second beam. Everything here is per-beam - the
+	 * discharge, the shaft, the contact and the burn - and everything that is per-<em>shot</em> (the
+	 * firing cue, the aim, the damage ledger) stays with the caller. That division is what keeps a
+	 * two-beam sweep one attack rather than two attacks that happen to start together.
+	 *
+	 * @param index  which beam this is, used to scatter its seeds so the pair does not fork
+	 *               identically
+	 * @param burned who has already taken this tick's burn, shared across the beams
+	 */
+	private static void sweepBeam(ServerLevel level, WorldInterfaceEntity boss, AttackRuntime runtime,
+			Vec3 start, Vec3 end, long sweptTicks, int index, Set<UUID> burned) {
+		double burnRadius = WorldInterfacePhasePressure.laserBurnRadius(boss.form());
+		if (sweptTicks == 0L) {
+			// Fired from both ends: the muzzle says who shot, the impact says where it landed.
+			emitLaserDischarge(level, boss, start, end);
+		}
+		// Light coming off the shaft for the whole sweep. The beam itself is drawn client-side, so
+		// this is not what makes it visible - it is what stops it looking drawn: a clean shaft of
+		// geometry with nothing shedding off it reads as a decal laid over the world, and the beads
+		// travelling down it are the only thing in the shot that says which way the energy is going.
+		if (sweptTicks % LASER_SHAFT_INTERVAL_TICKS == 0L) {
+			emitLaserShaft(level, start, end, sweptTicks, burnRadius, index);
+		}
+		if (sweptTicks % WorldInterfacePhasePressure.laserBurnIntervalTicks(boss.form()) == 0L) {
+			AABB sweepBounds = new AABB(start, end).inflate(burnRadius + 1.0D);
+			double burnSqr = burnRadius * burnRadius;
 			for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class, sweepBounds,
 					candidate -> candidate.isAlive() && !candidate.isSpectator())) {
+				if (!burned.add(nearby.getUUID())) continue;
 				if (distanceToSegmentSqr(nearby.getEyePosition(), start, end) <= burnSqr) {
 					damage(level, boss, nearby, formDamage(boss, LASER_BURN_DAMAGE));
+				} else {
+					// Not hit by this beam; leave them available to the next one.
+					burned.remove(nearby.getUUID());
 				}
 			}
 		}
@@ -749,19 +912,14 @@ public final class WorldInterfaceAttackService {
 		// it is what actually communicates where the beam is - a scar appearing behind you after
 		// the fact does not.
 		BlockPos impact = BlockPos.containing(end);
-		level.sendParticles(ParticleTypes.EXPLOSION, end.x, end.y + 0.25D, end.z,
-				3, 0.55D, 0.25D, 0.55D, 0.03D);
-		level.sendParticles(ParticleTypes.LARGE_SMOKE, end.x, end.y + 0.35D, end.z,
-				6, 0.60D, 0.30D, 0.60D, 0.05D);
-		level.sendParticles(ParticleTypes.LAVA, end.x, end.y + 0.2D, end.z,
-				4, 0.45D, 0.10D, 0.45D, 0.06D);
-		if (sweptTicks % LASER_SCAR_INTERVAL_TICKS == 0L) {
+		emitLaserContact(level, boss, end, burnRadius, sweptTicks);
+		if (sweptTicks % WorldInterfacePhasePressure.laserScarIntervalTicks(boss.form()) == 0L) {
 			// The impact walks with the beam, so the arena ends up wearing the whole sweep path
 			// instead of a single line drawn in one frame.
 			runtime.cursor += EndBossArenaService.queueExplosionScar(level, impact,
 					LASER_SCAR_RADIUS + boss.form(),
 					LASER_SCAR_EDITS + LASER_SCAR_EDITS * boss.form() / 2,
-					runtime.seed ^ impact.asLong());
+					runtime.seed ^ impact.asLong() ^ (index * 0x9E3779B9L));
 			// The full emitter, sparingly: one per burst reads as a detonation walking across the
 			// island, where one every tick would just be a wall of smoke nobody can see through.
 			level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, end.x, end.y + 0.4D, end.z,
@@ -790,7 +948,158 @@ public final class WorldInterfaceAttackService {
 			WorldInterfaceBlastService.emit(level, runtime.encounterId, end,
 					LASER_CONTACT_SHAKE_RADIUS, WorldInterfaceProtocol.BlastGrade.MEDIUM);
 		}
-		return elapsed >= LASER_WARNING_TICKS + LASER_SWEEP_TICKS;
+	}
+
+	/**
+	 * The contact, at the rate this form burns at.
+	 *
+	 * <p>The rate was invisible before this. Both intervals the forms change are damage and terrain,
+	 * neither of which the eye reads as a rate - so a second-form beam chewing through the floor
+	 * twice as fast looked exactly like a first-form one. The burst here is scaled by the same
+	 * interval, so a faster beam visibly throws more per second as well as taking more.
+	 */
+	private static void emitLaserContact(ServerLevel level, WorldInterfaceEntity boss, Vec3 end,
+			double burnRadius, long sweptTicks) {
+		int form = boss.form();
+		// Inverted: a shorter interval is a hotter contact.
+		double rate = WorldInterfaceAttackService.LASER_SCAR_INTERVAL_TICKS
+				/ (double) WorldInterfacePhasePressure.laserScarIntervalTicks(form);
+		double spread = burnRadius * 0.32D;
+		level.sendParticles(ParticleTypes.EXPLOSION, end.x, end.y + 0.25D, end.z,
+				2 + (int) Math.round(3.0D * rate), spread, 0.25D, spread, 0.03D);
+		level.sendParticles(ParticleTypes.LARGE_SMOKE, end.x, end.y + 0.35D, end.z,
+				4 + (int) Math.round(6.0D * rate), spread, 0.30D, spread, 0.05D);
+		level.sendParticles(ParticleTypes.LAVA, end.x, end.y + 0.2D, end.z,
+				2 + (int) Math.round(4.0D * rate), spread * 0.8D, 0.10D, spread * 0.8D, 0.06D);
+		// The contact wearing the floor: a ring thrown outward at the radius that actually burns,
+		// and spokes leaving the middle of it. Both scale with the rate, so the second form's
+		// contact is visibly a harder one rather than the same one landing more damage.
+		WorldInterfaceVfx.shockRing(level, WorldInterfaceVfx.core(), end.add(0.0D, 0.15D, 0.0D),
+				burnRadius * 0.5D, 14 + (int) Math.round(10.0D * rate), 0.42D, 0.16D);
+		WorldInterfaceVfx.spokes(level, WorldInterfaceVfx.violet(), end.add(0.0D, 0.12D, 0.0D),
+				burnRadius * 1.15D, 4 + (int) Math.round(3.0D * rate), 4, sweptTicks * 0.11D, 0.35D);
+		// A sigil circle at the burn radius on the beat the form burns on, so the dangerous edge is
+		// drawn on the floor rather than left to be inferred from the width of the shaft.
+		if (sweptTicks % Math.max(2L, WorldInterfacePhasePressure.laserScarIntervalTicks(form) * 4L) == 0L) {
+			WorldInterfaceVfx.runeCircle(level, end.add(0.0D, 0.1D, 0.0D), burnRadius,
+					sweptTicks * 0.2D, 18 + form * 6);
+		}
+	}
+
+	/**
+	 * The instant the beam leaves the core.
+	 *
+	 * <p>One frame's worth, and the most expensive single frame in the attack, because it is the
+	 * only one that says <em>fired</em> rather than <em>firing</em>. Everything else about the laser
+	 * - the charge before it, the shaft during it, the contact walking across the floor - is a state
+	 * that lasts; without a discharge the transition between them is a shaft that was simply already
+	 * there on the tick you next looked at it.</p>
+	 */
+	private static void emitLaserDischarge(ServerLevel level, WorldInterfaceEntity boss, Vec3 start,
+			Vec3 end) {
+		double coreRadius = WorldInterfaceAnatomy.coreRadius(boss.form());
+		Vec3 bearing = end.subtract(start);
+		double length = bearing.length();
+		Vec3 forward = length < 1.0E-4D ? new Vec3(0.0D, -1.0D, 0.0D) : bearing.scale(1.0D / length);
+		// The muzzle itself: a white flash sized on the core, so a bigger form fires a bigger shot.
+		ArenaParticles.emit(level, ColorParticleOption.create(ParticleTypes.FLASH, 0.86F, 0.58F, 1.0F),
+				start.x, start.y, start.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+		ArenaParticles.emit(level, ParticleTypes.EXPLOSION, start.x, start.y, start.z,
+				4, coreRadius * 0.6D, coreRadius * 0.6D, coreRadius * 0.6D, 0.0D);
+		// Blow-back around the core, thrown against the shot rather than with it. A gun that only
+		// ever throws things forward has no recoil in it.
+		ArenaParticles.emit(level, ParticleTypes.END_ROD, start.x, start.y, start.z,
+				40, coreRadius * 0.9D, coreRadius * 0.9D, coreRadius * 0.9D, 0.45D);
+		ArenaParticles.emit(level, ParticleTypes.REVERSE_PORTAL, start.x, start.y, start.z,
+				30, coreRadius, coreRadius, coreRadius, 0.35D);
+		// And the first dozen blocks of the shaft lit at once, so the beam arrives along its whole
+		// near length instead of appearing at both ends.
+		double reach = Math.min(LASER_MUZZLE_REACH, length);
+		for (int index = 1; index <= 4; index++) {
+			Vec3 point = start.add(forward.scale(reach * index / 4.0D));
+			ArenaParticles.emit(level, ParticleTypes.END_ROD, point.x, point.y, point.z,
+					6, 0.25D, 0.25D, 0.25D, 0.12D);
+		}
+		// The muzzle blast, as a ring standing square across the line of fire rather than as more
+		// spray around the core. A ring that faces the shot is the one shape that says which way
+		// this went to a player standing anywhere except in front of it.
+		for (int index = 0; index < LASER_MUZZLE_RINGS; index++) {
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.core(),
+					start.add(forward.scale(coreRadius * (0.6D + index * 0.9D))), forward,
+					coreRadius * (0.9D + index * 0.55D), 20 + index * 8, index * 0.2D, 0.0D);
+		}
+		// A hollow shell off the core, which is the recoil the spray above was standing in for.
+		WorldInterfaceVfx.shell(level, WorldInterfaceVfx.violet(), start, coreRadius * 1.15D,
+				110, 0.55D);
+		// And the first stretch of the beam already wound, so it arrives spinning rather than lit.
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.core(), start,
+				start.add(forward.scale(reach)), coreRadius * 0.55D, 26, 3, 2.5D, 0.0D);
+	}
+
+	/**
+	 * Beads of light travelling down the shaft while it burns.
+	 *
+	 * <p>The phase term is the whole point: the sample positions move along the beam every emission,
+	 * so what a player sees is energy running from the interface to the ground rather than a static
+	 * dotted line. A fixed spacing would have been a ladder drawn on the shot.</p>
+	 */
+	private static void emitLaserShaft(ServerLevel level, Vec3 start, Vec3 end, long sweptTicks,
+			double burnRadius, int beamIndex) {
+		Vec3 bearing = end.subtract(start);
+		double length = bearing.length();
+		if (length < 1.0E-4D) return;
+		// Wraps every LASER_SHAFT_SAMPLES emissions, so the beads run the gap and then repeat rather
+		// than drifting off the end of the beam.
+		double phase = (sweptTicks / (double) LASER_SHAFT_INTERVAL_TICKS % LASER_SHAFT_SAMPLES)
+				/ LASER_SHAFT_SAMPLES;
+		for (int index = 0; index < LASER_SHAFT_SAMPLES; index++) {
+			double along = (index + phase) / LASER_SHAFT_SAMPLES;
+			Vec3 point = start.add(bearing.scale(along));
+			// Thrown outward off the beam: light coming apart in the air is what a beam this size
+			// would actually do to the air, and it is also what stops the shaft reading as a solid.
+			ArenaParticles.emit(level, ParticleTypes.END_ROD, point.x, point.y, point.z,
+					2, 0.18D, 0.18D, 0.18D, 0.05D);
+		}
+		// Wound *around* the beam rather than inside it.
+		//
+		// The threads used to run at a fixed 0.75 blocks from the axis, which at the beam's own
+		// scale is inside the white-hot core - so from any distance the particles were not visibly
+		// attached to the shot at all, they were a faint dotted line the beam was drawn over. They
+		// are now pinned to the burn radius: the inner pair rides the edge of the core and the outer
+		// pair rides the edge that actually burns, so the sleeve of light around the beam is the
+		// same width as the danger. Counter-wound, because two helices turning against each other
+		// read as a shaft with something spinning around it and two turning together read as one
+		// thicker helix.
+		double sleeve = Math.max(LASER_HELIX_RADIUS, burnRadius);
+		double turns = length * LASER_HELIX_TURNS_PER_BLOCK;
+		double spin = phase * Math.PI * 2.0D + beamIndex;
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.core(), start, end,
+				sleeve * 0.45D, LASER_HELIX_SAMPLES, 2, turns, spin);
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.violet(), start, end,
+				sleeve, LASER_HELIX_SAMPLES, 2, -turns * 0.7D, -spin);
+		// Collars stepping down the shaft, so the sleeve has a cross-section instead of only a
+		// silhouette. They travel with the same phase, which is what makes the beam read as
+		// something being pushed down a pipe rather than a lit line.
+		for (int index = 0; index < LASER_COLLARS; index++) {
+			double along = ((index + phase) % LASER_COLLARS) / LASER_COLLARS;
+			WorldInterfaceVfx.orientedRing(level, ParticleTypes.END_ROD,
+					start.add(bearing.scale(along)), bearing, sleeve, 12, spin, 0.0D);
+		}
+		// Discharge jumping off the shaft to the air beside it, on its own slower clock so the beam
+		// is not permanently fringed. Deterministic on the sweep tick: same bolt on every client.
+		if (sweptTicks % LASER_FORK_INTERVAL_TICKS == 0L) {
+			Vec3 forward = bearing.scale(1.0D / length);
+			for (int index = 0; index < LASER_FORKS; index++) {
+				long seed = sweptTicks * 8191L + index * 1543L;
+				double along = 0.2D + ((seed >>> 12) & 0xFFFFL) / (double) 0xFFFF * 0.7D;
+				Vec3 root = start.add(bearing.scale(along));
+				double angle = ((seed >>> 28) & 0xFFFFL) / (double) 0xFFFF * Math.PI * 2.0D;
+				Vec3 side = forward.cross(new Vec3(Math.cos(angle), 0.35D, Math.sin(angle)));
+				if (side.lengthSqr() < 1.0E-6D) continue;
+				WorldInterfaceVfx.arc(level, ParticleTypes.ELECTRIC_SPARK, root,
+						root.add(side.normalize().scale(LASER_FORK_REACH)), 8, 0.9D, seed);
+			}
+		}
 	}
 
 	/**
@@ -807,7 +1116,15 @@ public final class WorldInterfaceAttackService {
 		if (elapsed < ORB_WARNING_TICKS) {
 			ServerPlayer marked = onlineTarget(level, runtime, 0);
 			announceLock(level, runtime, marked, elapsed, ORB_WARNING_TICKS);
-			chargeCore(level, boss, elapsed / (float) ORB_WARNING_TICKS);
+			chargeCore(level, boss, elapsed, ORB_WARNING_TICKS);
+			// The charge's own voice, which used to live inside chargeCore and now cannot: the laser
+			// shares those particles and must not share this cue.
+			if (elapsed == 0L || elapsed % 8L == 0L) {
+				float progress = elapsed / (float) ORB_WARNING_TICKS;
+				AudioService.playBounded(level, BlockPos.containing(WorldInterfaceAnatomy.coreOrigin(boss)),
+						ModSounds.WORLD_INTERFACE_ORB, SoundSource.HOSTILE,
+						0.45F + progress * 0.4F, 0.72F + progress * 0.55F);
+			}
 			return false;
 		}
 		if (runtime.orbId == null && !runtime.damageApplied) {
@@ -829,23 +1146,70 @@ public final class WorldInterfaceAttackService {
 	}
 
 	/**
-	 * The other half of the breath weapon's tell, drawn at the interface rather than at the victim:
+	 * The other half of a ranged weapon's tell, drawn at the interface rather than at the victim:
 	 * the core gathers visibly before it fires, so the rest of the table can see the shot coming as
 	 * well as the person it is coming for.
+	 *
+	 * <p>Shared by the orb and the laser. It used to belong to the orb alone, which left the laser -
+	 * the longest telegraph in the fight at ninety ticks - with nothing at the muzzle end at all:
+	 * the target saw a ring closing on their own feet and everybody else saw a hovering shape that
+	 * had not moved. A ninety-tick wind-up that only the person being aimed at can perceive is not a
+	 * telegraph, it is a private countdown.</p>
+	 *
+	 * <p>Takes the raw clock rather than a fraction because the emission is throttled on it: every
+	 * other tick, which is under the flicker ceiling for the ring's own rotation and halves what a
+	 * ninety-tick charge costs the particle channel. Audio is each caller's own, on each caller's
+	 * own cadence - two attacks whose charges sound alike would be two attacks that cannot be told
+	 * apart before they land, which is exactly the thing the charge exists to prevent.</p>
 	 */
-	private static void chargeCore(ServerLevel level, WorldInterfaceEntity boss, float progress) {
+	private static void chargeCore(ServerLevel level, WorldInterfaceEntity boss, long elapsed,
+			int windowTicks) {
+		if (elapsed % 2L != 0L) return;
+		float progress = Math.clamp(elapsed / (float) Math.max(1, windowTicks), 0.0F, 1.0F);
 		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
 		double radius = WorldInterfaceAnatomy.coreRadius(boss.form()) * (1.35D - progress * 0.85D);
 		int samples = 6 + Math.round(progress * 10.0F);
 		for (int index = 0; index < samples; index++) {
 			double angle = Math.PI * 2.0D * index / samples + progress * 6.0D;
-			level.sendParticles(CHARGE_PARTICLE,
+			ArenaParticles.emit(level, CHARGE_PARTICLE,
 					core.x + Math.cos(angle) * radius, core.y + Math.sin(angle * 1.7D) * radius * 0.4D,
 					core.z + Math.sin(angle) * radius, 1, 0.0D, 0.0D, 0.0D, 0.0D);
 		}
-		if (progress <= 0.02F || (long) (progress * ORB_WARNING_TICKS) % 8L == 0L) {
-			AudioService.playBounded(level, BlockPos.containing(core), ModSounds.WORLD_INTERFACE_ORB,
-					SoundSource.HOSTILE, 0.45F + progress * 0.4F, 0.72F + progress * 0.55F);
+		// Drawn inward as well as around: the ring says the core is spinning up, the infall says the
+		// energy is coming from the body rather than appearing at the muzzle. One boxed emission, so
+		// the whole inward half of the tell costs a single packet.
+		ArenaParticles.emit(level, ParticleTypes.REVERSE_PORTAL, core.x, core.y, core.z,
+				2 + Math.round(progress * 6.0F), radius * 1.6D, radius * 1.2D, radius * 1.6D,
+				0.02D + progress * 0.06D);
+		// The last fifth is the part that has to be unmistakable from across the island.
+		if (progress >= 0.8F) {
+			ArenaParticles.emit(level, ParticleTypes.END_ROD, core.x, core.y, core.z,
+					3, radius * 0.9D, radius * 0.9D, radius * 0.9D, 0.05D);
+		}
+		// A cage closing on the core. Three rings on axes that are not each other's, all collapsing
+		// on the same schedule the ring above tightens on: the tell used to be one flat circle,
+		// which from below or from behind was a line. A cage is the same statement from every seat
+		// in the arena, and the fact that it shrinks is what says how long is left.
+		double cage = WorldInterfaceAnatomy.coreRadius(boss.form()) * (2.6D - progress * 2.0D);
+		for (int axis = 0; axis < 3; axis++) {
+			double lean = elapsed * 0.05D + axis * (Math.PI / 3.0D);
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), core,
+					new Vec3(Math.sin(lean), axis == 1 ? 0.9D : Math.cos(lean * 0.8D), Math.cos(lean)),
+					cage, 10 + Math.round(progress * 8.0F),
+					(axis % 2 == 0 ? 1.0D : -1.0D) * elapsed * 0.12D, 0.0D);
+		}
+		// And the body feeding it: bolts from the mass into the core, more of them the closer the
+		// shot is. Sparks around the core say it is hot; bolts arriving say where the heat is from.
+		if (progress >= 0.35F) {
+			int bolts = 1 + Math.round(progress * 3.0F);
+			double reach = WorldInterfaceAnatomy.massRadius(boss.form()) * 0.85D;
+			for (int index = 0; index < bolts; index++) {
+				double angle = elapsed * 0.21D + index * (Math.PI * 2.0D / bolts);
+				Vec3 from = core.add(Math.cos(angle) * reach,
+						Math.sin(angle * 1.7D) * reach * 0.4D, Math.sin(angle) * reach);
+				WorldInterfaceVfx.arc(level, ParticleTypes.ELECTRIC_SPARK, from, core,
+						7, radius * 0.6D, elapsed * 131L + index * 613L);
+			}
 		}
 	}
 
@@ -875,6 +1239,16 @@ public final class WorldInterfaceAttackService {
 			// countdown on a fixed place rather than as continued tracking.
 			float charge = (elapsed - chargeStart + 1) / (float) SKY_LANCE_CHARGE_TICKS;
 			markLanceImpact(level, boss, runtime, 0.55F + charge * 0.75F);
+			// The other end of the same warning. The mark on the floor says where; this says what is
+			// coming, and until now nothing above head height acknowledged the lance at all until it
+			// had already landed - the column is drawn client-side and drawn geometry alone reads as
+			// a decal. Held to the last few ticks of the charge is deliberate: the sky filling up is
+			// the final beat of the countdown, not the whole of it.
+			long untilStrike = strikeTick - elapsed;
+			if (untilStrike <= SKY_LANCE_GATHER_TICKS && elapsed % 2L == 0L) {
+				emitLanceColumn(level, runtime.lanceImpact,
+						1.0F - untilStrike / (float) SKY_LANCE_GATHER_TICKS);
+			}
 			if ((elapsed - chargeStart) % 3L == 0L) {
 				AudioService.playBounded(level, BlockPos.containing(runtime.lanceImpact),
 						ModSounds.WORLD_INTERFACE_LANCE, SoundSource.HOSTILE,
@@ -884,7 +1258,7 @@ public final class WorldInterfaceAttackService {
 		}
 		if (!runtime.damageApplied) {
 			Vec3 impact = runtime.lanceImpact;
-			double lanceRadius = formRadius(boss, SKY_LANCE_RADIUS);
+			double lanceRadius = WorldInterfacePhasePressure.lanceRadius(boss.form());
 			double radiusSqr = lanceRadius * lanceRadius;
 			for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class,
 					new AABB(impact, impact).inflate(lanceRadius + 1.0D),
@@ -909,6 +1283,12 @@ public final class WorldInterfaceAttackService {
 			// moving after it is drawn. Ordered inside-out, which is the direction a blast reads in.
 			level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, impact.x, impact.y + 0.5D, impact.z,
 					1, 0.0D, 0.0D, 0.0D, 0.0D);
+			// The column arriving, on the frame it arrives. Everything below this is the blast
+			// spreading outward across the ground; this is the thing that came down to cause it,
+			// and without it the crater simply happens with nothing having reached it.
+			level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 0.9F, 0.68F, 1.0F),
+					impact.x, impact.y + 1.0D, impact.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			emitLanceColumn(level, impact, 1.0F);
 			for (int ring = 1; ring <= SKY_LANCE_SHOCK_RINGS; ring++) {
 				double radius = lanceRadius * 0.9D * ring;
 				int samples = 5 + ring * 4;
@@ -932,6 +1312,15 @@ public final class WorldInterfaceAttackService {
 			}
 			level.sendParticles(ParticleTypes.END_ROD, impact.x, impact.y + 1.0D, impact.z,
 					90, 0.6D, 3.5D, 0.6D, 0.28D);
+			// The encounter's heaviest single impact gets the whole vocabulary at once: the sonic
+			// front and the flash for the far side of the island, the emitters and the firework
+			// shell for whoever is standing in it, and the shock rings for the second afterwards
+			// when the smoke has covered everything else.
+			WorldInterfaceVfx.detonation(level, impact.add(0.0D, 0.25D, 0.0D),
+					lanceRadius * 1.3D, SKY_LANCE_SHOCK_RINGS);
+			// And the mark it leaves burned into the floor, written rather than drawn.
+			WorldInterfaceVfx.runeCircle(level, impact.add(0.0D, 0.15D, 0.0D),
+					lanceRadius * 1.8D, 0.0D, 44);
 			AudioService.playWithReach(level, impactPos, SoundEvents.GENERIC_EXPLODE.value(),
 					SoundSource.HOSTILE, 1.0F, 0.82F, AudioService.BLAST_REACH_BLOCKS);
 			craterAt(level, boss, runtime, impact, SKY_LANCE_SCAR_RADIUS, SKY_LANCE_SCAR_EDITS);
@@ -1035,6 +1424,11 @@ public final class WorldInterfaceAttackService {
 		}
 		if (runtime.control == null && !runtime.damageApplied) return elapsed >= endTick;
 		Vec3 hold = carryHold(boss, runtime.carryStart);
+		// Held in something, not simply floating. Two hoops through the victim and a tether of
+		// light back to the core: being carried by a thing that is not drawn - the tendrils are
+		// client-side geometry the victim cannot see from inside - was the whole problem with this
+		// attack, and a cage they are visibly inside answers it from their own camera.
+		emitCarryCage(level, boss, grabbed, elapsed);
 		if (elapsed < windupStart) {
 			double progress = easeOut((elapsed - liftStart + 1) / (double) GRAB_LIFT_TICKS);
 			carryTo(grabbed, runtime.carryStart.lerp(hold, progress)
@@ -1058,6 +1452,12 @@ public final class WorldInterfaceAttackService {
 			// problem and their clutch, so nothing may keep holding their position.
 			finishControl(level.getServer(), runtime, grabbed, false);
 			grabbed.setNoGravity(false);
+			// Let go, drawn as a release rather than as the cage simply stopping: a shell off the
+			// victim and a ring across the bearing they are about to travel along.
+			Vec3 released = grabbed.position().add(0.0D, grabbed.getBbHeight() * 0.5D, 0.0D);
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.core(), released, 1.6D, 90, 0.75D);
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), released,
+					runtime.throwBearing, 2.2D, 24, 0.0D, 0.0D);
 			// Thrown out and up, not straight up.
 			//
 			// A vertical launch reads as an elevator: the victim goes up, comes down on the spot
@@ -1101,6 +1501,13 @@ public final class WorldInterfaceAttackService {
 		if (target != null && elapsed >= firstDrop && (elapsed - firstDrop) % HOTBAR_STEP_TICKS == 0L
 				&& runtime.cursor < HOTBAR_SLOTS) {
 			int slot = runtime.cursor++;
+			// The cooldown starts on the first slot that actually hits the floor, not when the attack
+			// was scheduled: a target who went offline during the warning had nothing taken from them
+			// and should not be spending three minutes of immunity on it.
+			if (slot == 0) {
+				recordHotbarSweep(runtime.encounterId, target.getUUID(),
+						runtime.startedActiveTick + elapsed);
+			}
 			target.getInventory().setSelectedSlot(slot);
 			dropHotbarSlot(level, runtime, target, slot);
 		}
@@ -1165,6 +1572,22 @@ public final class WorldInterfaceAttackService {
 			// The mark tightens as the limb comes down, on the same clock the damage lands on.
 			float charge = phase / (float) TENDRIL_STRIKE_TELEGRAPH_TICKS;
 			markGround(level, impact, TENDRIL_REACH, 0.4F + charge * 0.9F);
+			// The limb on its way down, drawn as a line from the body to the mark.
+			//
+			// This attack throws nothing: the thing that hits you is one of the interface's own
+			// tendrils, which at the third form starts eighteen blocks overhead on a body that is
+			// thirty-three across. The model animates, but from the floor - which is where the
+			// person being hit is standing - the limb is lost against the mass, and what the player
+			// actually experiences is a circle appearing and then being thrown out of it by
+			// nothing. A wound line from the core to the mark, tightening as the strike lands,
+			// gives the blow a visible source without changing anything about the attack.
+			Vec3 root = WorldInterfaceAnatomy.coreOrigin(boss);
+			double reach = root.distanceTo(impact);
+			WorldInterfaceVfx.helix(level, WorldInterfaceVfx.violet(), root, impact,
+					TENDRIL_TRACE_RADIUS * (1.0D - charge * 0.55D), TENDRIL_TRACE_SAMPLES, 2,
+					reach * 0.04D, phase * 0.35D);
+			WorldInterfaceVfx.arc(level, ParticleTypes.ELECTRIC_SPARK, root, impact,
+					TENDRIL_TRACE_SEGMENTS, 1.6D * (1.0D - charge), runtime.seed ^ phase);
 			// Every eight ticks rather than every four. Three limbs telegraphing at once - which is
 			// what the third phase's volley lane produces - was twenty-four samples in a second and a
 			// half, on top of everything else the fight is playing. The mark on the ground is what
@@ -1193,6 +1616,25 @@ public final class WorldInterfaceAttackService {
 					10, 1.4D, 0.3D, 1.4D, 0.06D);
 			level.sendParticles(ParticleTypes.REVERSE_PORTAL, impact.x, impact.y + 0.6D, impact.z,
 					50, TENDRIL_REACH * 0.4D, 0.7D, TENDRIL_REACH * 0.4D, 0.16D);
+			// The limb landing, at the radius the knockback is thrown from. The telegraph draws that
+			// circle for a second and a half and then the landing used to happen entirely inside it:
+			// a puff at the centre of a five-block mark, which said nothing about how far the reach
+			// had actually gone. This throws the edge of the circle outward on the frame it lands.
+			level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 0.74F, 0.5F, 0.96F),
+					impact.x, impact.y + 0.6D, impact.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			for (int index = 0; index < TENDRIL_LANDING_SAMPLES; index++) {
+				double angle = Math.PI * 2.0D * index / TENDRIL_LANDING_SAMPLES;
+				double x = impact.x + Math.cos(angle) * TENDRIL_REACH;
+				double z = impact.z + Math.sin(angle) * TENDRIL_REACH;
+				level.sendParticles(ParticleTypes.END_ROD, x, impact.y + 0.3D, z,
+						0, Math.cos(angle), 0.25D, Math.sin(angle), 0.55D);
+				level.sendParticles(ParticleTypes.LARGE_SMOKE, x, impact.y + 0.4D, z,
+						0, Math.cos(angle), 0.12D, Math.sin(angle), 0.3D);
+			}
+			// The floor splitting away from where the limb came down. Two rings out of the three a
+			// full detonation would throw - a lash is one of three landings in a flurry, and giving
+			// each of them the lance's whole blast would flatten the difference between them.
+			WorldInterfaceVfx.detonation(level, impact.add(0.0D, 0.3D, 0.0D), TENDRIL_REACH * 0.7D, 2);
 			craterAt(level, boss, runtime, impact, TENDRIL_SCAR_RADIUS, TENDRIL_SCAR_EDITS);
 			playActionCue(level, BlockPos.containing(impact), runtime.action,
 					0.95F, 0.86F + runtime.cursor * 0.09F);
@@ -1207,9 +1649,43 @@ public final class WorldInterfaceAttackService {
 		return false;
 	}
 
+	/**
+	 * The cage a carried player is inside, drawn from their own point of view.
+	 *
+	 * <p>Two upright hoops crossed through them, spinning, plus a tether of light running back to
+	 * the core that is holding them. The limbs doing the carrying are drawn by the client model, and
+	 * from inside the grip the victim is looking down the length of one - so from the seat that
+	 * matters most, this attack had no visual at all.</p>
+	 */
+	private static void emitCarryCage(ServerLevel level, WorldInterfaceEntity boss,
+			ServerPlayer carried, long elapsed) {
+		// Under the feet and over the head, never across the face. Being carried already takes the
+		// player's control of their own position; taking their view of the arena on top of it is
+		// two punishments for one attack, and the second one is not readable as an attack at all.
+		Vec3 centre = carried.position().add(0.0D, carried.getBbHeight() * 0.5D, 0.0D);
+		double spin = elapsed * 0.22D;
+		WorldInterfaceVfx.ring(level, WorldInterfaceVfx.violet(), carried.position(), 1.5D, 16,
+				spin, 0.0D);
+		WorldInterfaceVfx.ring(level, WorldInterfaceVfx.violet(),
+				carried.position().add(0.0D, carried.getBbHeight() + 1.1D, 0.0D), 1.2D, 14,
+				-spin, 0.0D);
+		if (elapsed % 2L != 0L) return;
+		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.core(), core, centre, 0.7D, 26, 2,
+				core.distanceTo(centre) * 0.05D, spin);
+	}
+
 	private static boolean tickEviction(ServerLevel level, AttackRuntime runtime, long elapsed) {
 		if (!runtime.damageApplied && elapsed >= WorldInterfaceActionScheduler.FORCED_EVICTION_WARNING_TICKS) {
 			MinecraftServer server = level.getServer();
+			// Checked at the execution frame rather than at selection, so an operator turning it off
+			// mid-fight also cancels a lock that is already counting down. The warning the targets
+			// have been watching resolves into nothing, which is the correct reading of an attack the
+			// server refused rather than one that missed.
+			if (!RuntimeServices.config().meta().forcedEvictionEnabled()) {
+				runtime.damageApplied = true;
+				return true;
+			}
 			// The execution frame was silent: players simply vanished. Whoever is left needs to hear
 			// that the interface did that, or a disconnected teammate reads as their own connection.
 			AudioService.playBounded(level, BlockPos.containing(runtime.safeSpawn.getCenter()),
@@ -1337,11 +1813,6 @@ public final class WorldInterfaceAttackService {
 		return base * (1.0F + boss.form() * 0.15F);
 	}
 
-	/** Area scale for the attacks whose radius is not itself the dodge window. */
-	private static double formRadius(WorldInterfaceEntity boss, double base) {
-		return base * (1.0D + boss.form() * 0.22D);
-	}
-
 	/** Drops a point onto the surface below it, which is where scars and impacts belong. */
 	private static Vec3 groundUnder(ServerLevel level, Vec3 position) {
 		int x = (int) Math.floor(position.x);
@@ -1369,17 +1840,117 @@ public final class WorldInterfaceAttackService {
 		int every = progress < 0.6F ? 4 : 2;
 		if (elapsed % every != 0L) return;
 		double radius = 1.9D - progress * 1.25D;
-		int samples = 8;
-		for (int index = 0; index < samples; index++) {
-			double angle = Math.PI * 2.0D * index / samples + elapsed * 0.16D;
-			level.sendParticles(ParticleTypes.END_ROD,
-					target.getX() + Math.cos(angle) * radius, target.getY() + 0.15D,
-					target.getZ() + Math.sin(angle) * radius, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+		Vec3 floor = new Vec3(target.getX(), target.getY() + 0.1D, target.getZ());
+
+		// Every telegraph is drawn on the floor, and each one is drawn as a different figure.
+		//
+		// Two problems at once. The first is that they all used to be the same closing ring, and a
+		// player who is busy fighting does not stop to read which attack the label says - they see
+		// "a lock" and have to guess whether the answer is to run, to look up, or to do nothing.
+		// The second is that the version before this one answered that by adding hoops through the
+		// player's own body, at eye level, which is exactly where nothing may be: a telegraph that
+		// obscures the arena is worse than one that is ambiguous.
+		//
+		// So the shape carries the meaning and it all lies flat under the player's feet, where it
+		// is in view without being in the way.
+		switch (runtime.action) {
+			// The beam arrives along a line from the core, so its mark has a direction: a ring with
+			// spokes that point back at where the shot is coming from.
+			case LASER_SWEEP -> {
+				WorldInterfaceVfx.ring(level, WorldInterfaceVfx.core(), floor, radius, 16,
+						elapsed * 0.16D, 0.0D);
+				WorldInterfaceVfx.spokes(level, WorldInterfaceVfx.violet(), floor, radius * 1.5D,
+						4, 3, elapsed * 0.16D, 0.0D);
+			}
+			// The lance falls from directly overhead, so its mark is the only one that reaches up:
+			// a ring on the floor and a second one descending onto it.
+			case SKY_LANCE -> {
+				WorldInterfaceVfx.ring(level, WorldInterfaceVfx.core(), floor, radius, 20,
+						-elapsed * 0.1D, 0.0D);
+				WorldInterfaceVfx.ring(level, WorldInterfaceVfx.violet(),
+						floor.add(0.0D, LOCK_OVERHEAD_LIFT * (1.0F - progress), 0.0D),
+						radius * 1.3D, 14, elapsed * 0.2D, 0.0D);
+			}
+			// The tendrils close from three sides, and three is the shape: a triangle that turns.
+			case TENDRIL_LASH -> WorldInterfaceVfx.polygon(level, WorldInterfaceVfx.violet(), floor,
+					radius * 1.4D, 3, 7, elapsed * 0.09D);
+			// Nothing is coming - something is being taken. Arrowheads closing inward, and a square
+			// rather than a circle, because what it is reaching for is an inventory.
+			case CHARGE_WEAPON_STEAL -> {
+				WorldInterfaceVfx.polygon(level, WorldInterfaceVfx.core(), floor, radius * 1.3D,
+						4, 6, elapsed * 0.05D);
+				WorldInterfaceVfx.chevrons(level, WorldInterfaceVfx.violet(), floor, radius * 2.0D,
+						4, 0.8D, elapsed * 0.05D);
+			}
+			// Nine beads for nine slots, closing on the player one telegraph at a time.
+			case GAZE_HOTBAR_CLEAR -> {
+				WorldInterfaceVfx.beads(level, WorldInterfaceVfx.violet(), floor, radius * 1.5D,
+						HOTBAR_SLOTS, elapsed * 0.07D);
+				WorldInterfaceVfx.polygon(level, WorldInterfaceVfx.core(), floor, radius * 1.1D,
+						4, 5, -elapsed * 0.07D);
+			}
+			// The grab reaches in and lifts, so its mark converges hard and has nothing at the rim.
+			case GRAB_THROW -> WorldInterfaceVfx.chevrons(level, WorldInterfaceVfx.core(), floor,
+					radius * 2.2D, 6, 1.4D, elapsed * 0.18D);
+			default -> WorldInterfaceVfx.ring(level, WorldInterfaceVfx.core(), floor, radius, 12,
+					elapsed * 0.16D, 0.0D);
 		}
+
 		if (progress >= 0.6F && elapsed % 4L == 0L) {
 			AudioService.playBounded(level, target.blockPosition(), ModSounds.WORLD_INTERFACE_IMPACT,
 					SoundSource.HOSTILE, 0.30F, 1.45F + progress * 0.35F);
+			// The last stretch, marked above the player's head rather than through it: high enough
+			// to be out of the sightline and still inside the frame when they are looking level.
+			WorldInterfaceVfx.ring(level, WorldInterfaceVfx.core(),
+					floor.add(0.0D, LOCK_OVERHEAD_LIFT, 0.0D), radius * 0.8D, 10,
+					elapsed * 0.3D, 0.0D);
 		}
+	}
+
+	/**
+	 * How far above the player's feet the overhead half of a lock is drawn, in blocks.
+	 *
+	 * <p>Above head height by a clear margin. Anything at eye level competes with the arena for the
+	 * one part of the screen the player is reading the fight out of, and a telegraph that hides the
+	 * thing it is warning about has cost more than it gave.
+	 */
+	private static final double LOCK_OVERHEAD_LIFT = 3.1D;
+
+	/**
+	 * The lance's own column, thrown up the same shaft the client draws.
+	 *
+	 * <p>Fills from the top down as {@code intensity} rises, which is the direction the thing is
+	 * actually coming from: at a quarter of the way through the gather only the highest points are
+	 * lit, and by the strike the whole column is. A column that filled from the ground up would have
+	 * been the mark growing rather than something descending onto it.</p>
+	 *
+	 * <p>Nine points however tall the column is, for the same reason the laser's shaft takes eight:
+	 * the cost of a shot must not depend on where it lands.</p>
+	 */
+	private static void emitLanceColumn(ServerLevel level, Vec3 impact, float intensity) {
+		if (impact == null) return;
+		float reach = Math.clamp(intensity, 0.0F, 1.0F);
+		if (reach <= 0.0F) return;
+		double height = WorldInterfaceProtocol.SKY_LANCE_COLUMN_BLOCKS;
+		for (int index = 0; index < SKY_LANCE_COLUMN_SAMPLES; index++) {
+			// Index 0 is the top of the column, and the band grows downward from it as reach rises.
+			double fraction = 1.0D - index / (double) SKY_LANCE_COLUMN_SAMPLES;
+			if (fraction < 1.0D - reach) continue;
+			double y = impact.y + height * fraction;
+			ArenaParticles.emit(level, ParticleTypes.END_ROD, impact.x, y, impact.z,
+					2 + Math.round(reach * 3.0F), 0.35D, 0.6D, 0.35D, 0.02D);
+		}
+		// Wisps in the lit band itself, which is what makes the front read as moving: they are
+		// emitted around the middle of however much of the column exists, so the cloud walks down
+		// the shaft as it fills instead of sitting at a fixed height waiting for it.
+		ArenaParticles.emit(level, ParticleTypes.REVERSE_PORTAL,
+				impact.x, impact.y + height * (1.0D - reach * 0.5D), impact.z,
+				6 + Math.round(reach * 10.0F), 0.5D, height * reach * 0.25D, 0.5D, 0.4D);
+		// The lit part of the shaft, as a real column: flame core, two counter-wound helices and a
+		// collar at each end. Only over the part that exists, so the top-down fill still reads.
+		Vec3 front = new Vec3(impact.x, impact.y + height * (1.0D - reach), impact.z);
+		WorldInterfaceVfx.beacon(level, front, height * reach, SKY_LANCE_HELIX_RADIUS,
+				reach * 9.0D, SKY_LANCE_HELIX_SAMPLES);
 	}
 
 	/** The ground mark the sky lance is about to fall on; intensity carries how close that is. */
@@ -1387,7 +1958,7 @@ public final class WorldInterfaceAttackService {
 			AttackRuntime runtime, float intensity) {
 		if (runtime.lanceImpact == null) return;
 		// Drawn at the radius that will actually be hit, so a bigger lance is a visibly bigger ring.
-		markGround(level, runtime.lanceImpact, formRadius(boss, SKY_LANCE_RADIUS), intensity);
+		markGround(level, runtime.lanceImpact, WorldInterfacePhasePressure.lanceRadius(boss.form()), intensity);
 	}
 
 	/**
@@ -1405,6 +1976,13 @@ public final class WorldInterfaceAttackService {
 		level.sendParticles(ParticleTypes.REVERSE_PORTAL, impact.x, impact.y + 0.4D, impact.z,
 				Math.round(4.0F + intensity * 16.0F), radius * 0.5D, 0.5D,
 				radius * 0.5D, 0.05D + intensity * 0.06D);
+		// A sigil circle at the marked radius, plus an inner ring closing on the middle as the
+		// telegraph runs out. One static circle tells the player where; it never told them when,
+		// and when is the half of a telegraph a dodge is actually made out of.
+		Vec3 centre = new Vec3(impact.x, impact.y + 0.12D, impact.z);
+		WorldInterfaceVfx.runeCircle(level, centre, radius, intensity * 2.0D, samples);
+		WorldInterfaceVfx.ring(level, WorldInterfaceVfx.core(), centre,
+				radius * Math.max(0.08D, 1.0D - intensity), samples, intensity * 5.0D, 0.0D);
 	}
 
 	/** The closest live target this runtime still has, skipping anyone the caller has already used. */
@@ -1465,7 +2043,16 @@ public final class WorldInterfaceAttackService {
 			removeRecovery(server, runtime.encounterId, recoveryId);
 			return null;
 		}
-		// The slot is not left empty: a placeholder marks what was taken and what is coming back.
+		// A barrier placeholder goes into the slot, and it says what it is.
+		//
+		// Custody was silent for a while, on the argument that being told the weapon is coming back
+		// spends the fear. In play it did the opposite of what that argument assumed: an item that
+		// vanishes out of your hand mid-fight with no mark left behind does not read as "taken", it
+		// reads as "lost" - and a player who believes their sword is gone for good plays the rest of
+		// the encounter as though it were, which is a real cost paid for an effect nobody reported
+		// feeling. The placeholder is the honest version: the slot is visibly occupied by something
+		// the interface is holding, it cannot be dropped or used, and it is swapped back for the
+		// real stack when the ledger resolves.
 		player.getInventory().setItem(slot, ConfiscationService.placeholder(recoveryId));
 		return new WeaponLease(recoveryId, player.getUUID(), slot, removed,
 				payload.getStringOr("weapon_kind", "tool"));
@@ -1487,6 +2074,10 @@ public final class WorldInterfaceAttackService {
 			restoreStackImmediately(player, slot, removed);
 			return;
 		}
+		// Marked, not made easier. The stack keeps its ordinary pickup delay and its ordinary
+		// despawn; what it gains is a column of light, because nine stacks scattered across end
+		// stone in the middle of a fight were recoverable in principle and unfindable in practice.
+		WorldInterfaceDropBeaconService.mark(item);
 		playActionCue(level, player.blockPosition(), runtime.action, 0.72F, 1.0F + slot * 0.025F);
 	}
 
@@ -1600,17 +2191,22 @@ public final class WorldInterfaceAttackService {
 		WorldInterfaceState.RecoveryEntry delivering = new WorldInterfaceState.RecoveryEntry(
 				entry.id(), entry.ownerId(), entry.kind(), payload, false);
 		if (!replaceRecovery(server, encounterId, delivering)) return false;
-		int placeholderSlot = ConfiscationService.clearPlaceholder(owner, entry.id());
-		giveExact(owner, placeholderSlot >= 0 ? placeholderSlot : payload.getIntOr("slot", -1), stack);
+		// Saves written before custody went silent may still hold a barrier placeholder; clear it so
+		// it does not outlive the stack it stood for. Its slot is deliberately not reused.
+		ConfiscationService.clearPlaceholder(owner, entry.id());
+		giveExact(owner, stack);
 		return removeRecovery(server, encounterId, entry.id());
 	}
 
-	private static void giveExact(ServerPlayer owner, int preferredSlot, ItemStack stack) {
-		if (preferredSlot >= 0 && preferredSlot < owner.getInventory().getContainerSize()
-				&& owner.getInventory().getItem(preferredSlot).isEmpty()) {
-			owner.getInventory().setItem(preferredSlot, stack);
-			return;
-		}
+	/**
+	 * Hands the stack back wherever the inventory puts it, which is deliberately not where it left.
+	 *
+	 * <p>Custody used to remember the slot and restore into it, so a returned weapon appeared exactly
+	 * where the player last saw it and the whole episode closed without a mark. It comes back in
+	 * whatever slot is free now instead: the player is never short an item, but they have to notice
+	 * that their inventory is not arranged the way they left it. Nothing is lost and nothing is said.
+	 */
+	private static void giveExact(ServerPlayer owner, ItemStack stack) {
 		ItemStack remainder = stack.copy();
 		owner.getInventory().add(remainder);
 		if (!remainder.isEmpty()) owner.drop(remainder, false, true);
@@ -1954,6 +2550,8 @@ public final class WorldInterfaceAttackService {
 
 		private void recordAim(Vec3 position) {
 			aimTrail.addLast(position);
+			// Sized on the longest lag any form asks for, so a form with a shorter one simply reads
+			// a more recent entry out of the same trail.
 			while (aimTrail.size() > LASER_TRACKING_LAG_TICKS + 1) aimTrail.removeFirst();
 		}
 

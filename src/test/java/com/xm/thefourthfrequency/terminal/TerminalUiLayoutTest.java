@@ -128,27 +128,39 @@ final class TerminalUiLayoutTest {
 	}
 
 	/**
-	 * The lamp breathes; it does not blink.
+	 * The lamp blinks, and the blink stays inside the two limits a blink has to answer to.
 	 *
-	 * <p>It can be lit for an entire session, so it is held to a stricter standard than the
-	 * transient alert flash: continuous, well under 3 Hz, and never fully dark while active.</p>
+	 * <p>It can be lit for an entire session, so the cycle is held well under 3 Hz and both plateaus
+	 * are longer than the seven-tick minimum hold. The edges ramp rather than jump, which is what
+	 * keeps it a blink rather than a strobe.</p>
 	 */
 	@Test
-	void unreadLampBreathesFarBelowTheFlickerCeilingAndNeverGoesFullyDark() {
+	void unreadLampBlinksWithinTheFlickerCeilingAndTheMinimumHold() {
 		double period = TerminalUiLayout.UNREAD_LAMP_PERIOD_TICKS / 20.0D;
-		assertTrue(1.0D / period <= 3.0D / 7.0D,
-				() -> "lamp frequency " + 1.0D / period + " Hz is not comfortably under the ceiling");
+		assertTrue(1.0D / period <= 3.0D,
+				() -> "lamp frequency " + 1.0D / period + " Hz is over the 3 Hz ceiling");
 
+		// Both plateaus outlast the minimum hold, so neither state is a flash.
+		assertTrue(TerminalUiLayout.UNREAD_LAMP_ON_TICKS >= 7,
+				"the lit plateau is shorter than the minimum hold");
+		int dark = TerminalUiLayout.UNREAD_LAMP_PERIOD_TICKS
+				- TerminalUiLayout.UNREAD_LAMP_ON_TICKS - TerminalUiLayout.UNREAD_LAMP_EDGE_TICKS * 2;
+		assertTrue(dark >= 7, () -> "the dark plateau is only " + dark + " ticks");
+
+		// It really does reach both ends - a "blink" that never goes out is the thing this replaced.
 		assertEquals(TerminalUiLayout.UNREAD_LAMP_MIN_INTENSITY,
 				TerminalUiLayout.unreadLampIntensity(0.0D), 1.0E-9D);
 		assertEquals(1.0D, TerminalUiLayout.unreadLampIntensity(
-				TerminalUiLayout.UNREAD_LAMP_PERIOD_TICKS / 2.0D), 1.0E-9D);
+				TerminalUiLayout.UNREAD_LAMP_EDGE_TICKS + 1.0D), 1.0E-9D);
+		assertEquals(TerminalUiLayout.UNREAD_LAMP_MIN_INTENSITY,
+				TerminalUiLayout.unreadLampIntensity(
+						TerminalUiLayout.UNREAD_LAMP_PERIOD_TICKS - 1.0D), 1.0E-9D);
 		assertEquals(TerminalUiLayout.unreadLampIntensity(3.5D),
 				TerminalUiLayout.unreadLampIntensity(3.5D + TerminalUiLayout.UNREAD_LAMP_PERIOD_TICKS),
 				1.0E-9D);
 
-		// Sampled at render rates, not tick rates: the callers pass a fractional render age, and a
-		// version that floored to whole ticks would be a staircase wearing a sine's name.
+		// Sampled at render rates, not tick rates: the callers pass a fractional render age, and an
+		// edge that lands entirely inside one frame is the shape the ceiling exists to forbid.
 		double previous = TerminalUiLayout.unreadLampIntensity(0.0D);
 		for (int step = 0; step <= 4000; step++) {
 			final double age = step * 0.05D;
@@ -156,8 +168,8 @@ final class TerminalUiLayoutTest {
 			final double last = previous;
 			assertTrue(value >= TerminalUiLayout.UNREAD_LAMP_MIN_INTENSITY - 1.0E-9D && value <= 1.0D,
 					() -> "lamp intensity left its band at " + age + ": " + value);
-			assertTrue(Math.abs(value - last) < 0.02D,
-					() -> "lamp stepped rather than breathed at " + age);
+			assertTrue(Math.abs(value - last) < 0.08D,
+					() -> "lamp jumped rather than ramped at " + age);
 			previous = value;
 		}
 	}

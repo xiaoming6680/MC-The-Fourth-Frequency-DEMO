@@ -100,7 +100,28 @@ public final class WorldInterfaceEndingClient {
 		Minecraft client = Minecraft.getInstance();
 		if (mode != Mode.IDLE || client == null || completionAck == null) return false;
 		cleanupRuntime(client);
+		// Filed before either branch below, because both of them are worth leaving a note about and
+		// only one of them ends with the client still in a fit state to write anything.
+		PreviousRunClient.record(poem.outcome(), poem.destroyedAnchors(),
+				client.level == null ? 0L : client.level.getGameTime() / 24_000L + 1L);
 		if (poem.outcome() == WorldInterfaceProtocol.Outcome.SUCCESS) {
+			// Locked here, not in the restore callback, for the same reason the note above is filed
+			// here: this is the last point at which the client is certainly still able to write.
+			//
+			// The callback runs after WorldInterfaceResourcePackLease.restoreAsync, which is a full
+			// resource reload - seconds of it - and it only runs at all if the client survives to
+			// execute the scheduled task. A player who quit out during that window finished the mod
+			// and landed on a title screen with nothing sealed, which is the one outcome the durable
+			// lock exists to make impossible. The failure branch never had this problem because it
+			// locks on the spot.
+			//
+			// Without the window snapshot, deliberately: the ending's presentation window is still up
+			// and a lock that captured it would restore the player back into it. The call in the
+			// callback below takes the snapshot once the window has been handed back, and reaches the
+			// write because an identity-only lock does not satisfy the idempotence check.
+			if (!FailureMenuLockState.lock(poem.encounterId(), poem.outcome(), poem.worldId(), client, false)) {
+				TheFourthFrequency.LOGGER.error("Success ending could not persist its local replay lock");
+			}
 			// Before the restore, not after it. Restoring the packs is a full resource reload, which
 			// tears the sound engine down and builds it again - and whatever the music director still
 			// wants when it comes back is started from the top. This used to be released in the
@@ -121,8 +142,11 @@ public final class WorldInterfaceEndingClient {
 							TheFourthFrequency.LOGGER.error("Success cleanup could not restore resource packs", failure);
 						}
 						restorePresentationWindow(client);
+						// Re-locks only to attach the window snapshot; the identity was already sealed
+						// before the reload started, so a failure here costs the window restore rather
+						// than the lock itself.
 						if (!FailureMenuLockState.lock(poem.encounterId(), poem.outcome(), poem.worldId(), client)) {
-							TheFourthFrequency.LOGGER.error("Success ending could not persist its local replay lock");
+							TheFourthFrequency.LOGGER.error("Success ending could not record its window snapshot");
 						}
 						completionAck.run();
 						beginRunCompletePrompt();

@@ -34,6 +34,29 @@ public final class ModBlocks {
 	/** Client-side visual proxy for the missing-texture anomaly. Never placed in the real world. */
 	public static final Block MISSING_TEXTURE_PROXY = register("missing_texture_proxy", Blocks.BLACK_CONCRETE, -1.0F);
 
+	/**
+	 * The unrendered layer's four surfaces, and the two of them that are lying.
+	 *
+	 * <p>The layer owns its wall and floor rather than borrowing vanilla blocks, because the way out
+	 * is a panel that is <em>slightly the wrong shade</em> and "slightly" has to be a number somebody
+	 * chose. Generating both halves of each pair from one recipe (see
+	 * {@code tools/generate_unrendered_textures.py}) makes the mottling identical and the colour the
+	 * only difference, which is not something matching a hand-authored vanilla texture could promise.
+	 *
+	 * <p>The false pair is {@code noCollission} and nothing else: they are full opaque cubes that draw
+	 * and occlude exactly like their solid twins, so the region reads as a solid block of building
+	 * from every angle and cannot be seen into. Walking into one passes through it. That is the entire
+	 * exit mechanism, and it is the same trick the layer opened with - getting in was the floor
+	 * declining to be solid, getting out is a wall doing the same.
+	 *
+	 * <p>All four are indestructible and drop nothing. {@code UnrenderedBlockPolicy} already refuses
+	 * every break in the dimension, so this is the second lock rather than the first.
+	 */
+	public static final Block UNRENDERED_WALL = registerLayerSurface("unrendered_wall", true);
+	public static final Block UNRENDERED_FALSE_WALL = registerLayerSurface("unrendered_false_wall", false);
+	public static final Block UNRENDERED_FLOOR = registerLayerSurface("unrendered_floor", true);
+	public static final Block UNRENDERED_FALSE_FLOOR = registerLayerSurface("unrendered_false_floor", false);
+
 	private ModBlocks() {
 	}
 
@@ -46,6 +69,27 @@ public final class ModBlocks {
 		ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, id);
 		Block block = new Block(BlockBehaviour.Properties.ofFullCopy(copy).strength(strength).setId(key));
 		return Registry.register(BuiltInRegistries.BLOCK, key, block);
+	}
+
+	/**
+	 * A layer surface: an indestructible full cube that either stops you or does not.
+	 *
+	 * <p>{@code noCollission} is the whole difference between the pair. It removes the collision box
+	 * and leaves everything else - model, occlusion, light blocking - identical, which is what lets a
+	 * false panel sit in a wall without being visible as one.
+	 */
+	private static Block registerLayerSurface(String path, boolean solid) {
+		Identifier id = Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, path);
+		ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, id);
+		BlockBehaviour.Properties properties = BlockBehaviour.Properties.of()
+				.strength(Block.INDESTRUCTIBLE, 3_600_000.0F)
+				.noLootTable()
+				.setId(key);
+		// forceSolidOn is not optional beside noCollision. Without it a collision-less block is treated
+		// as non-solid for occlusion and light, so the false panel would let light bleed through and
+		// stop culling what is behind it - both of which are exactly the tell it must not have.
+		if (!solid) properties = properties.noCollision().forceSolidOn();
+		return Registry.register(BuiltInRegistries.BLOCK, key, new Block(properties));
 	}
 
 	private static <T extends Block> T registerCustom(String path, BlockBehaviour.Properties properties,

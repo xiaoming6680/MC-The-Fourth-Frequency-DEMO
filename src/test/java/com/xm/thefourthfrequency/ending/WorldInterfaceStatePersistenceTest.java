@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,17 +43,36 @@ final class WorldInterfaceStatePersistenceTest {
 	}
 
 	@Test
-	void oldVersionAndCorruptedKnownVersionAreRejectedAsWholePayloads() {
+	void unknownVersionAndCorruptedKnownVersionAreRejectedAsWholePayloads() {
 		CompoundTag encoded = encode(resolvedSnapshot(WorldInterfaceStage.PORTAL_OPEN, Optional.empty()));
-		CompoundTag oldVersion = encoded.copy();
-		oldVersion.putInt("format_version", WorldInterfaceState.FORMAT_VERSION - 1);
-		assertEquals("unsupported_version",
-				assertThrows(IllegalArgumentException.class, () -> decode(oldVersion)).getMessage());
+		// Below the first format and above the current one. Everything in between is readable now;
+		// see readsFormatOneAsARitualWithNoWindow.
+		for (int version : new int[] {0, WorldInterfaceState.FORMAT_VERSION + 1}) {
+			CompoundTag unsupported = encoded.copy();
+			unsupported.putInt("format_version", version);
+			assertEquals("unsupported_version",
+					assertThrows(IllegalArgumentException.class, () -> decode(unsupported)).getMessage());
+		}
 
 		CompoundTag corrupted = encoded.copy();
 		corrupted.putInt("resolution_step", 65);
 		assertEquals("resolution_step",
 				assertThrows(IllegalArgumentException.class, () -> decode(corrupted)).getMessage());
+	}
+
+	/**
+	 * A format-1 document has no {@code ritual_deadline_tick}, and its absence has to decode as "no
+	 * window running" rather than as a zero deadline - a zero would read as a window that expired at
+	 * the beginning of the world, which is a different and much louder wrong answer.
+	 */
+	@Test
+	void readsFormatOneAsARitualWithNoWindow() {
+		CompoundTag legacy = encode(resolvedSnapshot(WorldInterfaceStage.PORTAL_OPEN, Optional.empty()));
+		legacy.putInt("format_version", 1);
+		legacy.remove("ritual_deadline_tick");
+		WorldInterfaceState.Snapshot decoded = decode(legacy);
+		assertEquals(-1L, decoded.ritualDeadlineTick());
+		assertFalse(decoded.ritualWindowRunning());
 	}
 
 	@Test
@@ -81,6 +101,44 @@ final class WorldInterfaceStatePersistenceTest {
 				"Completion must conjunctively require both the poem ACK and restored respawn ledger");
 		assertTrue(guard.indexOf("PoemLedgerEntry::acked") < guard.indexOf("WorldInterfaceState.transition"));
 		assertTrue(guard.indexOf("RespawnLedgerEntry::restored") < guard.indexOf("WorldInterfaceState.transition"));
+	}
+
+	/**
+	 * The window may only exist where it means something.
+	 *
+	 * <p>Both halves matter. A deadline surviving past the commit would leave a restart mid-summon
+	 * counting down against a fight that has already started, and a deadline on any later stage is a
+	 * clock nothing reads - which is exactly the kind of field that quietly comes back to life two
+	 * refactors later.</p>
+	 */
+	@Test
+	void theRitualWindowOnlyExistsWhileTheAltarIsStillCollecting() {
+		WorldInterfaceState.Snapshot committed = withDeadline(
+				resolvedSnapshot(WorldInterfaceStage.PORTAL_OPEN, Optional.empty()), 9_000L);
+		assertEquals("ritual_window_stage",
+				assertThrows(IllegalArgumentException.class, () -> encode(committed)).getMessage());
+
+		CompoundTag negative = encode(resolvedSnapshot(WorldInterfaceStage.PORTAL_OPEN, Optional.empty()));
+		negative.putLong("ritual_deadline_tick", -2L);
+		assertEquals("ritual_deadline_tick",
+				assertThrows(IllegalArgumentException.class, () -> decode(negative)).getMessage());
+	}
+
+	private static WorldInterfaceState.Snapshot withDeadline(WorldInterfaceState.Snapshot source,
+			long deadline) {
+		return new WorldInterfaceState.Snapshot(source.present(), source.valid(), source.encounterId(),
+				source.revision(), source.stage(), source.outcome(), source.arenaVersion(),
+				source.arenaDimension(), source.arenaCenter(), source.altarCenter(), source.safeSpawn(),
+				source.arenaBuildCursor(), source.gates(), source.anchors(), source.frozenRoster(),
+				source.terminalTransactions(), source.sacrificeCommitted(), source.bossUuid(),
+				source.maxVirtualHealth(), source.virtualHealth(), source.activeTicks(),
+				source.runningSinceGameTime(), source.deterministicSeed(), source.currentAttack(),
+				source.stageStartedActiveTick(), source.actionSequence(), source.lastActionWireId(),
+				source.nextActionActiveTick(), source.lastForcedEvictionTick(), source.controlCooldowns(),
+				source.recoveryGraceTicks(), source.terrainEditsUsed(), source.respawnLedger(),
+				source.poemLedger(), source.recoveryLedger(), source.friendlyDragonUuid(),
+				source.exitPosition(), source.exitOpen(), source.resolutionStep(), source.resolutionTick(),
+				deadline);
 	}
 
 	private static WorldInterfaceState.Snapshot resolvedSnapshot(WorldInterfaceStage stage,
@@ -113,7 +171,7 @@ final class WorldInterfaceStatePersistenceTest {
 				WorldInterfacePolicy.maxHealth(roster.size()), 0.0D, 4_800L, -1L, 0x574F524C44494E54L,
 				Optional.empty(), 4_700L, 9L, 9, 5_000L, 4_000L,
 				Map.of(FIRST_PLAYER, 5_200L), 0, 321, respawns, poems, List.of(recovery),
-				Optional.of(FRIENDLY_DRAGON_ID), new BlockPos(0, 65, 0), true, 3, 9_000L);
+				Optional.of(FRIENDLY_DRAGON_ID), new BlockPos(0, 65, 0), true, 3, 9_000L, -1L);
 	}
 
 	private static WorldInterfaceState.TerminalTransaction transaction(UUID playerId, String terminalId) {

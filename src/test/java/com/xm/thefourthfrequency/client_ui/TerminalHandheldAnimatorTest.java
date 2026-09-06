@@ -30,7 +30,8 @@ final class TerminalHandheldAnimatorTest {
 				0, 0, 0, 50, 0, 0, 0, false, 0, 0, false, 0,
 				0, false, false, 100L, 0, 0, List.of(), "none", 0,
 				List.of(), -1, "mine_logs", 3, 12,
-				1, false, "minecraft:stone_axe", 1, false, false);
+				1, false, "minecraft:stone_axe", 1, false, false,
+				List.of(), -1, List.of(), 0, 0);
 	}
 
 	@Test
@@ -156,5 +157,77 @@ final class TerminalHandheldAnimatorTest {
 		// The two-handed carry still gets its full travel.
 		TerminalHandheldAnimator.requestOpen(snapshot(), true);
 		assertEquals(TerminalHandheldAnimator.State.OPENING, TerminalHandheldAnimator.state());
+	}
+
+	/**
+	 * Opening the terminal is a swing, and must not be drawn as one.
+	 *
+	 * <p>The open request answers {@code InteractionResult.SUCCESS} so it reaches the server; that
+	 * result carries {@code SwingSource.CLIENT}, and {@code Minecraft.startUseItem} therefore calls
+	 * {@code LocalPlayer.swing} on the same frame the raise begins. Two gestures describing opposite
+	 * motions, played at once, on the one object the player is looking at - so while the device is
+	 * doing anything of its own, the swing is refused.</p>
+	 *
+	 * <p>The other direction matters just as much: a swing the player really did make - mining,
+	 * punching, right-clicking a block - leaves the animator idle and has to come through untouched,
+	 * or the fix for the open would have removed the motion it was added to restore.</p>
+	 */
+	@Test
+	void theTerminalsOwnPerformanceRefusesTheSwingItCauses() {
+		assertEquals(TerminalHandheldAnimator.State.IDLE, TerminalHandheldAnimator.state());
+		assertEquals(0.6F, TerminalHandheldAnimator.swingShown(0.6F), 1.0E-6F,
+				"a carried terminal takes the player's own swing");
+		// Vanilla's counter is briefly outside its own range between ticks.
+		assertEquals(1.0F, TerminalHandheldAnimator.swingShown(4.0F), 1.0E-6F);
+		assertEquals(0.0F, TerminalHandheldAnimator.swingShown(-1.0F), 1.0E-6F);
+
+		TerminalHandheldAnimator.requestOpen(snapshot());
+		assertEquals(TerminalHandheldAnimator.State.OPENING, TerminalHandheldAnimator.state());
+		assertEquals(0.0F, TerminalHandheldAnimator.swingShown(0.6F), 1.0E-6F,
+				"the swing the open itself fires is the raise, not a blow");
+
+		TerminalHandheldAnimator.requestClose();
+		assertEquals(TerminalHandheldAnimator.State.CLOSING, TerminalHandheldAnimator.state());
+		assertEquals(0.0F, TerminalHandheldAnimator.swingShown(0.6F), 1.0E-6F,
+				"nor on the way back down");
+
+		TerminalHandheldAnimator.abort();
+		assertEquals(0.6F, TerminalHandheldAnimator.swingShown(0.6F), 1.0E-6F,
+				"and the device takes hits again the moment it is back in the hand");
+
+		// A one-handed open never travels, but vanilla is drawing the swing on the arm itself there,
+		// so the pose must not add a second one on top of it.
+		TerminalHandheldAnimator.requestOpen(snapshot(), false);
+		assertEquals(TerminalHandheldAnimator.State.OPEN, TerminalHandheldAnimator.state());
+		assertEquals(0.0F, TerminalHandheldAnimator.swingShown(0.6F), 1.0E-6F);
+	}
+
+	/**
+	 * The opening may not take a screen the player put up, and must say so to the server.
+	 *
+	 * <p>Asserted against the source because the rule needs a live {@code Minecraft} and a real
+	 * screen, which puts the behavioural version of it in the client GameTest suite - M0's
+	 * locked-render-distance case, the one place that deliberately opens another screen inside the
+	 * opening window. That suite is heavy and is not part of {@code build}, so this is the cheap
+	 * barrier that fails in {@code unitTest} if the guard is taken back out.
+	 *
+	 * <p>What it is guarding: {@code presentScreen} used to call {@code setScreen} unconditionally,
+	 * so anything opened during the server round trip plus the half-second rise - inventory, pause
+	 * menu, video settings - was evicted when the animation finished. The auto-open made that window
+	 * a whole round trip longer and removed the only excuse for it.
+	 */
+	@Test
+	void anOpeningNeverEvictsAScreenThePlayerOpened() throws Exception {
+		String animator = java.nio.file.Files.readString(java.nio.file.Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalHandheldAnimator.java"),
+				java.nio.charset.StandardCharsets.UTF_8);
+		assertTrue(animator.contains("if (client.screen != null) return false;"),
+				"presentScreen must refuse a screen it did not find empty");
+		assertTrue(animator.contains("if (!presentScreen()) abandonOpening();")
+						|| animator.contains("if (!presentScreen()) {"),
+				"a refused presentation has to abandon the opening rather than be ignored");
+		assertTrue(animator.contains("TerminalControlPayload.CLOSE_NEVER_SHOWN"),
+				"abandoning an opening the server already accepted has to tell the server, and as the"
+						+ " close that does not latch an unfinished profile");
 	}
 }

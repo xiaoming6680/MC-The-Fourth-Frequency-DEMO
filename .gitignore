@@ -1,5 +1,8 @@
 # Gradle and JVM build output
 .gradle/
+.kotlin/
+.gradletasknamecache
+gradle-app.setting
 build/
 **/build/
 out/
@@ -8,15 +11,46 @@ bin/
 *.hprof
 hs_err_pid*
 replay_pid*
+.attach_pid*
+
+# Loose JARs. The Gradle wrapper is the one JAR this repo tracks.
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Fabric Loom and local Minecraft runtime
 run/
 runs/
 remappedSrc/
+.fabric/
 src/main/generated/
 logs/
 crash-reports/
 *.log
+*.log.gz
+
+# Minecraft data written by a local client or server. These carry the
+# machine's account name, UUID, IP addresses and personal worlds.
+# Anchored to the repository root: src/main/java/.../world/ is source code.
+/saves/
+/screenshots/
+/world/
+/world_nether/
+/world_the_end/
+/options.txt
+/optionsof.txt
+/servers.dat
+/servers.dat_old
+/realms_persistence.json
+/usercache.json
+/usernamecache.json
+/ops.json
+/whitelist.json
+/banned-players.json
+/banned-ips.json
+/server.properties
+/eula.txt
+launcher_profiles*.json
+*.mca
 
 # Python asset-generation tools
 __pycache__/
@@ -33,8 +67,35 @@ env/
 coverage.xml
 htmlcov/
 
+# Art and audio project files. Only exported assets and the frozen
+# manifests under docs/art belong in the repository.
+*.pdn
+*.psd
+*.xcf
+*.blend1
+*.blend2
+*.aup3
+*.aup3-wal
+*.aup3-shm
+*.flp
+*.als
+*.rpp
+*.rpp-bak
+*.reapeaks
+*.asd
+*.sfk
+*.peak
+
 # Project-local scratch output
 /tmp/
+/temp/
+/scratch/
+*.tmp
+*.bak
+
+# Merge and patch leftovers
+*.orig
+*.rej
 
 # IDEs and editors
 .idea/
@@ -60,24 +121,46 @@ keystore.properties
 *.keystore
 *.p12
 *.pfx
+*.pem
+*.key
+!src/**/*.key
+id_rsa*
+id_ed25519*
+*.token
+.npmrc
+.netrc
 
-# Local Codex/agent state and planning notes
-/.agents/
-/.codex/
-/.claude/
-/.planning/
+# Local agent/assistant state and planning notes. These are working
+# material, not documentation; published rules live in docs/.
+.agents/
+.codex/
+.claude/
+.claude.json
+.claude/settings.local.json
+.cursor/
+.continue/
+.windsurf/
+.aider*
+.specstory/
+.mcp.json
+.planning/
+/CLAUDE.md
+/AGENTS.md
+/GEMINI.md
+/.github/copilot-instructions.md
 /task_plan.md
 /findings.md
 /progress.md
-/CLAUDE.md
 
 # Retired documents kept locally for reference only; see archive/README.md
 /archive/
 
 # Operating system files
 .DS_Store
+.AppleDouble
 .Spotlight-V100/
 .Trashes/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+$RECYCLE.BIN/

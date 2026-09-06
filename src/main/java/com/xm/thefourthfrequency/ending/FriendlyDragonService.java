@@ -1,5 +1,6 @@
 package com.xm.thefourthfrequency.ending;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -92,9 +93,57 @@ public final class FriendlyDragonService {
 	 * field for a decoration.
 	 */
 	private static final Map<UUID, Orbit> ORBITS = new ConcurrentHashMap<>();
+	/**
+	 * How often the last-resort sweep in {@link #recover} may walk the whole End.
+	 *
+	 * <p>That sweep is a safety net for a visible-index desync, and it was written as an
+	 * unconditional fallback - which made it the common case rather than the rare one. The encounter
+	 * ticks {@link #tick(ServerLevel, UUID, BlockPos, double)} on <em>every</em> server tick for as
+	 * long as the persisted state names a dragon, and that outlives the fight: the successful ending
+	 * leaves the dragon in the sky for good. So the moment the last player leaves the End and the
+	 * dragon's chunk unloads, none of the three cheap lookups can resolve it and every tick from then
+	 * on walked every entity in the dimension, forever, on a world nobody is even looking at.
+	 *
+	 * <p>Ten seconds. The three cheap lookups still run every tick and still resolve the dragon the
+	 * instant its chunk is back, so this only paces the case where the answer is "not loaded" - and
+	 * {@link #tick(ServerLevel, UUID, BlockPos, double)} already documents that a caller which gets
+	 * {@code false} should simply retry later.
+	 */
+	private static final long FULL_SCAN_INTERVAL_TICKS = 200L;
+	/**
+	 * Earliest game time the sweep above may run again.
+	 *
+	 * <p>A single field rather than one per dragon: there is at most one friendly dragon per world,
+	 * and the value it guards is a whole-dimension scan rather than anything owned by an id.
+	 */
+	private static long nextFullScanTick = Long.MIN_VALUE;
+	private static boolean initialized;
 
 	/** One dragon's place on its orbit: the tick it was last advanced on, and how far round it is. */
 	private record Orbit(long lastTick, double angle, int age) {
+	}
+
+	/**
+	 * Drops every transient index when the server it belongs to goes away.
+	 *
+	 * <p>{@link #LOADED_FRIENDLY_DRAGONS} holds live {@code EnderDragon} references, and an entity
+	 * holds its {@code Level}, which holds the {@code MinecraftServer}. Without this the whole
+	 * integrated server of any world where the good ending had spawned its dragon stayed reachable
+	 * from a static field for the rest of the process - so a player who finished the mod and went
+	 * back to the title screen was carrying the finished world around in memory.
+	 *
+	 * <p>{@code FRIENDLY_IDS} and {@code ORBITS} only hold ids and doubles, but they are the same
+	 * server's state and are cleared for the same reason.
+	 */
+	public static void initialize() {
+		if (initialized) return;
+		initialized = true;
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			FRIENDLY_IDS.clear();
+			LOADED_FRIENDLY_DRAGONS.clear();
+			ORBITS.clear();
+			nextFullScanTick = Long.MIN_VALUE;
+		});
 	}
 
 	private FriendlyDragonService() {
@@ -113,7 +162,7 @@ public final class FriendlyDragonService {
 		Objects.requireNonNull(center, "center");
 		Objects.requireNonNull(persistedUuid, "persistedUuid");
 		requireEnd(level);
-		Optional<EnderDragon> recovered = recover(level, persistedUuid);
+		Optional<EnderDragon> recovered = recover(level, persistedUuid, false);
 		if (recovered.isPresent()) {
 			EnderDragon dragon = recovered.get();
 			configure(dragon, center);
@@ -158,6 +207,19 @@ public final class FriendlyDragonService {
 
 	/** Finds a loaded persisted dragon by UUID and reasserts its friendly runtime contract. */
 	public static Optional<EnderDragon> recover(ServerLevel level, UUID persistedUuid) {
+		return recover(level, persistedUuid, true);
+	}
+
+	/**
+	 * @param rateLimitFullScan whether the last-resort whole-dimension sweep may be skipped because
+	 *                          it ran recently. True for the per-tick callers, which only need to
+	 *                          know whether the dragon is drivable right now and are told to retry;
+	 *                          false for {@link #spawn(ServerLevel, BlockPos, UUID)}, whose answer
+	 *                          decides whether a second dragon is created and therefore must never
+	 *                          be "not this instant".
+	 */
+	private static Optional<EnderDragon> recover(ServerLevel level, UUID persistedUuid,
+			boolean rateLimitFullScan) {
 		if (level == null || persistedUuid == null) return Optional.empty();
 		if (level.dimension() != Level.END) return Optional.empty();
 		Entity direct = level.getEntity(persistedUuid);
@@ -169,6 +231,13 @@ public final class FriendlyDragonService {
 			resolved = friendlyInLevel(level, persistedUuid, dragon);
 			if (resolved.isPresent()) return resolved;
 		}
+		// Last resort, and deliberately rate limited - see FULL_SCAN_INTERVAL_TICKS. The three
+		// lookups above are the ones that answer while the dragon is loaded; this one only ever
+		// answers when the visible index has desynchronised, and paying for it every tick on a
+		// dimension whose dragon is simply unloaded is the far more common outcome.
+		long now = level.getGameTime();
+		if (rateLimitFullScan && now < nextFullScanTick) return Optional.empty();
+		nextFullScanTick = now + FULL_SCAN_INTERVAL_TICKS;
 		for (Entity entity : level.getAllEntities()) {
 			resolved = friendlyInLevel(level, persistedUuid, entity);
 			if (resolved.isPresent()) return resolved;

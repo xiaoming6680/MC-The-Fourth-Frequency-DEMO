@@ -259,6 +259,10 @@ public final class PursuitPresentationClient {
 				runningRequested = false;
 				noticeQueueLocked = true;
 				play(Minecraft.getInstance(), ModSounds.ALPHA_CORRUPTION_COLLAPSE, 0.66F, 0.96F);
+				// Over the collapse rather than instead of it, and only on this phase. The blackout
+				// that opens a pursuit gets no scream - that one is the mod taking the player
+				// somewhere, and this one is the mod telling them it caught them.
+				play(Minecraft.getInstance(), ModSounds.PURSUIT_CAPTURE_SCREAM, 1.0F, 0.85F);
 			}
 			case PursuitPresentationPayload.ESCAPE_RESOLUTION -> {
 				if (!sameSession(payload.sessionId())) return;
@@ -333,10 +337,28 @@ public final class PursuitPresentationClient {
 			float pitch = 0.48F + (resolutionTicks % 4) * 0.06F;
 			play(client, ModSounds.ALPHA_CORRUPTION_WARNING, pitch, 0.34F);
 		}
-		if (clearRequested && readyToClear(client)) {
+		if (clearRequested && readyToClear(client) && captureScreamFinished()) {
 			reset(client);
 		}
 	}
+
+	/**
+	 * Whether the capture scream has had time to finish before the black screen is allowed to lift.
+	 *
+	 * <p>The freeze used to end the moment the server said the session was over, which is a second
+	 * or two into a cue that runs nearly four - so the player was handed back to the world mid-shriek
+	 * and the loudest thing in the mod was cut off by its own resolution. That reads as a bug, not as
+	 * having been caught.
+	 *
+	 * <p>Sized to the asset rather than guessed: {@code client/pursuit/capture_scream.ogg} is 3.81
+	 * seconds. Only ever delays a clear during the capture freeze; every other phase is untouched.
+	 */
+	private static boolean captureScreamFinished() {
+		return phase != Phase.CAPTURE_FREEZE || resolutionTicks >= CAPTURE_SCREAM_HOLD_TICKS;
+	}
+
+	/** Ticks the capture freeze holds at minimum. The scream is 3.81 seconds; this is four. */
+	private static final int CAPTURE_SCREAM_HOLD_TICKS = 80;
 
 	private static boolean readyToRevealMirror(Minecraft client) {
 		return destinationReady(client, true);

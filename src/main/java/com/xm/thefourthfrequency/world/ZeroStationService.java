@@ -2,10 +2,13 @@ package com.xm.thefourthfrequency.world;
 
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.content.TerminalData;
+import com.xm.thefourthfrequency.ending.FinaleRuntimePolicy;
+import com.xm.thefourthfrequency.networking.TerminalAutoOpenPayload;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
@@ -379,8 +382,37 @@ public final class ZeroStationService {
 		}
 	}
 
+	/**
+	 * Hands out the one terminal a player gets, unless this world has already finished with them.
+	 *
+	 * <p>Past the resolution there is nothing for a new terminal to do. Anomalies, empty segments and
+	 * pursuits are closed for good by {@link FinaleRuntimePolicy}, the mainline it tracks has been
+	 * answered, and the encounter it exists to reach cannot happen twice - so someone joining a
+	 * finished server used to be handed a device that would never speak again and never say why. That
+	 * is the one thing the terminal is not allowed to be: a piece of operable information that is
+	 * quietly wrong rather than explicitly unavailable.
+	 *
+	 * <p>The grant ledger is deliberately left untouched here rather than marked and skipped. Not
+	 * being on it is what keeps every per-player service from building state for someone the story
+	 * has no more of, and it is also what would let a later save that reopens the frequency issue this
+	 * player their first terminal properly.
+	 *
+	 * <p>Nothing about arrival changes: the world spawn is the station either way, so a newcomer still
+	 * wakes up in the room. They wake up in it with the rack empty, which is true.
+	 */
 	public static boolean issueTerminalIfNeeded(ServerPlayer player) {
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		// Asked before the finale gate, not after it. Someone who already holds a terminal is not
+		// being issued one, and telling them the frequency is closed on every single login for the
+		// rest of the save is not information, it is a countdown they cannot stop.
+		if (data.hasTerminalIssued(player.getUUID())) {
+			return false;
+		}
+		if (FinaleRuntimePolicy.concluded(data)) {
+			com.xm.thefourthfrequency.terminal.TerminalNoticeService.send(player,
+					Component.translatable("message.thefourthfrequency.terminal.frequency_closed"));
+			return false;
+		}
 		if (!data.markTerminalIssued(player.getUUID())) {
 			return false;
 		}
@@ -406,6 +438,16 @@ public final class ZeroStationService {
 		}
 		FrequencyWorldData.get(player.level().getServer()).stationPosition().ifPresent(position ->
 				player.teleportTo(position.getX() + 0.5, position.getY(), position.getZ() + 0.5));
+		// The device brings itself up, once, on the join that hands it over. Waking in the station
+		// and having to find the thing in a hotbar first puts an inventory in front of the moment
+		// the story opens on; the terminal binding itself to someone is the moment.
+		//
+		// Only ever sent from here, so it is bounded by the same ledger the grant is: a player who
+		// already has a terminal is not being issued one and does not get this either. The client
+		// decides when, and answers with the ordinary open request - see TerminalAutoOpenPolicy.
+		if (ServerPlayNetworking.canSend(player, TerminalAutoOpenPayload.TYPE)) {
+			ServerPlayNetworking.send(player, new TerminalAutoOpenPayload());
+		}
 	}
 
 	private static final class BuildState {

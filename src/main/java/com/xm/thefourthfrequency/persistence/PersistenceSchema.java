@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.function.UnaryOperator;
 
 public final class PersistenceSchema {
-	public static final int CURRENT_VERSION = 11;
+	public static final int CURRENT_VERSION = 13;
 
 	private PersistenceSchema() {
 	}

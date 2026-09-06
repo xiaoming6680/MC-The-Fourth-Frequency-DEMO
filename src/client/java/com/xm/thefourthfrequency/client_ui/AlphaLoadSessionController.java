@@ -98,8 +98,24 @@ public final class AlphaLoadSessionController {
 		corruptionEverPlayed = ConfigManager.loadClientState().alphaDowngradeComplete();
 		persistentStartupPending = corruptionEverPlayed && !presentationRetired;
 
-		ClientPlayConnectionEvents.INIT.register((handler, client) -> client.execute(() -> begin(client)));
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> begin(client)));
+		// Two entry points for one session, because the question they can answer is not the same.
+		//
+		// The downgrade has to be armed before the loading screen draws, which is why INIT is here at
+		// all - but INIT is also too early to ask whether the server runs this mod: the channel test
+		// reads Minecraft#getConnection, and there is no player yet to hang it off. What is knowable
+		// at INIT is an integrated server, which is this process and therefore certainly this mod, so
+		// that is the case it covers - and it is the case the whole sequence was authored against.
+		//
+		// A remote server is decided at JOIN instead, which fires from handleLogin and so still lands
+		// while the world is coming up. begin() is idempotent, so single-player does not start twice.
+		// A server without this mod reaches neither, which is the point: joining somebody else's
+		// vanilla server used to swap that player's resource packs and rename their window.
+		ClientPlayConnectionEvents.INIT.register((handler, client) -> client.execute(() -> {
+			if (client.hasSingleplayerServer()) begin(client);
+		}));
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+			if (ModWorldPresence.currentWorldRunsThisMod()) begin(client);
+		}));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> end(client)));
 		ClientTickEvents.END_CLIENT_TICK.register(AlphaLoadSessionController::clientTick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(AlphaLoadSessionController::end);

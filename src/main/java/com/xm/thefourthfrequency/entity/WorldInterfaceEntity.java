@@ -44,6 +44,25 @@ public final class WorldInterfaceEntity extends Monster {
 	private static final EntityDataAccessor<Integer> ACTION_DURATION = SynchedEntityData.defineId(
 			WorldInterfaceEntity.class, EntityDataSerializers.INT);
 	/**
+	 * The server's own tick count, so both sides pose the rig on one clock.
+	 *
+	 * <p>Everything else {@code WorldInterfaceRig.pose} reads - form, health, action id, action age,
+	 * gaze - is synchronised. The tick count was not, and an entity's {@code tickCount} starts when it
+	 * enters <em>that side's</em> world: the client begins counting when the body comes into tracking
+	 * range, the server when it was summoned. Measured in a client game test the two were five ticks
+	 * apart, which posed the same skeleton at two different points in its hover drift and left the
+	 * drawn head 0.46 blocks from the box a swing tests - 0.446 of it along z, which is the axis the
+	 * player is swinging down. That is the "I can see the head and I swing through it" report.
+	 *
+	 * <p>Sent every {@link #POSE_SYNC_INTERVAL_TICKS} rather than every tick. Both clocks advance at
+	 * the same rate, so one sample is enough to fix the offset and the rest only has to correct drift;
+	 * a boss with eight people watching does not need a packet per tick to say "it is now later".
+	 */
+	private static final EntityDataAccessor<Long> POSE_TICK = SynchedEntityData.defineId(
+			WorldInterfaceEntity.class, EntityDataSerializers.LONG);
+	/** How often the pose clock is re-sent. One second. */
+	private static final int POSE_SYNC_INTERVAL_TICKS = 20;
+	/**
 	 * How much of the virtual pool is left, 1 down to 0.
 	 *
 	 * <p>Synchronised rather than looked up per side. The structural sag in {@code WorldInterfaceRig}
@@ -80,6 +99,8 @@ public final class WorldInterfaceEntity extends Monster {
 	private static final float GAZE_EPSILON = 0.009F;
 
 	private UUID encounterId;
+	/** Client-side: server tick minus local tick, latched from {@link #POSE_TICK}. */
+	private int poseTickOffset;
 	private WorldInterfaceRig.Pose cachedPose;
 	private long cachedPoseTick = Long.MIN_VALUE;
 	/** Last tick's gaze, for the renderer to interpolate from. See {@link #renderGazeYaw}. */
@@ -138,7 +159,8 @@ public final class WorldInterfaceEntity extends Monster {
 				.define(ACTION_DURATION, 0)
 				.define(HEALTH_FRACTION, 1.0F)
 				.define(GAZE_YAW, 0.0F)
-				.define(GAZE_PITCH, 0.0F);
+				.define(GAZE_PITCH, 0.0F)
+				.define(POSE_TICK, 0L);
 	}
 
 	@Override
@@ -154,6 +176,9 @@ public final class WorldInterfaceEntity extends Monster {
 		gazeYawO = gazeYaw();
 		gazePitchO = gazePitch();
 		super.tick();
+		if (!level().isClientSide() && tickCount % POSE_SYNC_INTERVAL_TICKS == 0) {
+			entityData.set(POSE_TICK, (long) tickCount);
+		}
 		idleAnimationState.startIfStopped(tickCount);
 		int currentAction = actionId();
 		if (currentAction != animatedAction) {
@@ -303,11 +328,22 @@ public final class WorldInterfaceEntity extends Monster {
 	 */
 	public WorldInterfaceRig.Pose rigPose() {
 		if (cachedPose == null || cachedPoseTick != tickCount) {
-			cachedPose = WorldInterfaceRig.pose(form(), tickCount, healthFraction(), actionId(),
+			cachedPose = WorldInterfaceRig.pose(form(), poseClock(), healthFraction(), actionId(),
 					actionAgeMillis(), gazeYaw(), gazePitch());
 			cachedPoseTick = tickCount;
 		}
 		return cachedPose;
+	}
+
+	/**
+	 * The tick the rig is posed on, which both sides have to agree about.
+	 *
+	 * <p>See {@link #POSE_TICK}. The server is the clock; the client carries the offset it was last
+	 * told and keeps counting, so the two stay in step between samples instead of each starting from
+	 * whenever the body happened to enter their own world.
+	 */
+	public int poseClock() {
+		return level().isClientSide() ? tickCount + poseTickOffset : tickCount;
 	}
 
 	/**
@@ -346,6 +382,12 @@ public final class WorldInterfaceEntity extends Monster {
 	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
 		super.onSyncedDataUpdated(key);
 		if (FORM.equals(key)) refreshDimensions();
+		// Latched as an offset rather than used directly: between samples the two clocks advance
+		// together, so the difference is what has to be carried, not the value.
+		if (POSE_TICK.equals(key) && level().isClientSide()) {
+			poseTickOffset = (int) (entityData.get(POSE_TICK) - tickCount);
+			cachedPoseTick = Long.MIN_VALUE;
+		}
 	}
 
 	@Override

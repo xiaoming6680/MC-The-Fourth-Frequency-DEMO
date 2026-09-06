@@ -57,10 +57,122 @@ final class AnomalyIntensityTest {
 
 	@Test
 	void intervalsUseTheApprovedSlowBoundsWithoutHeatCompression() {
-		assertTrue(between(AnomalyIntensity.intervalTicks(1, 0, 0, true), 4 * 60, 7 * 60));
-		assertTrue(between(AnomalyIntensity.intervalTicks(1, 100, 41, false), 8 * 60, 14 * 60));
-		assertTrue(between(AnomalyIntensity.intervalTicks(3, 100, 9, false), 7 * 60, 12 * 60));
-		assertTrue(between(AnomalyIntensity.intervalTicks(5, 0, 17, false), 5 * 60, 9 * 60));
+		assertEquals(5 * 60 * 20L, shortest(1, true));
+		assertEquals(8 * 60 * 20L, longest(1, true));
+		assertEquals(10 * 60 * 20L, shortest(1, false));
+		assertEquals(16 * 60 * 20L, longest(1, false));
+		assertEquals(9 * 60 * 20L, shortest(3, false));
+		assertEquals(14 * 60 * 20L, longest(3, false));
+		assertEquals(7 * 60 * 20L, shortest(5, false));
+		assertEquals(12 * 60 * 20L, longest(5, false));
+		// Heat is metered and displayed per player but deliberately does not compress the interval.
+		assertEquals(AnomalyIntensity.intervalTicks(5, 0, 17, false),
+				AnomalyIntensity.intervalTicks(5, 100, 17, false));
+	}
+
+	/**
+	 * The endpoint the pacing complaint was actually about: however unlucky the roll, the world gets
+	 * some minutes back. Asserted as a floor across every stage rather than only at stage 5, so a
+	 * later re-tune cannot reintroduce a tight stage somewhere in the middle of the ramp.
+	 */
+	@Test
+	void noStageEverSchedulesUnderSevenMinutes() {
+		for (int stage = 1; stage <= 5; stage++) {
+			assertTrue(shortest(stage, false) >= 7 * 60 * 20L, "stage " + stage);
+		}
+	}
+
+	/** Later stages still arrive sooner than earlier ones - the ramp survives the lift. */
+	@Test
+	void intervalsStayMonotonicAcrossTheRamp() {
+		for (int stage = 2; stage <= 5; stage++) {
+			assertTrue(shortest(stage, false) <= shortest(stage - 1, false), "stage " + stage);
+			assertTrue(longest(stage, false) <= longest(stage - 1, false), "stage " + stage);
+		}
+	}
+
+	/**
+	 * A grace period is a minimum, not a reschedule. Relogging or stepping through a nether portal
+	 * used to overwrite a long pending interval with ninety seconds, which made travelling the
+	 * fastest way to be visited.
+	 */
+	@Test
+	void graceDefersButNeverAdvancesAScheduledAnomaly() {
+		assertEquals(9_000L, AnomalyIntensity.graced(9_000L, 3_000L));
+		assertEquals(9_000L, AnomalyIntensity.graced(9_000L, 9_000L));
+		assertEquals(12_000L, AnomalyIntensity.graced(9_000L, 12_000L));
+		assertEquals(0L, AnomalyIntensity.graced(0L, 12_000L));
+		assertEquals(0L, AnomalyIntensity.graced(-1L, 12_000L));
+	}
+
+	/**
+	 * The Nether is the pressure dimension, and the assertion is the relationship rather than the
+	 * numbers: every stage arrives sooner there than it does in the overworld, and no stage there
+	 * drops under four minutes. A trip for rods is short, and the overworld cadence spends most of
+	 * one waiting.
+	 */
+	@Test
+	void theNetherRunsShorterThanTheOverworldAtEveryStage() {
+		for (int stage = 1; stage <= 5; stage++) {
+			assertTrue(shortest(stage, false, true) < shortest(stage, false, false), "stage " + stage);
+			assertTrue(longest(stage, false, true) < longest(stage, false, false), "stage " + stage);
+			assertTrue(shortest(stage, false, true) >= 4 * 60 * 20L, "stage " + stage);
+			assertTrue(longest(stage, false, true) <= 10 * 60 * 20L, "stage " + stage);
+		}
+	}
+
+	/** The ramp is the same table moved down, not a flat number that flattens the progression. */
+	@Test
+	void theNetherKeepsTheStageRamp() {
+		for (int stage = 2; stage <= 5; stage++) {
+			assertTrue(shortest(stage, false, true) <= shortest(stage - 1, false, true), "stage " + stage);
+			assertTrue(longest(stage, false, true) <= longest(stage - 1, false, true), "stage " + stage);
+		}
+	}
+
+	/**
+	 * The opening interval belongs to a player who has never had an anomaly, and where they happen
+	 * to be standing at that moment is not a reason to give them a different one.
+	 */
+	@Test
+	void theFirstIntervalIgnoresTheDimension() {
+		assertEquals(shortest(3, true, false), shortest(3, true, true));
+		assertEquals(longest(3, true, false), longest(3, true, true));
+	}
+
+	/** A refusal costs half a minute, the same figure a failed HIM placement costs. */
+	@Test
+	void aFailedDrawCostsThirtySeconds() {
+		assertEquals(30L * 20L, AnomalyIntensity.FAILED_TRIGGER_RETRY_TICKS);
+	}
+
+	private static long shortest(int tier, boolean first) {
+		return sweep(tier, first, true, false);
+	}
+
+	private static long longest(int tier, boolean first) {
+		return sweep(tier, first, false, false);
+	}
+
+	private static long shortest(int tier, boolean first, boolean pressure) {
+		return sweep(tier, first, true, pressure);
+	}
+
+	private static long longest(int tier, boolean first, boolean pressure) {
+		return sweep(tier, first, false, pressure);
+	}
+
+	/**
+	 * Walks a full hour of second-resolution offsets so the reported bound is the one the selector
+	 * can actually produce, rather than whichever value a single hand-picked seed happened to land on.
+	 */
+	private static long sweep(int tier, boolean first, boolean wantShortest, boolean pressure) {
+		long best = wantShortest ? Long.MAX_VALUE : Long.MIN_VALUE;
+		for (int randomValue = 0; randomValue <= 60 * 60; randomValue++) {
+			long ticks = AnomalyIntensity.intervalTicks(tier, 0, randomValue, first, pressure);
+			best = wantShortest ? Math.min(best, ticks) : Math.max(best, ticks);
+		}
+		return best;
 	}
 
 	@Test

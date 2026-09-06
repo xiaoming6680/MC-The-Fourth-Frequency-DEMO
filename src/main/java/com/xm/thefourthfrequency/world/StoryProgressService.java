@@ -39,7 +39,18 @@ public final class StoryProgressService {
 		int milestones = before.getIntOr(TerminalData.SURVIVAL_MILESTONE_MASK, 0);
 		boolean earlySurvival = SurvivalMilestone.MINED_LOGS.present(milestones)
 				|| SurvivalMilestone.IRON.present(milestones);
-		boolean bind = earlySurvival && !story.bound();
+		// The profile is the binding. It asks five questions, answers with nothing but "user
+		// preferences recorded", and the terminal is that player's from then on - which is what the
+		// sequence has always looked like it was doing. Binding used to wait for the first logs
+		// instead, so the device took a file on you in the first minute and then stayed impersonal
+		// through an errand, and the two halves of one ceremony had a wood-chopping trip between them.
+		//
+		// earlySurvival stays as a floor, not as the trigger. Every ordinary path reaches the profile
+		// long before it reaches a tree, so this only fires for a record that somehow got past the
+		// first boot without one - and an unbound terminal is a stalled playthrough, not a quiet
+		// inconvenience.
+		boolean bind = !story.bound()
+				&& (before.getBooleanOr(TerminalData.PROFILE_TAKEN, false) || earlySurvival);
 		boolean reveal = story.bandStage() == 0 && story.bound()
 				&& SurvivalMilestone.IRON.present(milestones);
 		boolean nightEntered = story.nightEntered();
@@ -65,8 +76,10 @@ public final class StoryProgressService {
 	}
 
 	public static void recordAnomaly(ServerPlayer player, String type) {
+		// Bit 2 belonged to surface_fracture, which was merged into phantom_echo. Left unused rather
+		// than reassigned: the bits are persisted and nothing reads this mask by count.
 		int index = switch (type) { case "phantom_echo" -> 0; case "light_dropout" -> 1;
-			case "surface_fracture" -> 2; case "watcher_alignment" -> 3; default -> -1; };
+			case "watcher_alignment" -> 3; default -> -1; };
 		if (index < 0) return;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		if (data.terminalRecord(player.getUUID()).isEmpty()) return;
@@ -93,15 +106,18 @@ public final class StoryProgressService {
 		if (!SurvivalMilestone.ENTERED_NETHER.present(milestones)) return new Objective("enter_nether", 0, 1);
 		if (!SurvivalMilestone.FOUND_FORTRESS.present(milestones))
 			return new Objective("find_fortress", 0, 1);
-		int blazeRods = Math.clamp(tag.getIntOr(TerminalData.BLAZE_ROD_SAMPLE_COUNT, 0), 0,
-				SurvivalProgressService.REQUIRED_BLAZE_RODS);
+		// The party's requirement, not the authored ceiling, or the hint pacing would keep counting a
+		// player as stalled on an objective their terminal has already marked complete.
+		int requiredRods = Math.clamp(tag.getIntOr(TerminalData.BLAZE_ROD_REQUIRED,
+						SurvivalProgressService.REQUIRED_BLAZE_RODS),
+				SurvivalProgressService.MINIMUM_BLAZE_RODS, SurvivalProgressService.REQUIRED_BLAZE_RODS);
+		int blazeRods = Math.clamp(tag.getIntOr(TerminalData.BLAZE_ROD_SAMPLE_COUNT, 0), 0, requiredRods);
 		if (!SurvivalMilestone.COLLECTED_BLAZE_RODS.present(milestones)) return new Objective(
-				"collect_blaze_rods", blazeRods, SurvivalProgressService.REQUIRED_BLAZE_RODS);
+				"collect_blaze_rods", blazeRods, requiredRods);
 		if (!SurvivalMilestone.RETURNED_NETHER.present(milestones)) return new Objective("return_from_nether", 0, 1);
-		int craftedEyes = Math.clamp(tag.getIntOr(TerminalData.CRAFTED_EYE_COUNT, 0), 0,
-				SurvivalProgressService.REQUIRED_CRAFTED_EYES);
-		if (!SurvivalMilestone.CRAFTED_EYE.present(milestones)) return new Objective("craft_eye", craftedEyes,
-				SurvivalProgressService.REQUIRED_CRAFTED_EYES);
+		// No crafting objective. Retired with the task at schema 13 - the portal needs twelve eyes
+		// between everybody and the vanilla recipe already says what an eye is for, so naming it as a
+		// per-player target only ever multiplied one job by the size of the table.
 		int eyeSamples = Math.clamp(tag.getIntOr(TerminalData.EYE_SAMPLE_COUNT, 0), 0,
 				SurvivalProgressService.REQUIRED_EYE_SAMPLES);
 		if (!SurvivalMilestone.THREW_EYE.present(milestones)

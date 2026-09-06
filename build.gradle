@@ -185,18 +185,23 @@ tasks.named("check") {
 // A successful full build is also the local playtest hand-off. Keep this on `build` rather than
 // `remapJar`: compile/test failures must never replace the last known-good mod in the instance.
 //
-// The destination is this workspace's own launcher, so it is only a default. Override it with
-// -PtffDeployDir=<path>, or disable the step entirely with an empty -PtffDeployDir=. A missing
-// drive or parent directory skips the copy with a notice instead of failing the build, so `build`
-// still works on a fresh clone.
-def deployDirProperty = providers.gradleProperty("tffDeployDir")
-		.orElse("E:/PCL2/.minecraft/versions/1.21.11-Fabric 0.19.3/mods")
+// Off by default, because a hard-coded destination is one particular machine's launcher and this
+// file is checked in. Point it at your own instance somewhere Git never sees - the user-wide
+// ~/.gradle/gradle.properties (%USERPROFILE%\.gradle\gradle.properties on Windows):
+//
+//     tffDeployDir=E:/SomeLauncher/.minecraft/versions/1.21.11-Fabric/mods
+//
+// or pass -PtffDeployDir=<path> for a single invocation. An empty value disables the step, and a
+// missing drive or parent directory skips the copy with a notice instead of failing the build, so
+// `build` works unchanged on a fresh clone that has configured nothing.
+def deployDirProperty = providers.gradleProperty("tffDeployDir").orElse("")
 def remappedModJar = tasks.named("remapJar").flatMap { it.archiveFile }
 tasks.named("build") {
 	doLast {
 		String configured = deployDirProperty.get().trim()
 		if (configured.isEmpty()) {
-			logger.lifecycle("Local deployment disabled (-PtffDeployDir is empty).")
+			logger.lifecycle("Local deployment disabled: tffDeployDir is not set. "
+					+ "Set it in ~/.gradle/gradle.properties or pass -PtffDeployDir=<path> to deploy.")
 			return
 		}
 		File source = remappedModJar.get().asFile

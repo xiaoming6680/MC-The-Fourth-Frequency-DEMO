@@ -20,10 +20,18 @@ final class AnomalyClientAutomationContractTest {
 		AnomalyClientScenario.assertCatalogCoverage();
 		List<String> catalog = AnomalyCatalog.definitions().stream().map(value -> value.id()).toList();
 		List<String> scenarios = AnomalyClientScenario.definitions().stream().map(value -> value.id()).toList();
-		assertEquals(19, scenarios.size());
-		assertEquals(catalog, scenarios);
-		assertEquals(19, scenarios.stream().distinct().count());
-		assertEquals(19, AnomalyClientScenario.definitions().stream().map(value -> value.seed()).distinct().count());
+		// The catalogue is eighteen; seventeen of them are driven here. The eighteenth is exempt by
+		// name in AnomalyClientScenario.UNCOVERED, which is asserted rather than assumed: an anomaly
+		// must not be able to lose its client coverage by being forgotten, only by being excused in
+		// writing.
+		List<String> covered = catalog.stream()
+				.filter(id -> !AnomalyClientScenario.UNCOVERED.contains(id)).toList();
+		assertEquals(Set.of("unrendered_layer"), AnomalyClientScenario.UNCOVERED);
+		assertEquals(18, catalog.size());
+		assertEquals(17, scenarios.size());
+		assertEquals(covered, scenarios);
+		assertEquals(17, scenarios.stream().distinct().count());
+		assertEquals(17, AnomalyClientScenario.definitions().stream().map(value -> value.seed()).distinct().count());
 	}
 
 	@Test
@@ -51,6 +59,11 @@ final class AnomalyClientAutomationContractTest {
 		assertTrue(defaults.runsToolsUi());
 		assertFalse(defaults.runsNoticeEntry());
 		assertTrue(defaults.runsWorldInterface());
+		// The unfiltered run must not stop at the tools-UI checks. It used to, because the early
+		// return was guarded by runsToolsUi(), which is true here as well - so everything after it
+		// (bands, damaged files, the diary, Nether continuity, the capability model) was skipped and
+		// the run still went green.
+		assertFalse(defaults.stopsAfterToolsUi());
 
 		var noticeEntry = ClientGameTestSelection.parse("notice-entry", "");
 		assertTrue(noticeEntry.runsNoticeEntry());
@@ -78,6 +91,12 @@ final class AnomalyClientAutomationContractTest {
 		assertTrue(toolsUi.runsMainline());
 		assertTrue(toolsUi.runsToolsUi());
 		assertFalse(toolsUi.runsAnomalies());
+		assertTrue(toolsUi.stopsAfterToolsUi());
+
+		var mainlineOnly = ClientGameTestSelection.parse("mainline", "");
+		assertTrue(mainlineOnly.runsMainline());
+		assertFalse(mainlineOnly.runsToolsUi());
+		assertFalse(mainlineOnly.stopsAfterToolsUi());
 		var watcherModel = ClientGameTestSelection.parse("watcher-model", "");
 		assertTrue(watcherModel.runsWatcherModel());
 		assertFalse(watcherModel.runsMainline());

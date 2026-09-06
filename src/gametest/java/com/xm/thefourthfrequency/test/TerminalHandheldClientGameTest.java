@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.test;
 
 import com.xm.thefourthfrequency.client_ui.TerminalHandheldAnimator;
+import com.xm.thefourthfrequency.client_ui.TerminalAutoOpenController;
 import com.xm.thefourthfrequency.client_ui.TerminalScreen;
 import com.xm.thefourthfrequency.content.ModItems;
 import com.xm.thefourthfrequency.terminal.TerminalHandheldPose;
@@ -59,16 +60,24 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 			// server checks binding, owner and world id before it will open one, and a bare stack is
 			// refused. So the stage is built around the real item instead of replacing it.
 			awaitIssuedTerminal(context);
+			// Spent here, before the stage is built, and that order is not cosmetic. The walkthrough
+			// owns the first open of a new save and refuses to close, and since the terminal now
+			// brings itself up on the join that issues it, that open arrives on its own about a
+			// second in - whether or not this test asks for it. Measuring the resting carry first
+			// used to work only because nothing opened the device unprompted; it now fails with "a
+			// terminal nobody opened is not at rest", which is the greeting, correctly, being at
+			// work. Spending it first also settles the offer before the stage clears the inventory
+			// out from under an open screen.
+			completeWalkthrough(context);
+			context.waitFor(client -> !TerminalAutoOpenController.armed(), 200);
 			singleplayer.getServer().runOnServer(TerminalHandheldClientGameTest::buildStage);
 			singleplayer.getClientWorld().waitForChunksRender();
 			context.waitTicks(20);
 
 			assertCarriedInBothHands(context);
 			assertSurvivesLookingAround(context);
-			// The walkthrough owns the first open of a new save and refuses to close, so it has to
-			// be spent before the raise can be measured on its own terms.
-			completeWalkthrough(context);
 			assertRaiseAndReturn(context);
+			assertHittingSomethingShovesTheDevice(context);
 			assertOffHandFallsBackToOneHand(context);
 			assertEveryFormDraws(context);
 		}
@@ -123,7 +132,12 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 		throw new AssertionError("The station never issued a personal terminal");
 	}
 
-	/** The resting carry: both hands under the device, nothing pending, camera untouched. */
+	/**
+	 * The resting carry: both hands under the device, nothing pending, camera untouched.
+	 *
+	 * <p>Runs after the walkthrough, because the first open of a new save is no longer something
+	 * this test chooses to trigger - the terminal brings itself up on the join that issues it.
+	 */
 	private static void assertCarriedInBothHands(ClientGameTestContext context) {
 		context.waitTicks(10);
 		context.runOnClient(client -> {
@@ -134,7 +148,7 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 				throw new AssertionError("The off hand must be empty for the two-handed carry");
 			}
 			if (TerminalHandheldAnimator.state() != TerminalHandheldAnimator.State.IDLE) {
-				throw new AssertionError("A terminal nobody opened is not at rest");
+				throw new AssertionError("The device did not return to rest after the first open");
 			}
 			if (TerminalHandheldAnimator.fovScale() != 1.0F) {
 				throw new AssertionError("A carried terminal must not touch the field of view");
@@ -202,6 +216,16 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 			context.runOnClient(client -> {
 				if (!(client.screen instanceof TerminalScreen terminal)) return;
 				held[0] = terminal.onboardingLocksExitForTesting();
+				// The profile comes between the self test and the tabs, holds the exit, and points at
+				// no tab - so it has to be answered here or the loop below spends its whole budget
+				// waiting for a pointer that cannot appear. Parking the receiver on an option is
+				// enough: the commit comes from the real one-second hold, and re-parking on the same
+				// frequency every pass is a no-op that lets that hold run.
+				int question = terminal.profileQuestionForTesting();
+				if (question >= 0) {
+					terminal.tuneToProfileOptionForTesting(0);
+					return;
+				}
 				int target = terminal.onboardingTargetPageForTesting();
 				// -1 during the self test, which takes no input at all - just wait it out.
 				if (target >= 0) terminal.selectPageForTesting(target);
@@ -252,6 +276,93 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 				throw new AssertionError("A closed terminal left the camera zoomed");
 			}
 		});
+	}
+
+	/**
+	 * Mining, punching and using things move the device; the terminal's own raise does not.
+	 *
+	 * <p>Half of this is only checkable in a running client. {@code TerminalHandheldPoseTest} owns the
+	 * shape of the shove and {@code TerminalHandheldAnimatorTest} owns the rule about the raise, but
+	 * both start from a swing progress handed to them as a number. What neither can see is whether
+	 * {@code LocalPlayer.swing} actually produces one - and a gate in front of a value that is always
+	 * zero passes every unit test there is while the device sits welded to the lens.</p>
+	 *
+	 * <p>So the assertion is that a real swing on a real client raises {@code attackAnim} above zero,
+	 * that the pose drawn from it moves forward and down, and that the same non-zero progress is
+	 * refused while the terminal is performing - which is exactly the collision the real open causes,
+	 * because the open request answers {@code SUCCESS} and {@code Minecraft.startUseItem} swings the
+	 * hand on the strength of it.</p>
+	 */
+	private static void assertHittingSomethingShovesTheDevice(ClientGameTestContext context) {
+		float[] rest = new float[2];
+		context.runOnClient(client -> {
+			var pose = TerminalHandheldAnimator.presentation();
+			rest[0] = pose.y();
+			rest[1] = pose.z();
+			client.player.swing(InteractionHand.MAIN_HAND);
+		});
+		// Two ticks in the swing counter has moved off zero and the shove is near its peak, which is
+		// a quarter of the way through - the same early peak vanilla's own attack transform has.
+		context.waitTicks(2);
+		context.runOnClient(client -> {
+			float progress = client.player.getAttackAnim(1.0F);
+			if (progress <= 0.0F) {
+				throw new AssertionError("A swung hand reported no swing progress: " + progress);
+			}
+			float swing = TerminalHandheldAnimator.swingShown(progress);
+			if (swing != progress) {
+				throw new AssertionError("A carried terminal refused the player's own swing");
+			}
+			var pose = TerminalHandheldAnimator.presentation(swing);
+			if (pose.y() >= rest[0]) {
+				throw new AssertionError("The shove did not carry the device down: "
+						+ rest[0] + " -> " + pose.y());
+			}
+			if (Math.abs(pose.z()) <= Math.abs(rest[1])) {
+				throw new AssertionError("The shove did not carry the device forward: "
+						+ rest[1] + " -> " + pose.z());
+			}
+		});
+		context.takeScreenshot("terminal-3d-swing");
+
+		// It recovers on its own: the envelope is zero at both ends of the swing.
+		context.waitTicks(12);
+		context.runOnClient(client -> {
+			var pose = TerminalHandheldAnimator.presentation(
+					TerminalHandheldAnimator.swingShown(client.player.getAttackAnim(1.0F)));
+			if (Math.abs(pose.z() - rest[1]) > 1.0E-4F) {
+				throw new AssertionError("The device never came back from the shove: " + pose.z());
+			}
+		});
+
+		// And the raise refuses the swing it causes itself. The open is a round trip through the
+		// integrated server, so the collision is staged only once the animator has actually taken it -
+		// until then the device is still idle and would rightly take a swing.
+		rightClickTerminal(context);
+		for (int attempt = 0; attempt < 40; attempt++) {
+			boolean[] performing = {false};
+			context.runOnClient(client -> performing[0] =
+					TerminalHandheldAnimator.state() != TerminalHandheldAnimator.State.IDLE);
+			if (performing[0]) break;
+			context.waitTicks(1);
+		}
+		context.runOnClient(client -> {
+			if (TerminalHandheldAnimator.state() == TerminalHandheldAnimator.State.IDLE) {
+				throw new AssertionError("The open request never reached the animator");
+			}
+			client.player.swing(InteractionHand.MAIN_HAND);
+		});
+		context.waitTicks(2);
+		context.runOnClient(client -> {
+			float progress = client.player.getAttackAnim(1.0F);
+			if (progress <= 0.0F) throw new AssertionError("The staged swing never started");
+			if (TerminalHandheldAnimator.swingShown(progress) != 0.0F) {
+				throw new AssertionError("The opening device took a swing on top of its own travel");
+			}
+		});
+		context.waitForScreen(TerminalScreen.class);
+		context.runOnClient(client -> ((TerminalScreen) client.screen).onClose());
+		awaitRest(context);
 	}
 
 	/** Waits for the device to finish travelling back down into the hands. */

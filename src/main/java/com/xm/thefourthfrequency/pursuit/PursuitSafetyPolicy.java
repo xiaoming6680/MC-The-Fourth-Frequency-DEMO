@@ -23,8 +23,7 @@ public final class PursuitSafetyPolicy {
 				|| player.fallDistance > 3.0F || player.getHealth() <= safeHealthFloor) return false;
 		if (!player.level().getEntitiesOfClass(Monster.class, player.getBoundingBox().inflate(12.0D),
 				monster -> monster.isAlive() && monster.getTarget() == player).isEmpty()) return false;
-		return FinaleRuntimePolicy.backgroundSystemsAllowed(data)
-				&& !FinaleRuntimePolicy.pressureActive(data)
+		return FinaleRuntimePolicy.ambientPressureAllowed(data, player)
 				&& !TerminalRuntimeService.isOpen(player)
 				&& AnomalyRuntimeService.active(player) == null;
 	}

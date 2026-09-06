@@ -5,6 +5,7 @@ import com.xm.thefourthfrequency.client_ui.ExitDecayTimeline;
 import com.xm.thefourthfrequency.client_ui.FailureMenuLockState;
 import com.xm.thefourthfrequency.client_ui.MenuErosionState;
 import com.xm.thefourthfrequency.client_ui.PursuitPresentationClient;
+import com.xm.thefourthfrequency.client_ui.WorldInterfaceClientState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -42,25 +43,39 @@ public abstract class PauseScreenErosionMixin {
 		if (disconnectButton == null || thefourthfrequency$originalDisconnectMessage == null) return;
 		disconnectButton.setMessage(thefourthfrequency$originalDisconnectMessage);
 		disconnectButton.active = thefourthfrequency$originalDisconnectActive;
+		// The only two states that actually hold the door shut, and both of them are a fight the
+		// player is currently inside. Everything else may pressure the exit; nothing else may take it.
 		if (PursuitPresentationClient.locksPauseExit()) {
 			disconnectButton.setMessage(Component.translatable(
 					"message.thefourthfrequency.pursuit.exit_locked"));
 			disconnectButton.active = false;
 			return;
 		}
+		if (WorldInterfaceClientState.snapshot().locksPauseExit()) {
+			disconnectButton.setMessage(Component.translatable(
+					"message.thefourthfrequency.world_interface.exit_locked"));
+			disconnectButton.active = false;
+			return;
+		}
 		if (!Minecraft.getInstance().hasSingleplayerServer()) return;
 		// An ending releases the exit, whichever way it went. The erosion is pressure from a run that
-		// is still going, and LATE is where it stops warning and starts holding the door shut - but
-		// the epilogue hands the world back and spends a minute of action bars saying the story is
-		// over and the menu is where "over" lives. Only a win used to clear this, through the
-		// RESTORED stage the server sends for a successful finale, so a lost run at the story ceiling
-		// met a greyed-out quit button and the message asking them to press it. The noise below is
-		// not part of the release: a world that was lost should still look like one.
+		// is still going; the epilogue hands the world back and spends a minute of action bars saying
+		// the story is over and the menu is where "over" lives. The noise below is not part of the
+		// release: a world that was lost should still look like one.
 		if (FailureMenuLockState.locked()) return;
+		//
+		// LATE used to set active = false here, and that was the bug: menu erosion is driven by story
+		// progress, not by anything the player is in the middle of, so past that threshold the quit
+		// button was simply dead - in the overworld, mid-build, at any hour, with nothing happening.
+		// A player who wanted to stop playing had to kill the process.
+		//
+		// It also broke the mod's own hard rule that page tabs, back, close, the pause menu and safe
+		// recovery may never be permanently taken by a performance. The erosion keeps everything it
+		// had that was pressure rather than seizure: the label still says the window is closing, and
+		// the grain, scanlines and mistracking bar still crawl over the control. The door opens.
 		switch (MenuErosionState.stage()) {
-			case MID -> disconnectButton.setMessage(Component.translatable(
+			case MID, LATE -> disconnectButton.setMessage(Component.translatable(
 					"message.thefourthfrequency.menu_erosion.escape_window"));
-			case LATE -> disconnectButton.active = false;
 			default -> { }
 		}
 	}

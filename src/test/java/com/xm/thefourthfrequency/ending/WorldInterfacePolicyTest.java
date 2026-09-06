@@ -1,7 +1,11 @@
 package com.xm.thefourthfrequency.ending;
 
+import com.xm.thefourthfrequency.networking.AltarSnapshotS2C;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,6 +109,30 @@ class WorldInterfacePolicyTest {
 		assertEquals(12_000, WorldInterfacePolicy.remainingCollapseTicks(0L));
 		assertEquals(0, WorldInterfacePolicy.remainingCollapseTicks(12_000L));
 		assertThrows(IllegalArgumentException.class, () -> WorldInterfacePolicy.collapseProgress(-1L));
+	}
+
+	/**
+	 * Three minutes, and the altar snapshot's bound is the same number.
+	 *
+	 * <p>The payload range-checks the remainder it carries against this constant, so a window
+	 * lengthened here without the payload agreeing would start throwing on the wire the first time a
+	 * ritual was opened - at the altar, in front of everybody, rather than in a test.</p>
+	 */
+	@Test
+	void theRitualWindowIsThreeMinutesAndTheWireAgrees() {
+		assertEquals(3 * 60 * 20, WorldInterfacePolicy.RITUAL_WINDOW_TICKS);
+		assertEquals(WorldInterfacePolicy.RITUAL_WINDOW_TICKS,
+				new AltarSnapshotS2C(WorldInterfaceProtocol.VERSION, java.util.UUID.randomUUID(), 0L, 1L,
+						WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(), BlockPos.ZERO,
+						java.util.List.of(), java.util.List.of(), 0, false,
+						WorldInterfaceProtocol.AltarStatus.WAITING.wireId(),
+						WorldInterfacePolicy.RITUAL_WINDOW_TICKS, false).windowRemainingTicks());
+		assertThrows(IllegalArgumentException.class, () -> new AltarSnapshotS2C(
+				WorldInterfaceProtocol.VERSION, java.util.UUID.randomUUID(), 0L, 1L,
+				WorldInterfaceProtocol.Stage.WAITING_TERMINALS.wireId(), BlockPos.ZERO,
+				java.util.List.of(), java.util.List.of(), 0, false,
+				WorldInterfaceProtocol.AltarStatus.WAITING.wireId(),
+				WorldInterfacePolicy.RITUAL_WINDOW_TICKS + 1, false));
 	}
 
 	/**
@@ -212,6 +240,58 @@ class WorldInterfacePolicyTest {
 				WorldInterfacePolicy.REPAIR_DURATION_TICKS));
 		assertThrows(IllegalArgumentException.class,
 				() -> WorldInterfacePolicy.repairedElapsedTicks(-1L, 0L));
+	}
+
+	/**
+	 * The wind-back covers the whole tail of a won encounter, not the one stage it starts in.
+	 *
+	 * <p>The test above pinned the curve and the curve was never wrong. What was wrong was where it
+	 * got applied: only at {@code SUCCESS_RESOLUTION}. {@link WorldInterfacePolicy#REPAIR_DURATION_TICKS}
+	 * is 500 and the exit opens on resolution tick 500, so the stage advanced to {@code PORTAL_OPEN}
+	 * on exactly the tick the repair reached zero - and the projection fell straight back to the raw
+	 * stored clock. The rail undid the damage and then re-applied all of it in one frame.</p>
+	 */
+	@Test
+	void theRepairedReadoutSurvivesTheExitOpening() {
+		// Where it must be showing the repair.
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.SUCCESS_RESOLUTION,
+				WorldInterfaceStage.PORTAL_OPEN, WorldInterfaceStage.COMPLETE)) {
+			assertTrue(WorldInterfacePolicy.repairsCollapseReadout(stage, true),
+					() -> "a won encounter must keep the repaired readout at " + stage);
+		}
+		// A loss reaches PORTAL_OPEN too, and keeps the island the countdown left it.
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.FAILURE_RESOLUTION,
+				WorldInterfaceStage.PORTAL_OPEN, WorldInterfaceStage.COMPLETE)) {
+			assertFalse(WorldInterfacePolicy.repairsCollapseReadout(stage, false),
+					() -> "a lost encounter must not repair its readout at " + stage);
+		}
+		// Nothing before the resolution: during the fight the rail is a deadline, not a repair.
+		for (WorldInterfaceStage stage : List.of(WorldInterfaceStage.UNPREPARED,
+				WorldInterfaceStage.ARENA_READY, WorldInterfaceStage.WAITING_TERMINALS,
+				WorldInterfaceStage.SUMMONING, WorldInterfaceStage.PHASE_1,
+				WorldInterfaceStage.PHASE_2, WorldInterfaceStage.PHASE_3)) {
+			assertFalse(WorldInterfacePolicy.repairsCollapseReadout(stage, true),
+					() -> "the rail must still be a deadline at " + stage);
+		}
+		assertFalse(WorldInterfacePolicy.repairsCollapseReadout(null, true));
+
+		// The seam itself: the readout at the tick the exit opens must not be higher than the tick
+		// before it. This is the assertion the old shape could not have passed.
+		long defeat = WorldInterfacePolicy.COLLAPSE_DURATION_TICKS;
+		long atRepairEnd = projectedReadout(WorldInterfaceStage.SUCCESS_RESOLUTION, defeat,
+				WorldInterfacePolicy.REPAIR_DURATION_TICKS - 1L);
+		long afterExitOpens = projectedReadout(WorldInterfaceStage.PORTAL_OPEN, defeat,
+				WorldInterfacePolicy.REPAIR_DURATION_TICKS);
+		assertTrue(afterExitOpens <= atRepairEnd,
+				() -> "the rail jumped back to " + afterExitOpens + " when the exit opened");
+		assertEquals(0L, afterExitOpens, "the repair has finished by the time the exit opens");
+	}
+
+	/** The projection the encounter puts on the wire, in the same shape the service builds it. */
+	private static long projectedReadout(WorldInterfaceStage stage, long elapsed, long resolutionAge) {
+		return WorldInterfacePolicy.repairsCollapseReadout(stage, true)
+				? WorldInterfacePolicy.repairedElapsedTicks(elapsed, resolutionAge)
+				: elapsed;
 	}
 
 	@Test

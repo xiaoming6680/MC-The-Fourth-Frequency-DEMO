@@ -26,6 +26,19 @@ public final class WatcherService {
 	private static final int POSITION_ATTEMPTS = 48;
 	/** How far behind it something solid has to stand for the figure to read as framed. */
 	private static final double BACKDROP_RANGE = 6.0;
+	/**
+	 * Time between attempts per player, before the random spread is added.
+	 *
+	 * <p>Shortened from 2800+3600. Two of the three things that decide whether a sighting happens -
+	 * darkness and a usable position - are environmental and fail often, and until now a failure of
+	 * either cost a full interval (see the retry constant below). Raising the rate and stopping the
+	 * waste are the same change made from both ends.
+	 */
+	private static final long BASE_INTERVAL_TICKS = 1800L;
+	private static final int INTERVAL_SPREAD_TICKS = 2400;
+	/** The wait after an attempt that never got as far as being a sighting. */
+	private static final long RETRY_INTERVAL_TICKS = 400L;
+
 	private static final Map<UUID, Long> NEXT_ATTEMPT = new HashMap<>();
 	private static boolean initialized;
 	private WatcherService() { }
@@ -80,19 +93,40 @@ public final class WatcherService {
 
 	private static boolean trySpawn(ServerPlayer player, FrequencyWorldData data, boolean forced) {
 		if (!(player.level() instanceof ServerLevel level) || !player.isAlive() || player.isSpectator()) return false;
+		// Applies to the forced debug path as well. The band-stage gate below already makes an
+		// ambient sighting in the unrendered layer impossible - that anomaly is tier five and this
+		// figure only appears before the terminal band has advanced at all - but the debug entry
+		// point bypasses that gate, and a watcher standing in a corridor of the layer would be the
+		// one thing down there that means something, in a place whose whole effect is that nothing
+		// does. See PrivateDimensions for why this question is asked in one place.
+		if (PrivateDimensions.isPrivate(level)) return false;
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
 		if (record == null || (!forced && record.getIntOr(TerminalData.BAND_STAGE, 0) > 0)) return false;
 		long now = level.getGameTime();
 		if (!forced) {
 			if (now < NEXT_ATTEMPT.getOrDefault(player.getUUID(), record.getLongOr(TerminalData.ISSUED_GAME_TIME, now) + 2400L)) return false;
-			NEXT_ATTEMPT.put(player.getUUID(), now + 2800L + level.getRandom().nextInt(3600));
-			if (!inDarkness(level, player)) return false;
+			NEXT_ATTEMPT.put(player.getUUID(), now + BASE_INTERVAL_TICKS + level.getRandom().nextInt(INTERVAL_SPREAD_TICKS));
+			// Daylight is not a sighting that happened, so it does not cost one.
+			//
+			// The clock was consumed above before this test, which meant an attempt that landed at
+			// noon spent the whole two-to-five-minute interval on a condition that was never going to
+			// pass and could not have been influenced. Half the day is daylight, so on average half
+			// of every player's chances were being burned this way - which is most of why the figure
+			// felt rare. Retrying shortly is cheap and the input really does change: night arrives.
+			if (!inDarkness(level, player)) {
+				NEXT_ATTEMPT.put(player.getUUID(), now + RETRY_INTERVAL_TICKS);
+				return false;
+			}
 		}
 		AABB search = player.getBoundingBox().inflate(64.0);
 		if (level.getEntitiesOfClass(WatcherEntity.class, search, watcher -> watcher.observes(player.getUUID())).size() > 0) return false;
 		BlockPos position = findPosition(level, player, forced,
 				forced ? 12.0 : 18.0, forced ? 20.0 : 32.0, forced);
-		if (position == null) return false;
+		if (position == null) {
+			// Same reasoning as the darkness test: no placement, no sighting, no charge.
+			if (!forced) NEXT_ATTEMPT.put(player.getUUID(), now + RETRY_INTERVAL_TICKS);
+			return false;
+		}
 		WatcherEntity watcher = ModEntities.WATCHER.create(level, EntitySpawnReason.EVENT);
 		if (watcher == null) return false;
 		// Standing at an angle so the torso reads as facing elsewhere while the head is already

@@ -12,6 +12,8 @@ import com.xm.thefourthfrequency.content.WorldInterfaceExitPortalBlockEntity;
 import com.xm.thefourthfrequency.client_render.ReworkBodyModel;
 import com.xm.thefourthfrequency.client_render.ReworkBodyRenderer;
 import com.xm.thefourthfrequency.client_render.HimModel;
+import com.xm.thefourthfrequency.client_render.BacteriaModel;
+import com.xm.thefourthfrequency.client_render.BacteriaRenderer;
 import com.xm.thefourthfrequency.client_render.HimRenderer;
 import com.xm.thefourthfrequency.client_render.StabilityAnchorModel;
 import com.xm.thefourthfrequency.client_render.StabilityAnchorRenderer;
@@ -52,6 +54,9 @@ public final class TheFourthFrequencyClient implements ClientModInitializer {
 		EntityRendererRegistry.register(ModEntities.REWORK_BODY, ReworkBodyRenderer::new);
 		EntityModelLayerRegistry.registerModelLayer(WatcherRenderer.MODEL_LAYER, WatcherModel::createBodyLayer);
 		EntityRendererRegistry.register(ModEntities.WATCHER, WatcherRenderer::new);
+		EntityModelLayerRegistry.registerModelLayer(BacteriaRenderer.MODEL_LAYER,
+				BacteriaModel::createBodyLayer);
+		EntityRendererRegistry.register(ModEntities.BACTERIA, BacteriaRenderer::new);
 		EntityModelLayerRegistry.registerModelLayer(HimRenderer.MODEL_LAYER, HimModel::createBodyLayer);
 		EntityRendererRegistry.register(ModEntities.HIM, HimRenderer::new);
 		EntityModelLayerRegistry.registerModelLayer(WorldInterfaceRenderer.MODEL_LAYER,
@@ -76,18 +81,21 @@ public final class TheFourthFrequencyClient implements ClientModInitializer {
 		FirstRunNoticeController.initialize();
 		MetaController.initialize();
 		TerminalClientNetworking.initialize();
+		TerminalAutoOpenController.initialize();
 		TerminalNoticeHud.initialize();
 		WorldInterfaceClientNetworking.initialize();
 		WorldInterfacePresentationController.initialize();
 		WorldInterfaceHud.initialize();
 		AmbientAnomalyClient.initialize();
 		AnomalyPresentationController.initialize();
+		UnrenderedLayerClient.initialize();
 		MenuErosionState.initialize();
 		MusicDirector.initialize();
 		DebugPanelClient.initialize();
 		WorldDecayClient.initialize();
 		SignalBedController.initialize();
 		SkyInstrumentSampler.initialize();
+		EndWeatherClient.initialize();
 		UseItemCallback.EVENT.register((player, level, hand) -> {
 			if (level.isClientSide() && player.getItemInHand(hand).is(ModItems.OLD_TERMINAL)
 					&& TerminalData.belongsTo(player.getItemInHand(hand), player.getUUID())) {

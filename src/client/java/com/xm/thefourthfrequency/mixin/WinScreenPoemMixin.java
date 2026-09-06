@@ -84,6 +84,14 @@ public abstract class WinScreenPoemMixin {
 		thefourthfrequency$poem = WorldInterfaceVanillaPoemClient.claim(includesPoem);
 		if (thefourthfrequency$poem == null) return;
 		PoemSkipGuard.begin();
+		// The multiplier has to be applied to the field here as well as to the calculation below.
+		// The constructor assigns unmodifiedScrollSpeed straight to scrollSpeed without going
+		// through calculateScrollSpeed, and that calculation is only ever reached again from a key
+		// event - so without this line a poem watched in silence ran at vanilla's own pace for its
+		// entire length, and only jumped to the intended speed if the player happened to press
+		// something. Written as a multiply because the field already holds unmodifiedScrollSpeed at
+		// this point, which keeps the two paths reading the same way.
+		scrollSpeed *= BASE_SCROLL_SCALE;
 		Runnable originalFinish = onFinished;
 		onFinished = () -> {
 			if (thefourthfrequency$completionStarted) return;
@@ -204,9 +212,9 @@ public abstract class WinScreenPoemMixin {
 	}
 
 	/** Multiplier on the unassisted scroll. */
-	@Unique private static final float BASE_SCROLL_SCALE = 1.7F;
+	@Unique private static final float BASE_SCROLL_SCALE = 2.6F;
 	/** Multiplier while space is held. Above the base, so skipping stays clearly faster than reading. */
-	@Unique private static final float SKIP_SCROLL_SCALE = 2.6F;
+	@Unique private static final float SKIP_SCROLL_SCALE = 4.0F;
 
 	@Inject(method = "onClose", at = @At("HEAD"))
 	private void thefourthfrequency$rememberExplicitSkip(CallbackInfo callback) {

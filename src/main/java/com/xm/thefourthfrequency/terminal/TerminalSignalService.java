@@ -111,7 +111,7 @@ public final class TerminalSignalService {
 
 	public static void record(ServerPlayer player, SignalBand band, String type, int variant,
 			int severity, boolean unread) {
-		if (AnomalyCatalog.contains(type)) return;
+		if (AnomalyCatalog.containsHistorical(type)) return;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		if (data.terminalRecord(player.getUUID()).isEmpty()) return;
 		data.updateTerminalRecord(player.getUUID(), tag -> append(tag, player, band, type, variant, severity, unread));
@@ -151,8 +151,21 @@ public final class TerminalSignalService {
 		if (TerminalAttentionPolicy.unreadReminderDue(
 				unreadCount[0], state.unreadSince, now, state.sent)) {
 			UNREAD_REMINDERS.put(playerId, new UnreadReminderState(state.unreadSince, unreadCount[0], true));
-			TerminalNoticeService.unreadReminder(player, unreadCount[0]);
+			TerminalNoticeService.unreadReminder(player, unreadCount[0], verbosity(
+					data.terminalRecord(player.getUUID()).orElse(null)));
 		}
+	}
+
+	/**
+	 * How much this player's profile says the terminal should explain.
+	 *
+	 * <p>Read here rather than passed in because the reminder is the only consumer: everything else
+	 * this class sends is a record line, and record lines do not change shape by who is reading them.
+	 */
+	private static TerminalGuidanceVerbosity verbosity(CompoundTag record) {
+		if (record == null) return TerminalGuidanceVerbosity.VERBOSE;
+		return TerminalGuidanceVerbosity.of(TerminalData.profileAnswers(record),
+				TerminalData.profileTaken(record));
 	}
 
 	private static int totalUnreadCount(CompoundTag tag) {

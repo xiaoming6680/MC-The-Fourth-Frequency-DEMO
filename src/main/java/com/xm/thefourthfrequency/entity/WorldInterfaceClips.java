@@ -73,9 +73,18 @@ public final class WorldInterfaceClips {
 	// One authored recovery per attack. Each drives a bone its own pair leaves alone, so the settle
 	// composes cleanly instead of fighting the release, and each overshoots past neutral before
 	// damping - that overshoot is the whole reason a blow reads as having had mass behind it.
+	//
+	// The three body accents below were authored at a spacing no body this size can honour. The
+	// laser's ran 6.20 -> 6.30 -> 6.41 -> 6.50, so its legs were two, two and one tick; the weapon's
+	// were 0.08, 0.06 and 0.04 seconds, which is under a tick each. On a mob the size of a zombie
+	// that is a punchy recoil. On `storm_body`, which every neck and every limb hangs off, it throws
+	// the whole storm - the skulls covered better than four blocks in a single tick, and the accent
+	// that was supposed to say "that blow had mass behind it" said "the model changed". The shape and
+	// the overshoot are kept exactly; only the legs are opened out to a quarter of a second or more,
+	// which is the shortest interval a body this wide can travel in and still be seen travelling.
 	public static final WorldInterfaceClip LASER_RECOVER = WorldInterfaceClip.builder(6.5F)
-			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 6.20F, 0, 0, 0,
-					6.30F, 14, -9, 0, 6.41F, -5, 3, 0, 6.5F, 0, 0, 0)).build();
+			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 5.60F, 0, 0, 0,
+					5.86F, 14, -9, 0, 6.16F, -5, 3, 0, 6.5F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip ORB_RECOVER = WorldInterfaceClip.builder(3.0F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 0.50F, -26, 0, 0,
 					0.76F, 12, 0, 0, 1.20F, -6, 0, 0, 3.0F, 0, 0, 0)).build();
@@ -83,11 +92,11 @@ public final class WorldInterfaceClips {
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 4.44F, -34, 0, 0,
 					4.60F, 15, 0, 0, 5.5F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip WEAPON_RECOVER = WorldInterfaceClip.builder(10.8F)
-			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 10.62F, 0, 0, 0,
-					10.70F, 21, 0, -12, 10.76F, -8, 0, 5, 10.8F, 0, 0, 0)).build();
+			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 9.86F, 0, 0, 0,
+					10.14F, 21, 0, -12, 10.46F, -8, 0, 5, 10.8F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip THROW_RECOVER = WorldInterfaceClip.builder(4.5F)
-			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 3.62F, 0, 0, 0,
-					3.78F, -22, 46, 0, 4.02F, 6, -14, 0, 4.5F, 0, 0, 0)).build();
+			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 3.46F, 0, 0, 0,
+					3.78F, -22, 46, 0, 4.10F, 6, -14, 0, 4.5F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip HOTBAR_RECOVER = WorldInterfaceClip.builder(6.65F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 6.50F, -20, 0, 0,
 					6.56F, 9, 0, 0, 6.61F, -4, 0, 0, 6.65F, 0, 0, 0)).build();
@@ -142,30 +151,53 @@ public final class WorldInterfaceClips {
 		return clips.length == 0 ? null : clips[0];
 	}
 
+	/**
+	 * The three heads breathe a third of a cycle apart, so no two of them reach the same place at the
+	 * same time.
+	 *
+	 * <p><b>Phase is a rotation of the values, not of the clock.</b> It used to be applied by wrapping
+	 * each keyframe's <em>timestamp</em> around the loop, which left the second and third heads
+	 * holding keyframe lists that were no longer in time order - {@code (0, 3.5, 5.0, 0.5, 6.0)} and
+	 * {@code (0, 5.5, 1.0, 2.5, 6.0)}. Everything downstream assumes that list is sorted:
+	 * {@code Mth.binarySearch} does, and {@link WorldInterfaceClip#apply} picks its Catmull-Rom
+	 * neighbours by index. So those two heads spent the loop interpolating between keyframes that are
+	 * not adjacent in time, and popped each time the search crossed one of the out-of-order entries.
+	 *
+	 * <p>It is not large - about a block and a third on a skull - but it fires three times every six
+	 * seconds, forever, on the <em>idle</em> pose, which is the pose the storm is in for most of the
+	 * fight. A boss that twitches while it is doing nothing is a boss that never reads as heavy.
+	 */
 	private static WorldInterfaceClip idleHeads() {
+		// Local rather than fields: IDLE_HEADS is initialised in declaration order above, so a
+		// constant declared after it would still be null when this runs.
+		float[][] neckKeys = {{4, 7, -3}, {-3, -5, 2}, {5, 3, 3}};
+		float[][] skullKeys = {{-5, 9, 0}, {3, -8, 0}};
 		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(6.0F).looping();
 		for (int head = 0; head < HEADS.length; head++) {
-			// A third of a cycle apart, so no two heads reach the same place at the same time.
-			float shift = head * 2.0F;
+			float[][] neck = phase(neckKeys, head);
+			float[][] skull = phase(skullKeys, head);
 			builder.addAnimation(HEADS[head] + "_neck_a", rotation(
 					0.0F, 0, 0, 0,
-					wrap(1.5F + shift), 4, 7, -3,
-					wrap(3.0F + shift), -3, -5, 2,
-					wrap(4.5F + shift), 5, 3, 3,
+					1.5F, neck[0][0], neck[0][1], neck[0][2],
+					3.0F, neck[1][0], neck[1][1], neck[1][2],
+					4.5F, neck[2][0], neck[2][1], neck[2][2],
 					6.0F, 0, 0, 0));
 			builder.addAnimation(HEADS[head] + "_skull", rotation(
 					0.0F, 0, 0, 0,
-					wrap(2.0F + shift), -5, 9, 0,
-					wrap(4.0F + shift), 3, -8, 0,
+					2.0F, skull[0][0], skull[0][1], skull[0][2],
+					4.0F, skull[1][0], skull[1][1], skull[1][2],
 					6.0F, 0, 0, 0));
 		}
 		return builder.build();
 	}
 
-	/** Keeps a shifted keyframe time inside the clip, so every head shares one loop length. */
-	private static float wrap(float seconds) {
-		float wrapped = seconds % 6.0F;
-		return wrapped <= 0.0F ? 0.01F : Math.min(wrapped, 5.99F);
+	/** The same authored cycle, entered at a different point in it. */
+	private static float[][] phase(float[][] keys, int head) {
+		float[][] rotated = new float[keys.length][];
+		for (int index = 0; index < keys.length; index++) {
+			rotated[index] = keys[(index + head) % keys.length];
+		}
+		return rotated;
 	}
 
 	/**
@@ -180,8 +212,17 @@ public final class WorldInterfaceClips {
 		for (int head = 0; head < HEADS.length; head++) {
 			float lead = head == 0 ? 1.0F : 0.66F;
 			float delay = head == 0 ? 0.0F : 0.22F;
+			// The wind-back is reached, not started from.
+			//
+			// This frame used to sit at zero seconds, which meant the necks were already a third of
+			// the way <em>against</em> the aim on the tick the action was published - twenty degrees
+			// of centre neck appearing between one frame and the next, with nothing before it. The
+			// anticipation is the best beat in the clip and it was being spent as a pop; given its own
+			// fifth of a second to arrive in, it reads as the head drawing back before it commits.
+			float anticipation = Math.min(0.45F, seconds * 0.10F);
 			builder.addAnimation(HEADS[head] + "_neck_a", rotation(
-					0.0F, 0, -yaw * 0.35F * lead, 0,
+					0.0F, 0, 0, 0,
+					anticipation, 0, -yaw * 0.35F * lead, 0,
 					seconds * 0.55F + delay, 0, yaw * lead, 0,
 					seconds, 0, 0, 0));
 			builder.addAnimation(HEADS[head] + "_skull", rotation(
@@ -192,17 +233,70 @@ public final class WorldInterfaceClips {
 		return builder.build();
 	}
 
-	/** The centre head's jaw drops through the charge and snaps shut on the release. */
+	/**
+	 * Degrees per second a bone is allowed to travel while it unwinds back to neutral.
+	 *
+	 * <p><b>This number is the difference between a large thing moving and a large thing blinking.</b>
+	 * Every hold in this file used to end with a flat {@code seconds - 0.12F} release: whatever the
+	 * bone was holding - twenty-six degrees or a hundred and eighty - was undone in 0.12 seconds, two
+	 * and a half ticks. On the centre neck at third form the skull sits the better part of sixteen
+	 * blocks out from its pivot, so the eviction's hundred and eighty degrees moved it something like
+	 * twenty-five blocks inside two frames. There is no speed at which that reads as a head turning;
+	 * it reads as a head that was somewhere else and is now here, which is exactly the "it teleports"
+	 * report this replaces.
+	 *
+	 * <p>Ninety degrees a second is half the rate the gaze is allowed to travel at
+	 * ({@code WorldInterfaceEntity.GAZE_TURN_PER_TICK}, about a hundred and eighty a second), and
+	 * deliberately so: the gaze is a glance and this is a structure the size of a building putting
+	 * itself back. The whole point of the boss is mass, and mass is communicated by how long it takes
+	 * something to stop.
+	 */
+	private static final float SETTLE_DEGREES_PER_SECOND = 90.0F;
+
+	/**
+	 * The shortest unwind any bone gets, however small the angle.
+	 *
+	 * <p>Seven ticks. Below this even a modest correction lands inside the time a player needs to
+	 * notice it happened at all, and a body that finishes its movements instantly is a body with no
+	 * weight regardless of how far it actually travelled.
+	 */
+	private static final float MIN_SETTLE_SECONDS = 0.36F;
+
+	/**
+	 * The most of the post-peak window an unwind may spend.
+	 *
+	 * <p>The hold is the telegraph - it is what tells a player they are the one being aimed at - so
+	 * the settle is not allowed to eat it. At most it takes a little under half of whatever is left
+	 * after the pose has arrived, which leaves the majority of the window still reading as a hold.
+	 */
+	private static final float MAX_SETTLE_SHARE = 0.45F;
+
+	/**
+	 * When a hold ends and the unwind begins, given how far the bone has to come back.
+	 *
+	 * @param clipSeconds the clip's whole length, which is also the action's duration
+	 * @param peakSeconds when the pose finishes arriving, so the hold cannot be shortened from the front
+	 * @param amplitudeDegrees the largest angle being undone
+	 */
+	private static float releaseAt(float clipSeconds, float peakSeconds, float amplitudeDegrees) {
+		float available = Math.max(0.0F, clipSeconds - peakSeconds);
+		float wanted = Math.max(MIN_SETTLE_SECONDS,
+				Math.abs(amplitudeDegrees) / SETTLE_DEGREES_PER_SECOND);
+		return clipSeconds - Math.min(wanted, available * MAX_SETTLE_SHARE);
+	}
+
+	/** The centre head's jaw drops through the charge and closes under its own weight. */
 	private static WorldInterfaceClip jawOpen(float seconds, float peakSeconds, float openDegrees) {
 		return WorldInterfaceClip.builder(seconds)
 				.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0,
 						peakSeconds, openDegrees, 0, 0,
-						Math.max(peakSeconds, seconds - 0.12F), openDegrees * 0.88F, 0, 0,
+						Math.max(peakSeconds, releaseAt(seconds, peakSeconds, openDegrees * 0.88F)),
+						openDegrees * 0.88F, 0, 0,
 						seconds, 0, 0, 0)).build();
 	}
 
 	private static WorldInterfaceClip coreCharge(float seconds, float chargeSeconds, float yaw) {
-		float release = Math.max(chargeSeconds, seconds - 0.12F);
+		float release = Math.max(chargeSeconds, releaseAt(seconds, chargeSeconds, yaw));
 		return WorldInterfaceClip.builder(seconds)
 				.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, chargeSeconds, 0, yaw, 0,
 						release, 0, yaw, 0, seconds, 0, 0, 0)).build();
@@ -210,7 +304,7 @@ public final class WorldInterfaceClips {
 
 	/** The centre head rears back and drives forward: the bolt is spat, not emitted. */
 	private static WorldInterfaceClip headLunge(float seconds, float chargeSeconds, double peakScale) {
-		float release = Math.max(chargeSeconds, seconds - 0.12F);
+		float release = Math.max(chargeSeconds, releaseAt(seconds, chargeSeconds, 26.0F));
 		return WorldInterfaceClip.builder(seconds)
 				.addAnimation("center_neck_b", rotation(0.0F, 0, 0, 0,
 						chargeSeconds, -34, 0, 0, release, 26, 0, 0, seconds, 0, 0, 0))
@@ -221,7 +315,7 @@ public final class WorldInterfaceClips {
 
 	/** A head locked onto one player and held there, which is what being singled out looks like. */
 	private static WorldInterfaceClip headHold(float seconds, float warningSeconds, float yaw) {
-		float release = seconds - 0.12F;
+		float release = releaseAt(seconds, warningSeconds, yaw);
 		return WorldInterfaceClip.builder(seconds)
 				.addAnimation("center_neck_a", rotation(0.0F, 0, 0, 0, warningSeconds, 0, yaw, 0,
 						release, 0, yaw, 0, seconds, 0, 0, 0))
@@ -239,7 +333,7 @@ public final class WorldInterfaceClips {
 	 * {@code WorldInterfaceAnatomy#mountRoll}.
 	 */
 	private static WorldInterfaceClip flankSweep(float seconds, float warningSeconds) {
-		float release = seconds - 0.12F;
+		float release = releaseAt(seconds, warningSeconds, 78.0F);
 		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(seconds);
 		for (int head = 1; head < HEADS.length; head++) {
 			float outward = head == 1 ? -1.0F : 1.0F;
@@ -254,7 +348,7 @@ public final class WorldInterfaceClips {
 
 	private static WorldInterfaceClip tendrilHold(float seconds, float warningSeconds, float pitch) {
 		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(seconds);
-		float release = seconds - 0.12F;
+		float release = releaseAt(seconds, warningSeconds, Math.max(Math.abs(pitch), 48.0F));
 		for (int index = 0; index < TENDRIL_COUNT; index++) {
 			float side = index % 2 == 0 ? 1.0F : -1.0F;
 			builder.addAnimation("tendril_" + index, rotation(0.0F, 0, 0, side * 18,
@@ -269,7 +363,7 @@ public final class WorldInterfaceClips {
 	}
 
 	private static WorldInterfaceClip weaponHold(float seconds, float warningSeconds) {
-		float release = seconds - 0.12F;
+		float release = releaseAt(seconds, warningSeconds, 38.0F);
 		return WorldInterfaceClip.builder(seconds)
 				.addAnimation("weapon", rotation(0.0F, 0, 0, 0,
 						warningSeconds, -18, 0, 38, release, -18, 0, 38,
@@ -313,18 +407,26 @@ public final class WorldInterfaceClips {
 			float releasePitch = throwAway ? pitch * -0.55F : pitch * 1.28F;
 			float releaseYaw = throwAway ? side * -86.0F : side * -34.0F;
 			float releaseRoll = throwAway ? side * -38.0F : side * 66.0F;
+			// The throw peaks with room left to come down from it.
+			//
+			// This frame used to sit at {@code seconds - 0.05F} - one tick before the clip ended - so
+			// the limbs reached a pose eighty-six degrees off their rest and returned from it in a
+			// single frame. It is the sharpest cliff in the file, and it fires on the attack that
+			// already has the most going on. The peak keeps its value and moves earlier; the follow
+			// through is still fast, because a throw should be, but it is now travelled.
+			float throwAt = releaseAt(seconds, releaseSeconds, releaseYaw);
 			builder.addAnimation("tendril_" + index, rotation(0.0F, 0, 0, side * 18,
 					warningSeconds, pitch * 0.45F, side * 30, side * 30,
 					liftSeconds, pitch, side * 24, side * 42,
 					releaseSeconds, pitch * 0.92F, side * 20, side * 46,
-					seconds - 0.05F, releasePitch, releaseYaw, releaseRoll,
+					throwAt, releasePitch, releaseYaw, releaseRoll,
 					seconds, 0, 0, side * 18));
 			// The tip closes last and opens first: the limb grips with its end.
 			builder.addAnimation("tendril_" + index + "_tip", rotation(0.0F, 0, 0, 0,
 					warningSeconds + 0.18F, 34, 0, side * -26,
 					liftSeconds, 52, 0, side * -34,
 					releaseSeconds, 48, 0, side * -30,
-					seconds - 0.05F, -18, 0, 0,
+					throwAt, -18, 0, 0,
 					seconds, 0, 0, 0));
 		}
 		return builder.build();
@@ -371,13 +473,14 @@ public final class WorldInterfaceClips {
 			float arrival = Math.max(0.12F, warningSeconds * (0.45F + phase * 0.55F));
 			float rise = -58.0F - phase * 34.0F;
 			float splay = 8.0F + phase * 22.0F;
+			float release = releaseAt(seconds, arrival, rise * 0.92F);
 			builder.addAnimation("tendril_" + index, rotation(0.0F, 0, 0, side * 18,
 					arrival, rise, side * splay, side * (18.0F + phase * 16.0F),
-					seconds - 0.12F, rise * 0.92F, side * (splay + 6.0F), side * 22,
+					release, rise * 0.92F, side * (splay + 6.0F), side * 22,
 					seconds, 0, 0, side * 18));
 			builder.addAnimation("tendril_" + index + "_mid", rotation(0.0F, 0, 0, 0,
 					arrival + 0.14F, rise * 0.34F, 0, side * 18,
-					seconds - 0.12F, rise * 0.30F, 0, side * 16, seconds, 0, 0, 0));
+					release, rise * 0.30F, 0, side * 16, seconds, 0, 0, 0));
 		}
 		return builder.build();
 	}

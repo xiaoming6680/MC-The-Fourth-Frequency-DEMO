@@ -10,6 +10,7 @@ public final class DebugNetworking {
 	public static void initialize() {
 		if (initialized) return;
 		initialized = true;
+		DebugPanelService.initialize();
 		PayloadTypeRegistry.playC2S().register(DebugOpenPayload.TYPE, DebugOpenPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(DebugActionPayload.TYPE, DebugActionPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(DebugStatusPayload.TYPE, DebugStatusPayload.CODEC);

@@ -21,12 +21,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 
-import java.util.LinkedHashSet;
 import java.util.Comparator;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /** Server-side journal and recovery loop for terminal sacrifice at the resonance core. */
@@ -37,7 +35,7 @@ public final class WorldInterfaceRitualService {
 	private static final int REMINDER_SCAN_INTERVAL_TICKS = 20;
 	private static final int REMINDER_COOLDOWN_TICKS = 400;
 	private static final Map<UUID, Long> REMINDED_AT = new java.util.concurrent.ConcurrentHashMap<>();
-	private static AltarOpenHandler altarOpenHandler = (player, position) -> false;
+	private static AltarOpenHandler altarOpenHandler = (player, position, status) -> false;
 
 	private WorldInterfaceRitualService() {
 	}
@@ -57,10 +55,23 @@ public final class WorldInterfaceRitualService {
 	}
 
 	public static boolean openAltar(ServerPlayer player, BlockPos corePosition) {
+		return openAltar(player, corePosition, WorldInterfaceProtocol.AltarStatus.READY);
+	}
+
+	/**
+	 * Opens the altar screen with the answer to whatever the player just did already on it.
+	 *
+	 * <p>The status matters because the screen is now opened by two different things. Right-clicking
+	 * the core with an empty hand is a question, and {@code READY} is the answer to it. Right-clicking
+	 * it with a terminal is an act, and the screen that comes up afterwards has to be showing what
+	 * became of it rather than the neutral line an onlooker gets.</p>
+	 */
+	private static boolean openAltar(ServerPlayer player, BlockPos corePosition,
+			WorldInterfaceProtocol.AltarStatus status) {
 		Snapshot snapshot = WorldInterfaceState.snapshot(player.level().getServer());
 		if (!actionContextValid(player, snapshot, snapshot.encounterId().orElse(null), snapshot.revision(),
 				corePosition, false)) return false;
-		return altarOpenHandler.open(player, corePosition);
+		return altarOpenHandler.open(player, corePosition, status);
 	}
 
 	/**
@@ -79,16 +90,61 @@ public final class WorldInterfaceRitualService {
 		if (!actionContextValid(player, snapshot, snapshot.encounterId().orElse(null), snapshot.revision(),
 				corePosition, false)) return false;
 		RitualResult result = deposit(player, snapshot.encounterId().orElse(null), snapshot.revision());
+		WorldInterfaceProtocol.AltarStatus status = WorldInterfaceProtocol.AltarStatus.fromReason(result.reason());
 		// Without a screen open there is nothing to show the outcome, so the result is spoken on the
 		// notice stack - a refusal has to say why, or right-clicking an altar that rejects you is
 		// indistinguishable from right-clicking a block that does nothing.
-		Component message = Component.translatable(
-				WorldInterfaceProtocol.AltarStatus.fromReason(result.reason()).translationKey());
+		Component message = Component.translatable(status.translationKey());
 		if (result.applied()) TerminalNoticeService.encounter(player, message);
 		else TerminalNoticeService.denied(player, message);
+		if (result.applied()) {
+			// Insertion is the one moment the player is guaranteed to be standing at the core, and
+			// it is also the moment the encounter stops moving on its own: nothing else happens until
+			// somebody presses summon. Depositing used to leave them facing a block that had visibly
+			// taken their terminal and then done nothing, with the button that starts the fight behind
+			// a second right-click nobody had been told to make. So the screen carrying that button
+			// comes up by itself, with the answer to what they just did already on it.
+			openAltar(player, corePosition, status);
+			if (!result.idempotent()) announceInsertion(server, player, result.snapshot());
+		}
 		return true;
 	}
 
+	/**
+	 * Tells the rest of the End that somebody just handed a terminal over.
+	 *
+	 * <p>The altar screen is the only place the roster exists, and it is a screen one player has open
+	 * while the others are standing outside it - so without this the fourth person to walk up has no
+	 * way of knowing three terminals are already in, and nobody watching has any reason to expect a
+	 * summon to be pressed. Both halves are in the line: how many the altar holds, and that it is
+	 * waiting on a person rather than on a timer.</p>
+	 *
+	 * <p>Sent to everyone in the End rather than to the depositors, spectators included: a player who
+	 * died on the way to the altar is watching this decision being made about them.</p>
+	 */
+	private static void announceInsertion(MinecraftServer server, ServerPlayer actor, Snapshot snapshot) {
+		long held = snapshot.terminalTransactions().values().stream()
+				.filter(value -> value.state() == TerminalTransactionState.REMOVED
+						|| value.state() == TerminalTransactionState.COMMITTED)
+				.count();
+		Component message = Component.translatable(
+				"message.thefourthfrequency.world_interface.altar_inserted_by",
+				actor.getGameProfile().name(), held);
+		for (ServerPlayer other : server.getPlayerList().getPlayers()) {
+			if (other.getUUID().equals(actor.getUUID()) || other.level().dimension() != Level.END) continue;
+			TerminalNoticeService.encounter(other, message);
+		}
+	}
+
+	/**
+	 * Escrows one player's terminal, adding them to the roster and arming the window if needed.
+	 *
+	 * <p>Depositing no longer starts the fight. Under the old rules the roster was every online
+	 * non-spectator, so "everyone on the roster has deposited" was a condition the last depositor
+	 * satisfied on behalf of the whole server, and the summon happened underneath them. Now the
+	 * roster is the depositors themselves, that condition is true from the first terminal onwards
+	 * and means nothing - so starting is its own act, and it is {@link #summon}.</p>
+	 */
 	public static RitualResult deposit(ServerPlayer player, UUID encounterId, long expectedRevision) {
 		MinecraftServer server = player.level().getServer();
 		Snapshot before = WorldInterfaceState.snapshot(server);
@@ -105,24 +161,20 @@ public final class WorldInterfaceRitualService {
 		if (existing != null && existing.state() == TerminalTransactionState.RETURN_PENDING) {
 			return reject(before, "rollback_pending");
 		}
-
-		// Once every removal is durable, recovery must roll the journal forward even if the
-		// server stopped before the single COMMITTED write. Returning at that boundary would
-		// make the same persisted transaction resolve differently after a restart.
-		if (readyToCommit(before)) return commitReady(server, before);
-		Set<UUID> eligible = eligiblePlayers(server);
-		if (eligible.isEmpty() || eligible.size() > WorldInterfaceState.MAX_ROSTER_SIZE
-				|| !eligible.contains(player.getUUID())) return reject(before, "invalid_roster_size");
-		if (!before.frozenRoster().isEmpty() && !before.frozenRoster().equals(eligible)) {
-			return rollback(server, before, "roster_changed");
-		}
 		if (existing != null && existing.state() == TerminalTransactionState.REMOVED) {
 			return RitualResult.idempotent(before, "already_deposited");
 		}
-		if (expectedRevision > before.revision()
-				|| expectedRevision < before.revision() && before.frozenRoster().isEmpty()) {
-			return reject(before, "revision_mismatch");
+		// The ceiling is now a queue-length refusal aimed at one person, rather than the old
+		// whole-server headcount that refused everybody. A ninth player at the altar is turned away;
+		// the eight already holding places keep them.
+		if (!before.frozenRoster().contains(player.getUUID())
+				&& before.frozenRoster().size() >= WorldInterfaceState.MAX_ROSTER_SIZE) {
+			return reject(before, "roster_full");
 		}
+		// A client claiming to be ahead of the server is nonsense; a client behind it is just someone
+		// else having deposited a moment ago, which is now an ordinary thing rather than grounds to
+		// invalidate the ritual.
+		if (expectedRevision > before.revision()) return reject(before, "revision_mismatch");
 
 		FrequencyWorldData data = FrequencyWorldData.get(server);
 		LocatedTerminal located = findValidBoundTerminal(player, data);
@@ -132,18 +184,23 @@ public final class WorldInterfaceRitualService {
 		if (existing != null && (!existing.terminalId().equals(terminalId)
 				|| existing.generation() != generation)) return reject(before, "terminal_mismatch");
 
+		// The first terminal in starts the clock; every later one joins the window already running,
+		// so a straggler cannot extend it and nobody can hold the altar open by shuffling in and out.
+		long deadline = before.ritualWindowRunning() ? before.ritualDeadlineTick()
+				: gameTime(server) + WorldInterfacePolicy.RITUAL_WINDOW_TICKS;
+
 		Snapshot prepared = before;
 		if (existing == null) {
 			TerminalTransaction transaction = new TerminalTransaction(player.getUUID(), terminalId, generation,
-					TerminalTransactionState.PREPARED, Math.max(0L, player.level().getGameTime()),
+					TerminalTransactionState.PREPARED, Math.max(0L, gameTime(server)),
 					TerminalData.copyTag(located.stack()));
 			MutationResult journal = WorldInterfaceState.mutate(server, encounterId, before.revision(), state -> {
 				if (state.stage() != WorldInterfaceStage.WAITING_TERMINALS) {
 					throw new IllegalStateException("ritual_not_waiting");
 				}
-				if (state.frozenRoster().isEmpty()) state.freezeRoster(eligible);
-				else if (!state.frozenRoster().equals(eligible)) throw new IllegalStateException("roster_changed");
+				state.joinRoster(player.getUUID());
 				state.putTerminalTransaction(transaction);
+				state.setRitualDeadline(deadline);
 				state.setGateState(WorldInterfaceGatewayState.PURPLE);
 			});
 			if (!journal.applied()) return reject(journal.snapshot(), journal.reason());
@@ -169,10 +226,33 @@ public final class WorldInterfaceRitualService {
 			// PREPARED remains a durable return entitlement if the second write failed.
 			return reject(removed.snapshot(), removed.reason());
 		}
+		return RitualResult.applied(removed.snapshot(), "terminal_deposited");
+	}
 
-		Snapshot afterRemoval = removed.snapshot();
-		if (!readyToCommit(afterRemoval)) return RitualResult.applied(afterRemoval, "terminal_deposited");
-		return commitReady(server, afterRemoval);
+	/**
+	 * Starts the encounter, on purpose, by somebody who is in it.
+	 *
+	 * <p>Requiring a deposit of whoever presses it is the whole point: the summon is the moment the
+	 * party stops being able to change its mind, and the person taking that decision has to be one
+	 * of the people it is taken about. Anyone standing at the altar without having given anything up
+	 * can watch, and cannot start.</p>
+	 */
+	public static RitualResult summon(ServerPlayer player, UUID encounterId, long expectedRevision) {
+		MinecraftServer server = player.level().getServer();
+		Snapshot snapshot = WorldInterfaceState.snapshot(server);
+		if (!actionContextValid(player, snapshot, encounterId, expectedRevision, snapshot.altarCenter(), false)) {
+			return reject(snapshot, "invalid_context");
+		}
+		if (snapshot.sacrificeCommitted()) return RitualResult.idempotent(snapshot, "already_committed");
+		if (snapshot.stage() != WorldInterfaceStage.WAITING_TERMINALS) {
+			return reject(snapshot, "ritual_not_waiting");
+		}
+		TerminalTransaction own = snapshot.terminalTransactions().get(player.getUUID());
+		if (own == null || own.state() != TerminalTransactionState.REMOVED) {
+			return reject(snapshot, "summon_requires_deposit");
+		}
+		if (!readyToSummon(snapshot)) return reject(snapshot, "summon_not_ready");
+		return commitReady(server, snapshot);
 	}
 
 	public static RitualResult withdraw(ServerPlayer player, UUID encounterId, long expectedRevision) {
@@ -240,13 +320,37 @@ public final class WorldInterfaceRitualService {
 			rollback(server, snapshot, "prepared_recovery");
 			return;
 		}
-		if (readyToCommit(snapshot)) {
-			commitReady(server, snapshot);
+		if (snapshot.frozenRoster().isEmpty()) return;
+		// A roster with no window is a shape these rules cannot produce. It is what a format-1 save
+		// caught mid-ritual decodes to, and it is treated the same way as every other uncertain
+		// boundary here: give the terminals back and let the party start again knowing where it is.
+		if (!snapshot.ritualWindowRunning()) {
+			rollback(server, snapshot, "ritual_window_missing");
 			return;
 		}
-		if (!snapshot.frozenRoster().isEmpty() && !snapshot.frozenRoster().equals(eligiblePlayers(server))) {
-			rollback(server, snapshot, "roster_changed");
+		if (gameTime(server) >= snapshot.ritualDeadlineTick()) {
+			rollback(server, snapshot, "ritual_window_expired");
 		}
+	}
+
+	/** Whether every escrowed terminal is durably removed, which is what {@link #summon} needs. */
+	private static boolean readyToSummon(Snapshot snapshot) {
+		return !snapshot.frozenRoster().isEmpty()
+				&& snapshot.frozenRoster().size() <= WorldInterfaceState.MAX_ROSTER_SIZE
+				&& snapshot.terminalTransactions().size() == snapshot.frozenRoster().size()
+				&& snapshot.terminalTransactions().values().stream()
+				.allMatch(value -> value.state() == TerminalTransactionState.REMOVED);
+	}
+
+	/**
+	 * The one clock the window is measured against.
+	 *
+	 * <p>The Overworld's, deliberately: {@code ServerLevelData} holds a single game time shared by
+	 * every dimension, so this is the same number the End would give, and reading it from a level
+	 * that is guaranteed to exist means the deadline does not depend on the End being loaded.</p>
+	 */
+	private static long gameTime(MinecraftServer server) {
+		return server.overworld().getGameTime();
 	}
 
 	/** Rolls a fully removed journal forward to its one atomic sacrifice commit. */
@@ -256,7 +360,7 @@ public final class WorldInterfaceRitualService {
 			if (snapshot.sacrificeCommitted()) {
 				return RitualResult.idempotent(snapshot, "already_deposited");
 			}
-			if (snapshot.stage() != WorldInterfaceStage.WAITING_TERMINALS || !readyToCommit(snapshot)) {
+			if (snapshot.stage() != WorldInterfaceStage.WAITING_TERMINALS || !readyToSummon(snapshot)) {
 				return reject(snapshot, "sacrifice_not_ready");
 			}
 			// readyToCommit() above already proved the roster is non-empty, and the deposit paths
@@ -296,6 +400,10 @@ public final class WorldInterfaceRitualService {
 							state.putTerminalTransaction(value.withState(TerminalTransactionState.RETURN_PENDING));
 						}
 					}
+					// Disarmed with the first write of the rollback rather than when the last terminal
+					// finally lands back in an inventory: an expired deadline that stays armed while the
+					// returns drain would re-fire this whole path on every tick in between.
+					state.setRitualDeadline(-1L);
 					state.setGateState(WorldInterfaceGatewayState.DORMANT);
 				});
 		if (!pending.applied()) return reject(pending.snapshot(), pending.reason());
@@ -402,13 +510,6 @@ public final class WorldInterfaceRitualService {
 		}
 	}
 
-	private static boolean readyToCommit(Snapshot snapshot) {
-		return !snapshot.frozenRoster().isEmpty()
-				&& snapshot.terminalTransactions().size() == snapshot.frozenRoster().size()
-				&& snapshot.terminalTransactions().values().stream()
-				.allMatch(value -> value.state() == TerminalTransactionState.REMOVED);
-	}
-
 	private static boolean actionContextValid(ServerPlayer player, Snapshot snapshot, UUID encounterId,
 			long expectedRevision, BlockPos corePosition, boolean exactRevision) {
 		if (!snapshot.valid() || !snapshot.present() || encounterId == null
@@ -421,11 +522,27 @@ public final class WorldInterfaceRitualService {
 		return player.level().getBlockState(corePosition).is(ModBlocks.RESONANCE_CORE);
 	}
 
-	private static Set<UUID> eligiblePlayers(MinecraftServer server) {
-		LinkedHashSet<UUID> result = new LinkedHashSet<>();
-		server.getPlayerList().getPlayers().stream().filter(player -> !isSpectator(player))
-				.map(ServerPlayer::getUUID).sorted(Comparator.comparing(UUID::toString)).forEach(result::add);
-		return Collections.unmodifiableSet(result);
+	/**
+	 * Who is standing at the altar right now, for the screen's benefit only.
+	 *
+	 * <p>Nothing authoritative reads this. It replaced {@code eligiblePlayers}, which answered "every
+	 * non-spectator on the server" and was the source of every multiplayer failure the roster had:
+	 * eligibility is now decided one interaction at a time by {@link #actionContextValid} plus a
+	 * terminal actually being in hand, which is a question about a person at a place rather than
+	 * about a headcount. What remains is the list an empty altar shows so it does not look broken.</p>
+	 */
+	public static List<UUID> altarCandidates(MinecraftServer server, Snapshot snapshot) {
+		BlockPos core = AltarShape.corePosition(snapshot.altarCenter());
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		return server.getPlayerList().getPlayers().stream()
+				.filter(player -> !isSpectator(player) && player.level().dimension() == Level.END)
+				.filter(player -> player.distanceToSqr(core.getCenter()) <= REMINDER_RADIUS_SQUARED)
+				.filter(player -> data.terminalRecord(player.getUUID())
+						.map(record -> record.getBooleanOr(TerminalData.BOUND, false)).orElse(false))
+				.map(ServerPlayer::getUUID)
+				.sorted(Comparator.comparing(UUID::toString))
+				.limit(WorldInterfaceState.MAX_ROSTER_SIZE)
+				.toList();
 	}
 
 	private static boolean isSpectator(ServerPlayer player) {
@@ -496,7 +613,7 @@ public final class WorldInterfaceRitualService {
 
 	@FunctionalInterface
 	public interface AltarOpenHandler {
-		boolean open(ServerPlayer player, BlockPos corePosition);
+		boolean open(ServerPlayer player, BlockPos corePosition, WorldInterfaceProtocol.AltarStatus status);
 	}
 
 	public record RitualResult(boolean applied, boolean idempotent, String reason, Snapshot snapshot) {

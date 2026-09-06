@@ -33,8 +33,11 @@ public final class PursuitDimensionGameTests implements CustomTestMethodInvoker 
 						exception);
 			}
 		}
+		// Six mirrors, one chase. The dimensions stay registered past the cap drop because recovery
+		// has to be able to find a player left in any of them by an older save; the cap is what says
+		// only one person can be taken out of shared reality at a time.
 		if (PursuitDimensions.mirrors().stream().distinct().count() != 6
-				|| PursuitSlotManager.MAX_ACTIVE_PURSUITS != 2) {
+				|| PursuitSlotManager.MAX_ACTIVE_PURSUITS != 1) {
 			throw new AssertionError("Pursuit mirror/cap topology changed");
 		}
 		helper.succeed();

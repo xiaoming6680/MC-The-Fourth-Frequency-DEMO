@@ -117,6 +117,29 @@ public final class AnomalyRuntimeService {
 	}
 
 	/**
+	 * Ends the named anomaly because the server decided it is over, and records it as a success.
+	 *
+	 * <p>The ordinary path has the client report completion when its own copy of the clock runs out,
+	 * which works for everything whose end condition is visible on screen. It does not work for an
+	 * anomaly that ends when the player reaches somewhere: the client cannot be trusted to say so and
+	 * is not told, so left alone the instance would sit until it timed out and be filed as
+	 * interrupted - which means the seen mask never learns the player met it and the stage never
+	 * advances.
+	 *
+	 * <p>Silently does nothing unless the running anomaly is the one named, so a caller cannot end
+	 * somebody else's unrelated instance.
+	 */
+	public static boolean completeServerSide(ServerPlayer player, String anomalyId,
+			AnomalyCompletionStatus status) {
+		RuntimeEntry entry = ACTIVE.get(player);
+		if (entry == null || !entry.anomaly.anomalyId().equals(anomalyId)) return false;
+		cleanup(entry);
+		if (!entry.anomaly.acceptServerCompletion(player.getUUID(), status)) return false;
+		finalizeEntry(player, entry);
+		return true;
+	}
+
+	/**
 	 * Phase name that tells the client to tear its presentation down now.
 	 *
 	 * <p>The client otherwise only ends an anomaly when its own copy of the clock runs out, and
@@ -140,6 +163,7 @@ public final class AnomalyRuntimeService {
 			notifyInterrupted(player, entry);
 		}
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		if (data.terminalRecord(player.getUUID()).isEmpty()) return;
 		data.updateTerminalRecord(player.getUUID(), tag -> {
 			tag.putString(TerminalData.ACTIVE_ANOMALY_ID, "none");
 			tag.putLong(TerminalData.ACTIVE_ANOMALY_UNTIL, 0L);
@@ -158,13 +182,20 @@ public final class AnomalyRuntimeService {
 	}
 
 	private static void tick(MinecraftServer server) {
-		if (!FinaleRuntimePolicy.backgroundSystemsAllowed(FrequencyWorldData.get(server))) {
-			interruptAll(server);
-			return;
-		}
+		// Not just "stop scheduling": a sustained anomaly runs for minutes, so the one that matters is
+		// always the one that was already running when the summon began. silent_world is two to three
+		// minutes of muted MUSIC/AMBIENT/HOSTILE, which is most of a fight.
+		// Asked per player: the reason a fight silences anomalies is that they would be noise across
+		// the one unambiguous stretch of the run, and that is an argument about the people in the
+		// fight. Somebody who never joined it keeps their own.
+		FrequencyWorldData data = FrequencyWorldData.get(server);
 		for (var mapEntry : Map.copyOf(ACTIVE).entrySet()) {
 			ServerPlayer player = mapEntry.getKey();
 			RuntimeEntry entry = mapEntry.getValue();
+			if (!player.isRemoved() && !FinaleRuntimePolicy.ambientPressureAllowed(data, player)) {
+				interrupt(player, false);
+				continue;
+			}
 			if (player.isRemoved()) {
 				cleanup(entry);
 				entry.anomaly.interrupt();
@@ -212,8 +243,28 @@ public final class AnomalyRuntimeService {
 		}
 	}
 
+	/**
+	 * Blanks the record's copy of "an anomaly is running", for players who have a record.
+	 *
+	 * <p>Not everyone online does. {@code ZeroStationService.issueTerminalIfNeeded} deliberately
+	 * declines to write a grant ledger entry once the finale has concluded, so somebody joining a
+	 * finished server is a player this mod holds no state for at all - and {@link
+	 * FrequencyWorldData#updateTerminalRecord} throws rather than creating one, which is the right
+	 * behaviour for a writer that has no business inventing a record.
+	 *
+	 * <p>Both callers reach this from a lifecycle event, which is what makes the throw expensive
+	 * rather than merely wrong. Fabric fires {@code ServerPlayerEvents.LEAVE} from the <em>head</em>
+	 * of {@code PlayerList#remove}: an exception there skips the rest of the removal, so the player
+	 * is never saved and never leaves the online list. The join side is milder - the event fires at
+	 * the return of {@code placeNewPlayer} - but still ends as a disconnect with an internal error.
+	 *
+	 * <p>Every other per-player service already asks this question before writing; see {@code
+	 * AmbientAnomalyService}'s join hook and {@code EmptySegmentService.recoverOnJoin}.
+	 */
 	private static void clearProjection(ServerPlayer player) {
-		FrequencyWorldData.get(player.level().getServer()).updateTerminalRecord(player.getUUID(), tag -> {
+		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		if (data.terminalRecord(player.getUUID()).isEmpty()) return;
+		data.updateTerminalRecord(player.getUUID(), tag -> {
 			tag.putString(TerminalData.ACTIVE_ANOMALY_ID, "none");
 			tag.putLong(TerminalData.ACTIVE_ANOMALY_UNTIL, 0L);
 		});

@@ -246,7 +246,7 @@ public final class EndBossEncounterService {
 	public static void initialize() {
 		if (initialized) return;
 		initialized = true;
-		WorldInterfaceRitualService.registerAltarOpenHandler((player, position) -> openAltar(player));
+		WorldInterfaceRitualService.registerAltarOpenHandler((player, position, status) -> openAltar(player, status));
 		ServerTickEvents.START_SERVER_TICK.register(EndBossEncounterService::tickStart);
 		ServerLifecycleEvents.SERVER_STARTED.register(EndBossEncounterService::recoverAfterRestart);
 		ServerLifecycleEvents.SERVER_STOPPING.register(EndBossEncounterService::pauseForStop);
@@ -385,7 +385,12 @@ public final class EndBossEncounterService {
 		}
 		ServerLevel end = server.getLevel(Level.END);
 		if (end == null) return Optional.empty();
-		if (!rememberAndOverrideRespawn(player, snapshot)) return Optional.empty();
+		// Arrival only. Overriding the respawn point used to happen here, to everybody who used an End
+		// portal for as long as an encounter existed - so a player who had never heard of the ritual
+		// walked through a portal and silently had their spawn moved to an altar in another dimension,
+		// and the eight-entry ledger filled up with people who were not going to fight. The override
+		// belongs to the sacrifice, which is the moment somebody actually became a participant; see
+		// ensureRosterRespawnOverrides.
 		SurvivalProgressService.mark(player, SurvivalMilestone.ENTERED_END);
 		Vec3 arrival = Vec3.atBottomCenterOf(snapshot.safeSpawn());
 		return Optional.of(new TeleportTransition(end, arrival, Vec3.ZERO, 180.0F, 0.0F,
@@ -624,6 +629,7 @@ public final class EndBossEncounterService {
 			Vec3 held = boss.position().multiply(1.0D, 0.0D, 1.0D)
 					.add(0.0D, morphFloor(level, snapshot, boss.form()) + crouch, 0.0D);
 			boss.snapTo(held, boss.getYRot(), boss.getXRot());
+			emitMorphIntake(level, boss, snapshot, elapsed);
 			return true;
 		}
 		if (elapsed >= MORPH_REVEAL_TICKS) boss.setForm(targetForm);
@@ -645,6 +651,7 @@ public final class EndBossEncounterService {
 		}
 		Vec3 desired = morphStation(level, boss, snapshot, station);
 		boss.snapTo(new Vec3(desired.x, height, desired.z), boss.getYRot(), boss.getXRot());
+		emitMorphFlight(level, boss, snapshot, elapsed, height);
 		// The arrival. The departure already has a shockwave - it is emitted the tick the phase turns
 		// over, in phaseChanged - and without one at the other end the new body simply appeared back
 		// in the arena, which is the half of "it left and something else came back" that carries the
@@ -655,12 +662,83 @@ public final class EndBossEncounterService {
 					WorldInterfaceShockwaveService.MORPH_DURATION_TICKS,
 					WorldInterfaceShockwaveService.MORPH_MAX_RADIUS);
 			roar(level, boss, 1.0F);
+			emitMorphTouchdown(level, boss, new Vec3(desired.x,
+					snapshot.arenaCenter().getY() + 0.3D, desired.z));
 		}
 		// Keeps facing whoever it is doing this in front of - the table, not one of them.
 		nearestArenaParticipant(level, snapshot, boss.position())
 				.ifPresent(player -> faceTarget(boss, attentionPoint(level, snapshot, boss.position(), player)));
 		return true;
 	}
+
+	/**
+	 * The intake: the arena being pulled into the thing that is about to leave it.
+	 *
+	 * <p>The brace was twelve ticks of the body dipping and nothing else, which from any distance
+	 * was the body doing nothing. What it needs is a direction, and the direction is inward - the
+	 * beat only works if the departure looks like it was paid for out of the ground it leaves from.
+	 * Rings on the floor closing on the point it is standing over, and light running up into it.</p>
+	 */
+	private static void emitMorphIntake(ServerLevel level, WorldInterfaceEntity boss,
+			WorldInterfaceState.Snapshot snapshot, long elapsed) {
+		double progress = Math.clamp(elapsed / (double) MORPH_ANCHOR_TICKS, 0.0D, 1.0D);
+		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
+		Vec3 floor = new Vec3(boss.getX(), snapshot.arenaCenter().getY() + 0.2D, boss.getZ());
+		double reach = WorldInterfaceAnatomy.massRadius(boss.form()) * (2.4D - progress * 1.5D);
+		// The circle it is standing in closes on it, and the column it leaves along is already lit.
+		WorldInterfaceVfx.runeCircle(level, floor, reach, elapsed * 0.25D, 44);
+		// Drawn in rather than thrown out: negative outward speed on a ring is the whole tell.
+		WorldInterfaceVfx.shockRing(level, WorldInterfaceVfx.core(), floor, reach * 1.35D, 30,
+				-0.55D, 0.22D);
+		WorldInterfaceVfx.beacon(level, floor, core.y - floor.y,
+				WorldInterfaceAnatomy.coreRadius(boss.form()) * 0.9D, elapsed * 0.4D, 30);
+	}
+
+	/**
+	 * The climb, and the storm it drags with it.
+	 *
+	 * <p>Every tick of the flight rather than a burst at each end: the middle of the morph is the
+	 * stretch where the arena has nothing in it at all, and a trail is what keeps the thing that
+	 * left present while it is away. The column reaches back down to the floor it launched from, so
+	 * the players standing there can see how far up it has got without looking for it.</p>
+	 */
+	private static void emitMorphFlight(ServerLevel level, WorldInterfaceEntity boss,
+			WorldInterfaceState.Snapshot snapshot, long elapsed, double height) {
+		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
+		double shell = WorldInterfaceAnatomy.massRadius(boss.form());
+		Vec3 floor = new Vec3(boss.getX(), snapshot.arenaCenter().getY() + 0.2D, boss.getZ());
+		// The wake, wound around the line it is travelling along.
+		WorldInterfaceVfx.helix(level, WorldInterfaceVfx.core(), floor, core,
+				shell * 0.75D, MORPH_WAKE_SAMPLES, 3, (core.y - floor.y) * 0.035D, elapsed * 0.3D);
+		WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), core,
+				new Vec3(0.0D, 1.0D, 0.0D), shell * 1.2D, 26, elapsed * 0.22D, 0.0D);
+		// The turn itself: at the reveal tick the old body is gone and the new one is not yet
+		// anywhere, and that is the one frame the whole two forms of this fight hinge on.
+		if (elapsed == MORPH_REVEAL_TICKS) {
+			// The one frame the whole two-form structure of this fight hinges on, so it gets the
+			// full detonation and then four leaning rings on top of it.
+			WorldInterfaceVfx.detonation(level, core, shell * 1.4D, 3);
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.violet(), core, shell * 1.8D, 200, 0.7D);
+			for (int axis = 0; axis < 4; axis++) {
+				double lean = axis * (Math.PI / 4.0D);
+				WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.core(), core,
+						new Vec3(Math.sin(lean), Math.cos(lean * 1.3D), Math.cos(lean)),
+						shell * (1.4D + axis * 0.4D), 48, axis * 0.3D, 0.0D);
+			}
+		}
+	}
+
+	/** The new body arriving on the floor, drawn as a landing rather than as a reappearance. */
+	private static void emitMorphTouchdown(ServerLevel level, WorldInterfaceEntity boss, Vec3 floor) {
+		double shell = WorldInterfaceAnatomy.massRadius(boss.form());
+		WorldInterfaceVfx.detonation(level, floor, shell * 1.6D, 3);
+		WorldInterfaceVfx.runeCircle(level, floor.add(0.0D, 0.1D, 0.0D), shell * 2.2D, 0.0D, 48);
+		WorldInterfaceVfx.beacon(level, floor,
+				WorldInterfaceAnatomy.coreOrigin(boss).y - floor.y, shell * 0.5D, 0.0D, 40);
+	}
+
+	/** Samples in the wake wound behind the body during the morph climb. */
+	private static final int MORPH_WAKE_SAMPLES = 34;
 
 	/**
 	 * The altitude the morph leaves from and returns to, in world Y.
@@ -1029,6 +1107,7 @@ public final class EndBossEncounterService {
 			case DEPOSIT -> WorldInterfaceRitualService.deposit(player, payload.encounterId(), payload.expectedRevision());
 			case WITHDRAW -> WorldInterfaceRitualService.withdraw(player, payload.encounterId(), payload.expectedRevision());
 			case CANCEL -> WorldInterfaceRitualService.cancel(player, payload.encounterId(), payload.expectedRevision());
+			case SUMMON -> WorldInterfaceRitualService.summon(player, payload.encounterId(), payload.expectedRevision());
 		};
 		if (result.applied() && payload.action() == WorldInterfaceProtocol.AltarAction.DEPOSIT) {
 			ServerLevel end = player.level().getServer().getLevel(Level.END);
@@ -1050,9 +1129,13 @@ public final class EndBossEncounterService {
 	public static void handlePoemComplete(ServerPlayer player, PoemCompleteC2S payload) {
 		MinecraftServer server = player.level().getServer();
 		WorldInterfaceState.Snapshot before = WorldInterfaceState.snapshot(server);
+		// COMPLETE is accepted alongside PORTAL_OPEN. Refusing it there would have left an
+		// acknowledgement arriving after the stage settled with nowhere to land, so the entry would
+		// stay unacked and the poem would be re-delivered on every subsequent login, forever.
 		if (!before.valid() || !before.present()
 				|| before.encounterId().filter(payload.encounterId()::equals).isEmpty()
-				|| before.stage() != WorldInterfaceStage.PORTAL_OPEN) return;
+				|| (before.stage() != WorldInterfaceStage.PORTAL_OPEN
+						&& before.stage() != WorldInterfaceStage.COMPLETE)) return;
 		WorldInterfaceState.PoemLedgerEntry poem = before.poemLedger().get(player.getUUID());
 		if (poem == null || !poem.started() || poem.acked() || poem.sequence() != payload.sequence()) return;
 		WorldInterfaceState.MutationResult result = WorldInterfaceState.mutate(server,
@@ -1065,12 +1148,27 @@ public final class EndBossEncounterService {
 
 	/** Opens the dedicated altar UI through a complete server snapshot. */
 	public static boolean openAltar(ServerPlayer player) {
+		return openAltar(player, WorldInterfaceProtocol.AltarStatus.READY);
+	}
+
+	/**
+	 * Opens the altar UI carrying one specific status line.
+	 *
+	 * <p>{@code status} is what the screen says the moment it appears. An altar opened by curiosity
+	 * gets {@code READY}; one opened by the insertion that just happened gets the outcome of that
+	 * insertion, so the first thing the player reads is about the thing they did.</p>
+	 *
+	 * <p>The other viewers are re-sent too, because a deposit changed the roster they are looking at
+	 * and the once-a-second refresh would otherwise be the first they hear of it.</p>
+	 */
+	public static boolean openAltar(ServerPlayer player, WorldInterfaceProtocol.AltarStatus status) {
 		MinecraftServer server = player.level().getServer();
 		WorldInterfaceState.Snapshot snapshot = WorldInterfaceState.snapshot(server);
 		if (!snapshot.valid() || !snapshot.present()
 				|| snapshot.stage() != WorldInterfaceStage.WAITING_TERMINALS) return false;
 		ALTAR_VIEWERS.computeIfAbsent(server, ignored -> new HashSet<>()).add(player.getUUID());
-		sendAltarSnapshot(player, snapshot, WorldInterfaceProtocol.AltarStatus.READY);
+		sendAltarSnapshots(server, snapshot, WorldInterfaceProtocol.AltarStatus.WAITING);
+		sendAltarSnapshot(player, snapshot, status);
 		return true;
 	}
 
@@ -1085,8 +1183,11 @@ public final class EndBossEncounterService {
 					|| before.outcome() == WorldInterfaceState.Outcome.NONE) return;
 			WorldInterfaceState.PoemLedgerEntry existing = before.poemLedger().get(player.getUUID());
 			prepareVanillaEndReturn(player, before);
-			if (before.stage() == WorldInterfaceStage.COMPLETE
-					|| !before.frozenRoster().contains(player.getUUID())
+			// COMPLETE is no longer a refusal. The stage can now settle without a member who was
+			// simply offline at the time, so "the exit stage is over" and "this player has had their
+			// ending" stopped being the same statement - and the person walking into the exit portal
+			// a moment too late is precisely the one for whom they differ.
+			if (!before.frozenRoster().contains(player.getUUID())
 					|| existing != null && existing.acked()) {
 				if (before.stage() == WorldInterfaceStage.PORTAL_OPEN) {
 					completeIfAllPoemsAcknowledged(server);
@@ -1125,6 +1226,7 @@ public final class EndBossEncounterService {
 			snapshot = WorldInterfaceState.snapshot(server);
 		}
 		EndBossArenaService.suppressVanillaFight(level);
+		ensureRosterRespawnOverrides(server, snapshot);
 		WorldInterfaceShockwaveService.tick(level);
 		if (snapshot.friendlyDragonUuid().isPresent()) {
 			UUID dragonId = snapshot.friendlyDragonUuid().orElseThrow();
@@ -1153,12 +1255,27 @@ public final class EndBossEncounterService {
 				commitErosion(level, snapshot);
 			}
 			case SUCCESS_RESOLUTION, FAILURE_RESOLUTION -> tickResolution(level, snapshot);
-			case PORTAL_OPEN -> ensureExitOpen(level, snapshot);
+			case PORTAL_OPEN -> {
+				ensureExitOpen(level, snapshot);
+				// On a tick rather than only on the three player-driven paths that used to call it.
+				// With offline members excused, the completion condition can now become true because
+				// somebody *left*, and there is no event for that to hang off.
+				if (server.getTickCount() % 20 == 0) settlePortalOpen(level, snapshot);
+			}
 			default -> { }
 		}
 		if (server.getTickCount() % SNAPSHOT_INTERVAL_TICKS == 0) {
 			sendEncounterSnapshots(server, false);
 			pruneAltarViewers(server);
+			// The altar screen now shows a countdown and a summon button, both of which are functions
+			// of state that can change without this viewer doing anything - somebody else depositing,
+			// or the window simply lapsing. Pushed on the same cadence as everything else rather than
+			// left to the action handlers, which only fire for whoever acted. The client holds
+			// action feedback on its own timer so this steady WAITING does not wipe a refusal.
+			if (snapshot.stage() == WorldInterfaceStage.WAITING_TERMINALS) {
+				sendAltarSnapshots(server, WorldInterfaceState.snapshot(server),
+						WorldInterfaceProtocol.AltarStatus.WAITING);
+			}
 		}
 	}
 
@@ -1367,9 +1484,174 @@ public final class EndBossEncounterService {
 		if (level.getServer().getTickCount() % HEAL_INTERVAL_TICKS == 0) {
 			persistTerrainBudget(level, snapshot);
 		}
+		// Runs whether or not the attack lane does. A boss holding still through a recovery grace or
+		// between two scheduled actions is still the thing the arena is about, and until now it was
+		// the thing the arena said nothing about: every particle the encounter owned belonged to an
+		// attack, so between attacks the interface was a silent shape hanging in a clean sky.
+		emitBossPresence(level, boss, level.getGameTime(), snapshot.arenaCenter().getY() + 1.0D);
 		// The concrete nine-action executor is integrated below this invariant gate.
 		if (running && snapshot.recoveryGraceTicks() == 0) tickAttacks(level, boss, snapshot, elapsed);
 		reportCueRate(level, elapsed);
+	}
+
+	/**
+	 * How often the body's own storm is emitted. Every tick.
+	 *
+	 * <p>Was every other tick, on a particle budget. The budget was lifted deliberately - see
+	 * {@link WorldInterfaceVfx} - and this is the emitter it mattered most for: the rings below are
+	 * structure rather than a cloud, and structure sampled on alternate ticks is one that stutters.
+	 */
+	private static final long PRESENCE_INTERVAL_TICKS = 1L;
+	/** How often it sheds, which is slower and heavier than the rest. */
+	private static final long PRESENCE_SHED_INTERVAL_TICKS = 6L;
+	/** How often the heads arc. Second and third form only; the first has nothing to arc with. */
+	private static final long PRESENCE_ARC_INTERVAL_TICKS = 4L;
+	/** Points on the core's corona per emission. */
+	private static final int PRESENCE_CORONA_SAMPLES = 3;
+	/** Rings in the gyroscope around the core, and points on each of them. */
+	private static final int PRESENCE_GYRO_RINGS = 3;
+	private static final int PRESENCE_GYRO_POINTS = 14;
+	/** Ticks between two shell pulses at full health; it quickens as the pool drains. */
+	private static final long PRESENCE_PULSE_TICKS = 34L;
+	private static final int PRESENCE_PULSE_POINTS = 70;
+	/** How often the footprint on the floor beneath the body is redrawn, and how fine it is. */
+	private static final long PRESENCE_SHADOW_INTERVAL_TICKS = 3L;
+	private static final int PRESENCE_SHADOW_POINTS = 26;
+	/** Segments in one head-to-core bolt. Enough to bend, few enough to stay a bolt. */
+	private static final int PRESENCE_ARC_SEGMENTS = 9;
+
+	/**
+	 * The interface's own weather: what the body does when it is not doing anything.
+	 *
+	 * <p>Deterministic on the world clock, with no randomness and no state, so every client is shown
+	 * the same storm and a restart resumes it rather than restarting it. Nothing here is
+	 * authoritative and losing all of it changes no outcome.</p>
+	 *
+	 * <p>It gets worse as the fight does, and that is the only information in it. The corona tightens
+	 * and the shed thickens as the virtual pool drains, so a table that has taken two thirds of the
+	 * health off can see that in the sky as well as on the bar - which matters most in the stretch
+	 * where the bar is the only thing saying the fight is being won.</p>
+	 *
+	 * <p>Budgeted rather than generous. Averaged over its three intervals this is about three
+	 * emissions a tick, which is where the attack lane's own quieter moments sit; the fight already
+	 * has a measured audio channel problem and the particle channel is the same kind of shared,
+	 * silently-dropping resource. Everything diffuse is one boxed emission with a count rather than
+	 * a loop, and only the corona - which has to be a ring, and a ring is positions - costs a packet
+	 * per point.</p>
+	 */
+	private static void emitBossPresence(ServerLevel level, WorldInterfaceEntity boss, long gameTime,
+			double groundY) {
+		if (gameTime % PRESENCE_INTERVAL_TICKS != 0L) return;
+		int form = boss.form();
+		Vec3 core = WorldInterfaceAnatomy.coreOrigin(boss);
+		double coreRadius = WorldInterfaceAnatomy.coreRadius(form);
+		double massRadius = WorldInterfaceAnatomy.massRadius(form);
+		// 0 at full health, 1 at the point of death. Everything below reads this and nothing else.
+		float strain = Math.clamp(1.0F - boss.healthFraction(), 0.0F, 1.0F);
+		double spin = gameTime * 0.09D;
+
+		// The corona: a ring turning around the core, tightening onto it as the pool drains.
+		double coronaRadius = coreRadius * (1.45D - strain * 0.35D);
+		for (int index = 0; index < PRESENCE_CORONA_SAMPLES; index++) {
+			double angle = spin + Math.PI * 2.0D * index / PRESENCE_CORONA_SAMPLES;
+			ArenaParticles.emit(level, ParticleTypes.END_ROD,
+					core.x + Math.cos(angle) * coronaRadius,
+					core.y + Math.sin(angle * 1.6D + spin) * coreRadius * 0.45D,
+					core.z + Math.sin(angle) * coronaRadius, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+		}
+
+		// Gyroscope rings: three of them, on axes that do not share a plane and that precess at
+		// their own rates, counter-rotating in pairs. This is the single change that makes the body
+		// read as machinery rather than as a lit shape - a cloud has no axis, and a thing with three
+		// visible axes is oriented, therefore aimed, therefore about to do something.
+		for (int layer = 0; layer < PRESENCE_GYRO_RINGS; layer++) {
+			double precession = gameTime * (0.011D + layer * 0.004D) + layer * (Math.PI / 3.0D);
+			Vec3 axis = new Vec3(Math.sin(precession),
+					Math.cos(precession * 0.63D) * 0.85D, Math.cos(precession));
+			double radius = coreRadius * (1.5D + layer * 0.6D) + massRadius * 0.15D * strain;
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), core, axis, radius,
+					PRESENCE_GYRO_POINTS + form * 4,
+					(layer % 2 == 0 ? spin : -spin) * (1.0D + layer * 0.35D), 0.0D);
+		}
+
+		// The core breathing: a hollow shell thrown outward on a slow pulse, quicker as it fails.
+		// A shell rather than a burst, so what leaves reads as a surface and not as smoke.
+		long pulseInterval = Math.max(10L, Math.round(PRESENCE_PULSE_TICKS * (1.0D - strain * 0.55D)));
+		if (gameTime % pulseInterval == 0L) {
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.core(), core, coreRadius * 1.05D,
+					PRESENCE_PULSE_POINTS + form * 30, 0.30D + strain * 0.45D);
+			ArenaParticles.emit(level, WorldInterfaceVfx.flash(), core.x, core.y, core.z,
+					1, 0.0D, 0.0D, 0.0D, 0.0D);
+		}
+
+		// Where it is standing, written on the floor it is standing over. The interface hovers, and
+		// a hovering thing has no footprint - so eight players on a hundred-and-sixty block island
+		// had nothing on the ground telling them where it was. Two counter-rotating rings and a set
+		// of spokes: the rings say how wide, the spokes say where the middle is.
+		if (gameTime % PRESENCE_SHADOW_INTERVAL_TICKS == 0L && core.y - groundY > 1.0D) {
+			// Deliberately NOT the sigil circle the attacks use.
+			//
+			// This was a rune circle for one build and it was a mistake: the lance's ground mark is
+			// also a rune circle, so the arena floor ended up with two violet figures that meant
+			// opposite things - one saying "it is standing over you" and one saying "this is about
+			// to be hit" - and a player had to work out which was which while running.
+			//
+			// The footprint is now a different language on purpose. Straight edges instead of a
+			// circle, white instead of violet, and no runes at all: a hexagon reads as a marker at a
+			// glance and cannot be confused with any of the telegraphs, all of which are round. It
+			// grows with the body, so it also says which form is overhead.
+			Vec3 footprint = new Vec3(core.x, groundY + 0.15D, core.z);
+			WorldInterfaceVfx.polygon(level, ParticleTypes.END_ROD, footprint, massRadius * 0.95D,
+					6, 5 + form, spin * 0.35D);
+			WorldInterfaceVfx.polygon(level, ParticleTypes.END_ROD, footprint, massRadius * 0.5D,
+					6, 4, -spin * 0.5D);
+			// A short cross through the middle, so the exact point it is hanging over is stated
+			// rather than left to the centre of a shape.
+			WorldInterfaceVfx.spokes(level, ParticleTypes.END_ROD, footprint, massRadius * 0.22D,
+					4, 3, spin * 0.35D, 0.0D);
+		}
+		// The mass's own field, boxed over the whole silhouette so a bigger form is visibly a bigger
+		// disturbance rather than the same cloud around a bigger shape.
+		ArenaParticles.emit(level, ParticleTypes.REVERSE_PORTAL, core.x, core.y, core.z,
+				3 + form, massRadius * 0.8D, massRadius * 0.35D, massRadius * 0.8D, 0.02D);
+
+		// What it is shedding. Falls out from under the body, and there is more of it the less body
+		// there is left - the same image the death ascent is built on, arriving early and quietly.
+		if (gameTime % PRESENCE_SHED_INTERVAL_TICKS == 0L) {
+			int ash = 2 + Math.round(strain * 7.0F) + form;
+			ArenaParticles.emit(level, ParticleTypes.ASH,
+					core.x, core.y - massRadius * 0.5D, core.z,
+					ash, massRadius * 0.7D, massRadius * 0.25D, massRadius * 0.7D, 0.01D);
+			if (strain > 0.5F) {
+				ArenaParticles.emit(level, ParticleTypes.LARGE_SMOKE,
+						core.x, core.y - massRadius * 0.7D, core.z,
+						1 + Math.round((strain - 0.5F) * 8.0F),
+						massRadius * 0.6D, massRadius * 0.2D, massRadius * 0.6D, 0.01D);
+			}
+		}
+
+		// The heads. Only from the second form on: the first is the listening embryo, and giving it
+		// the same discharge as the thing it grows into would spend the escalation before it starts.
+		if (form <= WorldInterfaceEntity.FORM_LISTENING
+				|| gameTime % PRESENCE_ARC_INTERVAL_TICKS != 0L) return;
+		for (int index = 0; index < WorldInterfaceAnatomy.headCount(form); index++) {
+			Vec3 head = boss.position().add(
+					WorldInterfaceAnatomy.rotate(WorldInterfaceAnatomy.headOffset(form, index),
+							boss.yBodyRot));
+			double headRadius = WorldInterfaceAnatomy.headRadius(form, index);
+			ArenaParticles.emit(level, ParticleTypes.ELECTRIC_SPARK, head.x, head.y, head.z,
+					1 + Math.round(strain * 3.0F), headRadius * 0.8D, headRadius * 0.8D,
+					headRadius * 0.8D, 0.08D);
+			// And the head wired back to the core it grew off. Sparks around a head say the head is
+			// charged; a bolt between head and core says where the charge comes from, which is the
+			// only version of this that tells the player anything about the body.
+			WorldInterfaceVfx.arc(level, ParticleTypes.ELECTRIC_SPARK, core, head,
+					PRESENCE_ARC_SEGMENTS, headRadius * (0.5D + strain * 0.7D),
+					gameTime * 31L + index * 977L);
+			// A collar around the head itself, so a head is a socket rather than a lump.
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.violet(), head,
+					head.subtract(core), headRadius * 1.15D, 8, spin * 1.7D + index, 0.0D);
+		}
 	}
 
 	/** How often the encounter says how many cues it has emitted. Thirty seconds. */
@@ -1408,7 +1690,8 @@ public final class EndBossEncounterService {
 	 * <p>The commit runs across the whole fight now rather than being crammed into the resolution,
 	 * which is the only way a hundred-and-sixty block disc is affordable at all: the same quarter of
 	 * a million blocks that would need sixteen hundred writes a tick over the resolution needs about
-	 * forty across six minutes of combat. The sweep loops - each pass re-examines columns it has
+	 * forty across the ten minutes of combat the collapse clock allows. The sweep loops - each pass
+	 * re-examines columns it has
 	 * already walked, because the threshold rises with the collapse timer and ground that survived
 	 * one pass is eligible on the next.</p>
 	 */
@@ -1442,8 +1725,8 @@ public final class EndBossEncounterService {
 		// What the collapse timer alone had already eaten by the time the fight ended.
 		//
 		// A won encounter returns its presentation erosion to zero on the spot, so reading the
-		// live progress here would commit nothing at all on a win - and the damage six minutes of
-		// collapse did to the island would evaporate the instant it was survived. The island wears
+		// live progress here would commit nothing at all on a win - and the damage a full collapse
+		// clock did to the island would evaporate the instant it was survived. The island wears
 		// what the clock did to it either way; only a loss goes on past that to the full wash.
 		float failureProgress = WorldInterfacePolicy.presentationErosionProgress(snapshot.stage(),
 				elapsed, snapshot.resolutionTick(), level.getGameTime(), RESOLUTION_DURATION_TICKS);
@@ -1499,7 +1782,8 @@ public final class EndBossEncounterService {
 	 */
 	private static long repairProjectedElapsedTicks(WorldInterfaceState.Snapshot snapshot, long gameTime) {
 		long elapsed = effectiveActiveTicks(snapshot, gameTime);
-		if (snapshot.stage() != WorldInterfaceStage.SUCCESS_RESOLUTION) return elapsed;
+		if (!WorldInterfacePolicy.repairsCollapseReadout(snapshot.stage(),
+				FinaleRuntimePolicy.succeeded(snapshot))) return elapsed;
 		return WorldInterfacePolicy.repairedElapsedTicks(elapsed,
 				gameTime - snapshot.resolutionTick());
 	}
@@ -2151,10 +2435,24 @@ public final class EndBossEncounterService {
 				started.targets().stream().sorted(Comparator.comparing(UUID::toString)).toList(), started.seed());
 	}
 
-	/** Everyone inside the arena an attack may be aimed at, in a stable order. */
+	/**
+	 * Everyone inside the arena an attack may be aimed at, in a stable order.
+	 *
+	 * <p>The frozen roster is the first filter, and it was missing. Without it this answered "whoever
+	 * is standing in the End", so a player who joined after the sacrifice and walked over to look
+	 * could be locked on, have their weapon confiscated, have their hotbar emptied and be
+	 * disconnected outright by the forced eviction - by a fight they never entered and cannot end.
+	 * Ordinary area damage still reaches anyone who stands in an explosion, which is correct; being
+	 * <em>chosen</em> is what the roster gates.
+	 *
+	 * <p>The limit is now an assertion rather than a truncation: the roster is capped at
+	 * {@code MAX_ROSTER_SIZE} when it is built, so this can no longer silently drop a participant
+	 * because their UUID sorted late.
+	 */
 	private static List<ServerPlayer> arenaParticipants(ServerLevel level,
 			WorldInterfaceState.Snapshot snapshot) {
 		return level.players().stream()
+				.filter(player -> snapshot.frozenRoster().contains(player.getUUID()))
 				.filter(player -> player.isAlive() && !player.isSpectator())
 				.filter(player -> player.distanceToSqr(snapshot.arenaCenter().getCenter())
 						<= ENCOUNTER_VISIBILITY_RADIUS_SQR)
@@ -2233,6 +2531,14 @@ public final class EndBossEncounterService {
 		if (action.requiresExclusiveControl()) {
 			eligible = participants.stream().filter(player ->
 					elapsed >= snapshot.controlCooldowns().getOrDefault(player.getUUID(), 0L)).toList();
+		}
+		// The sweep carries its own, much longer per-player cooldown on top of that. Applied here
+		// rather than as a scan-level gate so it narrows the roster instead of the action: with one
+		// player still off cooldown the sweep can still land, and only when nobody is does the scan
+		// find an empty target list and skip the candidate the way it skips any other ineligible one.
+		if (action == WorldInterfaceAction.GAZE_HOTBAR_CLEAR) {
+			eligible = eligible.stream().filter(player -> WorldInterfaceAttackService.hotbarSweepReady(
+					encounterId, player.getUUID(), elapsed)).toList();
 		}
 		if (eligible.isEmpty()) return List.of();
 		// One name, weighted away from whoever the fight has been looking at lately.
@@ -2394,6 +2700,22 @@ public final class EndBossEncounterService {
 				count, 0.55D, 0.55D, 0.55D, 0.22D);
 		level.sendParticles(ParticleTypes.REVERSE_PORTAL, contact.x, contact.y, contact.z,
 				count / 2, 0.45D, 0.45D, 0.45D, 0.08D);
+		// The shell answering where it was struck. Crits at the contact are the player's own hit
+		// marker and say nothing about the thing that was hit; a ring lying flat against the surface
+		// at the point of impact, with the splash thrown back out along the normal, is the body
+		// reacting - which at the range this fight is mostly fought from is the only way a landed
+		// blow is legible at all.
+		Vec3 normal = contact.subtract(centre);
+		if (normal.lengthSqr() > 1.0E-6D) {
+			WorldInterfaceVfx.orientedRing(level, WorldInterfaceVfx.core(), contact, normal,
+					0.55D + adjusted * 0.05D, 16, level.getGameTime() * 0.4D, 0.0D);
+			WorldInterfaceVfx.shell(level, WorldInterfaceVfx.violet(), contact,
+					0.35D + adjusted * 0.03D, 20 + count, 0.35D);
+			// A bolt running from the wound back to the core, so a hit is something the whole body
+			// felt rather than a spark on its skin.
+			WorldInterfaceVfx.arc(level, ParticleTypes.ELECTRIC_SPARK, contact, centre,
+					10, 0.8D, level.getGameTime() * 7919L + Double.doubleToLongBits(contact.x));
+		}
 
 		// The boss had a hurt sound declared and never once played it.
 		//
@@ -2611,17 +2933,32 @@ public final class EndBossEncounterService {
 			if (transaction != null && (transaction.state() == WorldInterfaceState.TerminalTransactionState.REMOVED
 					|| transaction.state() == WorldInterfaceState.TerminalTransactionState.COMMITTED)) mask |= 1 << index;
 		}
+		int deposited = Integer.bitCount(mask);
+		boolean everyoneIn = !roster.isEmpty() && deposited == roster.size()
+				&& roster.size() == snapshot.frozenRoster().size();
+		WorldInterfaceState.TerminalTransaction own = snapshot.terminalTransactions().get(viewer.getUUID());
+		boolean ownEscrowed = own != null
+				&& own.state() == WorldInterfaceState.TerminalTransactionState.REMOVED;
+		long remaining = Math.min(snapshot.ritualWindowRemaining(server.overworld().getGameTime()),
+				WorldInterfacePolicy.RITUAL_WINDOW_TICKS);
 		ServerPlayNetworking.send(viewer, new AltarSnapshotS2C(WorldInterfaceProtocol.VERSION,
 				snapshot.encounterId().orElseThrow(), nextClientSequence(viewer), snapshot.revision(),
 				snapshot.stage().wireId(), snapshot.altarCenter(), roster, names, mask,
-				roster.contains(viewer.getUUID()) && !viewer.isSpectator(), status.wireId()));
+				roster.contains(viewer.getUUID()) && !viewer.isSpectator(), status.wireId(),
+				(int) remaining,
+				ownEscrowed && everyoneIn && !viewer.isSpectator() && !snapshot.sacrificeCommitted()
+						&& snapshot.stage() == WorldInterfaceStage.WAITING_TERMINALS));
 	}
 
+	/**
+	 * The names the altar screen lists: the depositors, or - before anyone has deposited - whoever is
+	 * standing there. The second half exists only so an untouched altar reads as waiting for the
+	 * people in front of it rather than as empty and broken; nothing authoritative consults it.
+	 */
 	private static List<UUID> altarRoster(MinecraftServer server, WorldInterfaceState.Snapshot snapshot) {
 		if (!snapshot.frozenRoster().isEmpty()) return snapshot.frozenRoster().stream()
 				.sorted(Comparator.comparing(UUID::toString)).toList();
-		return server.getPlayerList().getPlayers().stream().filter(player -> !player.isSpectator())
-				.map(ServerPlayer::getUUID).sorted(Comparator.comparing(UUID::toString)).limit(8).toList();
+		return WorldInterfaceRitualService.altarCandidates(server, snapshot);
 	}
 
 	private static List<ServerPlayer> encounterRecipients(MinecraftServer server,
@@ -2734,6 +3071,15 @@ public final class EndBossEncounterService {
 			respawn = snapshot.respawnLedger().get(player.getUUID());
 		}
 		if (snapshot.stage() == WorldInterfaceStage.COMPLETE) {
+			// Mirrors the PORTAL_OPEN branch below, and exists for the case that branch cannot see:
+			// the stage settling while this player was away is exactly what leaves a started, never
+			// acknowledged poem behind. The ending is theirs; the world moving on does not spend it.
+			if (poem != null && poem.started() && !poem.acked()) {
+				rememberClientSequence(player, poem.sequence());
+				ServerPlayNetworking.send(player, new PoemStartS2C(snapshot.encounterId().orElseThrow(),
+						poem.sequence(), outcomeWire(snapshot.outcome()),
+						FrequencyWorldData.get(server).worldId(), snapshot.destroyedAnchorCount()));
+			}
 			if (respawn != null && !respawn.restored()) restoreRespawnAndReturn(player, snapshot);
 			return;
 		}
@@ -2757,14 +3103,40 @@ public final class EndBossEncounterService {
 		if (respawn != null && !respawn.restored()) overrideRespawn(player, snapshot.safeSpawn());
 	}
 
+	/**
+	 * Gives every committed participant a respawn point on the island, and nobody else one.
+	 *
+	 * <p>Run from the tick rather than hung off the commit, because the set it has to cover is not
+	 * "who was standing there when the sacrifice landed": a participant can log in mid-fight, and the
+	 * debug entry point commits by a different route. Idempotent, so a pass that finds everything
+	 * already in place costs one map lookup each.
+	 *
+	 * <p>The ledger is now exactly the roster, which is capped at eight when it is built - so the
+	 * eight-entry limit inside {@link #rememberAndOverrideRespawn} can no longer be reached by
+	 * ordinary play, and the participant who used to be silently refused an override because eight
+	 * bystanders had walked through a portal first does not exist any more.
+	 */
+	private static void ensureRosterRespawnOverrides(MinecraftServer server,
+			WorldInterfaceState.Snapshot snapshot) {
+		if (!snapshot.sacrificeCommitted()
+				|| snapshot.stage().wireId() >= WorldInterfaceStage.PORTAL_OPEN.wireId()) return;
+		for (UUID playerId : snapshot.frozenRoster()) {
+			if (snapshot.respawnLedger().containsKey(playerId)) continue;
+			ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+			if (player != null) rememberAndOverrideRespawn(player, snapshot);
+		}
+	}
+
 	private static boolean rememberAndOverrideRespawn(ServerPlayer player,
 			WorldInterfaceState.Snapshot snapshot) {
 		MinecraftServer server = player.level().getServer();
 		WorldInterfaceState.RespawnLedgerEntry existing = snapshot.respawnLedger().get(player.getUUID());
 		if (existing == null) {
 			if (snapshot.respawnLedger().size() >= WorldInterfaceState.MAX_ROSTER_SIZE) {
-				TerminalNoticeService.denied(player,
-						"message.thefourthfrequency.world_interface.roster_full");
+				// Unreachable while the ledger tracks the roster, and kept as the assertion that it
+				// does: reaching it means something outside the ritual started writing entries again.
+				TheFourthFrequency.LOGGER.error("World interface respawn ledger is full for a roster of {}",
+						snapshot.frozenRoster().size());
 				return false;
 			}
 			ServerPlayer.RespawnConfig original = player.getRespawnConfig();
@@ -2856,25 +3228,79 @@ public final class EndBossEncounterService {
 		}
 	}
 
+	/**
+	 * How long {@link WorldInterfaceStage#PORTAL_OPEN} may wait on people before it stops waiting.
+	 *
+	 * <p>Measured from the resolution rather than from the stage, because the resolution tick is
+	 * already persisted and a restart therefore cannot reset the grace period by forgetting when the
+	 * waiting started. Twenty minutes is far past any honest poem: the authored text runs under two,
+	 * and the vanilla credits it hands off to can be skipped at any point.</p>
+	 */
+	private static final long PORTAL_OPEN_GRACE_TICKS = 20L * 60L * 20L;
+
+	/**
+	 * Settles the stage once everyone who is actually here has read their poem.
+	 *
+	 * <p>This used to require the whole frozen roster, which made one player who never came back the
+	 * end of the encounter for everybody else - and not only cosmetically. {@code PORTAL_OPEN} is
+	 * what {@link #createPortalTransition} checks: while the stage is held open, every End portal in
+	 * the world keeps delivering into the arena and every arrival keeps having its respawn point
+	 * overwritten. A player quitting for good left that in place permanently.
+	 *
+	 * <p>Offline members are excused rather than resolved. Their poem and respawn entitlements stay
+	 * in the ledgers exactly as they were, so {@link #reconcilePlayer} still returns them to the
+	 * Overworld and {@link #startPoem} still owes them their ending whenever they next log in - see
+	 * the {@code COMPLETE} handling in both. What changes is only that the world stops waiting.
+	 */
 	private static void completeIfAllPoemsAcknowledged(MinecraftServer server) {
+		WorldInterfaceState.Snapshot snapshot = WorldInterfaceState.snapshot(server);
+		if (snapshot.stage() != WorldInterfaceStage.PORTAL_OPEN || snapshot.frozenRoster().isEmpty()) return;
+		boolean settled = snapshot.frozenRoster().stream()
+				.filter(id -> server.getPlayerList().getPlayer(id) != null)
+				.allMatch(id -> Optional.ofNullable(snapshot.poemLedger().get(id))
+						.map(WorldInterfaceState.PoemLedgerEntry::acked).orElse(false)
+						&& Optional.ofNullable(snapshot.respawnLedger().get(id))
+						.map(WorldInterfaceState.RespawnLedgerEntry::restored).orElse(false));
+		if (settled) transitionToComplete(server);
+	}
+
+	/**
+	 * The last-resort settle, for a wait no departure will ever end.
+	 *
+	 * <p>Everything above depends on ledger entries reaching a particular shape. This does not: past
+	 * the grace period the stage closes whatever the ledgers say, because the cost of being wrong
+	 * here is one player watching their poem on a later login, and the cost of waiting forever is a
+	 * dimension whose portals and respawn points never come back.
+	 */
+	private static void settlePortalOpen(ServerLevel level, WorldInterfaceState.Snapshot snapshot) {
+		completeIfAllPoemsAcknowledged(level.getServer());
+		if (WorldInterfaceState.snapshot(level.getServer()).stage() != WorldInterfaceStage.PORTAL_OPEN) return;
+		if (snapshot.resolutionTick() < 0L
+				|| level.getGameTime() - snapshot.resolutionTick() < PORTAL_OPEN_GRACE_TICKS) return;
+		List<UUID> unsettled = snapshot.frozenRoster().stream()
+				.filter(id -> !Optional.ofNullable(snapshot.poemLedger().get(id))
+						.map(WorldInterfaceState.PoemLedgerEntry::acked).orElse(false))
+				.toList();
+		if (transitionToComplete(level.getServer()) && !unsettled.isEmpty()) {
+			TheFourthFrequency.LOGGER.info("World interface closed its exit stage after the grace period with "
+					+ "{} unread poem(s); those entitlements remain and are delivered on next login", unsettled.size());
+		}
+	}
+
+	private static boolean transitionToComplete(MinecraftServer server) {
 		for (int attempt = 0; attempt < MAX_MUTATION_RETRIES; attempt++) {
 			WorldInterfaceState.Snapshot snapshot = WorldInterfaceState.snapshot(server);
-			if (snapshot.stage() != WorldInterfaceStage.PORTAL_OPEN) return;
-			boolean complete = !snapshot.frozenRoster().isEmpty() && snapshot.frozenRoster().stream()
-					.allMatch(id -> Optional.ofNullable(snapshot.poemLedger().get(id))
-							.map(WorldInterfaceState.PoemLedgerEntry::acked).orElse(false)
-							&& Optional.ofNullable(snapshot.respawnLedger().get(id))
-							.map(WorldInterfaceState.RespawnLedgerEntry::restored).orElse(false));
-			if (!complete) return;
+			if (snapshot.stage() != WorldInterfaceStage.PORTAL_OPEN) return false;
 			WorldInterfaceState.MutationResult result = WorldInterfaceState.transition(server,
 					snapshot.encounterId().orElseThrow(), snapshot.revision(), WorldInterfaceStage.PORTAL_OPEN,
 					WorldInterfaceStage.COMPLETE);
 			if (result.applied()) {
 				sendEncounterSnapshots(server, true);
-				return;
+				return true;
 			}
-			if (!"revision_mismatch".equals(result.reason())) return;
+			if (!"revision_mismatch".equals(result.reason())) return false;
 		}
+		return false;
 	}
 
 	private static void ensureExitOpen(ServerLevel level, WorldInterfaceState.Snapshot snapshot) {
@@ -2997,9 +3423,17 @@ public final class EndBossEncounterService {
 				state -> state.setTerrainEditsUsed(actual));
 	}
 
+	/**
+	 * The nearest participant, for the body's vertical follow and the three heads' gaze.
+	 *
+	 * <p>Roster-filtered for the same reason {@link #arenaParticipants} is: a bystander must not be
+	 * able to lead the body around the island or take its stare off the people actually fighting.
+	 */
 	private static Optional<ServerPlayer> nearestArenaParticipant(ServerLevel level,
 			WorldInterfaceState.Snapshot snapshot, Vec3 origin) {
-		return level.players().stream().filter(player -> player.isAlive() && !player.isSpectator())
+		return level.players().stream()
+				.filter(player -> snapshot.frozenRoster().contains(player.getUUID()))
+				.filter(player -> player.isAlive() && !player.isSpectator())
 				.filter(player -> player.distanceToSqr(snapshot.arenaCenter().getCenter())
 						<= ENCOUNTER_VISIBILITY_RADIUS_SQR)
 				.min(Comparator.comparingDouble(player -> player.distanceToSqr(origin)));
@@ -3131,6 +3565,32 @@ public final class EndBossEncounterService {
 		TerminalSignalService.record(player, SignalBand.UNKNOWN, "world_interface_altar", 0, 2, true);
 		TerminalNoticeService.encounter(player, Component.translatable(
 				"message.thefourthfrequency.world_interface.altar_prepared"));
+		announceAltarPrepared(level.getServer(), player);
+	}
+
+	/**
+	 * Tells the rest of the world that the End has changed, because it has.
+	 *
+	 * <p>The twelfth Eye is placed by one person and its consequences are not theirs: the main island
+	 * is rebuilt, the native fight is retired and every End portal from here on delivers into the
+	 * arena. Everyone else used to learn all of that by walking into it. Whoever was not holding the
+	 * Eye is exactly the player who most needs the operable half of the sentence - something happened,
+	 * it happened in the End - and they get it on the same channel and in the same record the rest of
+	 * the story arrives on, rather than in chat.
+	 *
+	 * <p>Impersonal on purpose. It names no coordinates and no player: what the altar is for is
+	 * already written in {@code FILES}, and a line that reads like a quest marker would answer a
+	 * question the ritual is supposed to make the party ask each other.
+	 */
+	private static void announceAltarPrepared(MinecraftServer server, ServerPlayer activator) {
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		for (ServerPlayer online : server.getPlayerList().getPlayers()) {
+			if (online.getUUID().equals(activator.getUUID())
+					|| data.terminalRecord(online.getUUID()).isEmpty()) continue;
+			TerminalSignalService.record(online, SignalBand.UNKNOWN, "world_interface_altar", 0, 2, true);
+			TerminalNoticeService.encounter(online, Component.translatable(
+					"message.thefourthfrequency.world_interface.altar_prepared_elsewhere"));
+		}
 	}
 
 	private static void markDefeatedMilestone(MinecraftServer server, Set<UUID> roster) {
@@ -3151,10 +3611,19 @@ public final class EndBossEncounterService {
 	 * messages and player conversation, at the exact moment the player has the least attention to
 	 * spend parsing it. The stack gives each channel its own colour and holds it above the hotbar
 	 * where the rest of the encounter's feedback already lives.</p>
+	 *
+	 * <p><b>"Broadcast" means the encounter, not the server.</b> It used to mean every player online,
+	 * which is the same mistake {@code arenaParticipants} and {@code encounterRecipients} were each
+	 * built to correct and this one channel never got: someone mining in the Overworld, who is not on
+	 * the roster and cannot see the End, received the fight starting, every anchor falling, every line
+	 * the dragon says and every phase turning over. On a populated server that is a running commentary
+	 * on somebody else's ten minutes, arriving on the same stack the terminal uses to tell them things
+	 * that are about them. The recipients are the ones already defined as inside it - the frozen
+	 * roster, plus anyone standing in the End, who is inside it whether or not they committed.
 	 */
 	private static void broadcast(MinecraftServer server, int tone, String key, Object... arguments) {
 		Component message = Component.translatable(key, arguments);
-		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+		for (ServerPlayer player : encounterRecipients(server, WorldInterfaceState.snapshot(server))) {
 			switch (tone) {
 				case TerminalNoticePayload.TONE_ANCHOR -> TerminalNoticeService.anchor(player, message);
 				case TerminalNoticePayload.TONE_DRAGON -> TerminalNoticeService.dragon(player, message);

@@ -23,13 +23,15 @@ public final class MineralSurveyPolicy {
 	/** Ticks between pressing the probe and the reading resolving. */
 	public static final long PROBE_REVEAL_TICKS = 60L;
 	/**
-	 * Inside this radius the probe names the block; outside it only gives a bearing and a band.
+	 * The floor on the exact-reading radius, and what every ore used to get.
 	 *
 	 * <p>An exact hit is what the player would have found within a few seconds of digging anyway,
 	 * so handing it over reads as the instrument confirming something rather than doing the work.
 	 * Past that the reading stays honest about being a reading.</p>
 	 */
-	public static final int EXACT_READING_RADIUS = 12;
+	public static final int MINIMUM_EXACT_READING_RADIUS = 12;
+	/** Share of an ore's own hearing range within which the probe is willing to name the block. */
+	public static final int EXACT_READING_PERCENT = 60;
 	/** Half-width of the reported distance band, as a percentage of the true distance. */
 	public static final int DISTANCE_BAND_PERCENT = 25;
 
@@ -120,9 +122,31 @@ public final class MineralSurveyPolicy {
 		return radius > 0 && distanceSquared <= (long) radius * radius;
 	}
 
-	public static boolean exactReading(int dx, int dy, int dz) {
+	/**
+	 * How close the probe has to be to name the block, for this ore.
+	 *
+	 * <p>Scaled against the ore's own hearing range rather than fixed, because a single number
+	 * cannot mean the same thing to coal and to diamond. Twelve blocks out of coal's thirty-two is
+	 * about five percent of the volume the probe can hear, so pressing it on coal almost always
+	 * returned a bearing - which is the "precise readings are hard to get" complaint, and it was
+	 * loudest for exactly the ores a player probes most often.
+	 *
+	 * <p><b>The floor is not decoration.</b> Sixty percent of diamond's sixteen is under twelve, so
+	 * a plain scaling would have made the rarest ores <em>worse</em> than the flat radius they have
+	 * today - roughly forty percent of diamond hits are exact now, and scaling alone would have
+	 * halved that. Taking the larger of the two raises the common ores without paying for it with
+	 * the one reading the tool exists to give.
+	 */
+	public static int exactReadingRadius(TerminalResource resource) {
+		int radius = probeRadius(resource);
+		if (radius <= 0) return 0;
+		return Math.max(MINIMUM_EXACT_READING_RADIUS, radius * EXACT_READING_PERCENT / 100);
+	}
+
+	public static boolean exactReading(TerminalResource resource, int dx, int dy, int dz) {
+		int radius = exactReadingRadius(resource);
 		long distanceSquared = (long) dx * dx + (long) dy * dy + (long) dz * dz;
-		return distanceSquared <= (long) EXACT_READING_RADIUS * EXACT_READING_RADIUS;
+		return radius > 0 && distanceSquared <= (long) radius * radius;
 	}
 
 	public static int bandMinimum(int distance) {

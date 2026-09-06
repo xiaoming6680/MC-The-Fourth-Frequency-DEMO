@@ -49,7 +49,28 @@ public final class TerminalUiLayout {
 	 * <p>Only drawn while the walkthrough is holding the terminal, so it costs no room the rest of
 	 * the time and cannot collide with a page's own content in the general case.</p>
 	 */
-	public static final Bounds ONBOARD_BRIEF = new Bounds(46, 170, 346, 194);
+	/**
+	 * The walkthrough's explanation panel, and the button that leaves it.
+	 *
+	 * <p>Grown from a single 24-pixel strip. The walkthrough used to say one line about the page and
+	 * then wait for the player to find the right tab; it now explains each page properly and moves on
+	 * when the player presses a button, so it needs room for a heading, a few lines and a control.
+	 * The panel stops short of the status bar, which keeps its own step counter.
+	 */
+	public static final Bounds ONBOARD_BRIEF = new Bounds(46, 150, 346, 196);
+	/**
+	 * The advance button, moved out of the panel and into the status strip.
+	 *
+	 * <p>It costs the panel nothing to be here - the walkthrough already owns this band, which stands
+	 * down for it rather than being covered over - and it buys the page underneath twenty-odd pixels
+	 * back. That matters most on Home, where the panel's own second line points at a row of cards the
+	 * panel was sitting on top of; a walkthrough that hides the thing it is describing is explaining
+	 * a blank rectangle.
+	 *
+	 * <p>Thirteen pixels tall rather than sixteen, which is the strip's full height. The label is nine
+	 * and the outline needs the other four.
+	 */
+	public static final Bounds ONBOARD_NEXT = new Bounds(252, 202, 348, 215);
 	public static final Bounds TOOL_BACK = new Bounds(44, 74, 92, 90);
 	public static final Bounds TOOL_OPTION_ONE = new Bounds(50, 139, 142, 157);
 	public static final Bounds TOOL_OPTION_TWO = new Bounds(147, 139, 239, 157);
@@ -109,16 +130,16 @@ public final class TerminalUiLayout {
 	public static final int UNREAD_FLASH_HALF_PERIOD_TICKS = 10;
 	public static final int UNREAD_FLASH_DURATION_TICKS = 40;
 	/**
-	 * Breathing period of the unread lamp, in ticks. 2.4 seconds, so 0.42 Hz.
+	 * Blink period of the unread lamp, in ticks. 1.2 seconds, so 0.83 Hz.
 	 *
-	 * <p>Seven times under the project's 3 Hz ceiling, and the curve below is continuous rather
-	 * than a square wave, so there is no edge to trip a photosensitive player at all. This lamp is
-	 * on screen for as long as anything is unread, which can be the whole session - it is held to a
-	 * stricter standard than the two-second alert flash above, which is transient by construction.</p>
+	 * <p>Still comfortably under the project's 3 Hz ceiling, and both the lit and the dark plateau
+	 * are longer than the seven-tick minimum hold. This lamp is on screen for as long as anything is
+	 * unread, which can be the whole session, so its period is deliberately long: the eye should
+	 * catch it in the corner of the frame, not be held by it.</p>
 	 */
-	public static final int UNREAD_LAMP_PERIOD_TICKS = 48;
-	/** How dim the lamp's core gets at the bottom of a breath. Never off: it is lit or it is dark. */
-	public static final double UNREAD_LAMP_MIN_INTENSITY = 0.55D;
+	public static final int UNREAD_LAMP_PERIOD_TICKS = 24;
+	/** The dark half of a blink. Fully out - the lens and its brass housing are still drawn. */
+	public static final double UNREAD_LAMP_MIN_INTENSITY = 0.0D;
 
 	private TerminalUiLayout() { }
 
@@ -130,22 +151,70 @@ public final class TerminalUiLayout {
 	}
 
 	/**
-	 * The unread lamp's brightness, {@link #UNREAD_LAMP_MIN_INTENSITY}..1, as a raised cosine.
+	 * How much of each period the lamp is lit for.
 	 *
-	 * <p>A continuous curve rather than an on/off blink. Blinking is what the eye reads as an
-	 * alarm, and this lamp can be lit for an entire session; breathing says "something is here"
-	 * without ever demanding to be looked at. It is also the form the safety rule is easiest to
-	 * check against - a sine has no state transitions, so there is no minimum hold time to argue
-	 * about, and the per-tick delta is bounded by construction.</p>
+	 * <p>A minority of it. A blink that is on longer than it is off reads as a lamp with a fault;
+	 * a short pulse against a long dark reads as a lamp reporting something, which is the job.</p>
+	 */
+	public static final int UNREAD_LAMP_ON_TICKS = 8;
+	/**
+	 * The rise and fall at each edge.
+	 *
+	 * <p>Not zero. A single-frame edge is the exact shape the 3 Hz rule is about, and at 60 fps it
+	 * also aliases into a hard click of light that no amount of period length softens. Two ticks is
+	 * still unmistakably a blink - the eye reads the plateau, not the edge - while keeping the
+	 * per-frame delta bounded and the whole curve continuous.</p>
+	 */
+	public static final int UNREAD_LAMP_EDGE_TICKS = 2;
+
+	/**
+	 * The unread lamp's brightness, {@link #UNREAD_LAMP_MIN_INTENSITY}..1, as a blink.
+	 *
+	 * <p>A short lit plateau with a long dark one between, and a two-tick ramp at each edge so the
+	 * transition is continuous rather than a single-frame jump. Both plateaus are longer than the
+	 * seven-tick minimum hold and the whole cycle runs at {@code 20 / UNREAD_LAMP_PERIOD_TICKS} Hz,
+	 * well under the 3 Hz ceiling - the two limits this has to answer to.</p>
+	 *
+	 * <p>This was a raised cosine that never went dark, on the argument that a lamp which can be lit
+	 * for a whole session should not pull at the eye. The blink is a deliberate reversal of that
+	 * call: breathing at 0.55 minimum never actually read as <em>changing</em> on the panel, so the
+	 * indicator was doing its job only for a player who already knew to look at it.</p>
 	 *
 	 * <p>Callers pass the render age, so this must accept fractional ticks and stay smooth across
-	 * them; a version that floored to whole ticks would be a 20 Hz staircase wearing a sine's name.</p>
+	 * them; a version that floored to whole ticks would be a 20 Hz staircase.</p>
 	 */
 	public static double unreadLampIntensity(double elapsedTicks) {
 		double phase = Math.floorMod((long) Math.floor(elapsedTicks), (long) UNREAD_LAMP_PERIOD_TICKS)
 				+ (elapsedTicks - Math.floor(elapsedTicks));
-		double wave = 0.5D - 0.5D * Math.cos(phase * 2.0D * Math.PI / UNREAD_LAMP_PERIOD_TICKS);
-		return UNREAD_LAMP_MIN_INTENSITY + (1.0D - UNREAD_LAMP_MIN_INTENSITY) * wave;
+		double level;
+		if (phase < UNREAD_LAMP_EDGE_TICKS) {
+			level = smoothstep(phase / UNREAD_LAMP_EDGE_TICKS);
+		} else if (phase < UNREAD_LAMP_EDGE_TICKS + UNREAD_LAMP_ON_TICKS) {
+			level = 1.0D;
+		} else if (phase < UNREAD_LAMP_EDGE_TICKS * 2 + UNREAD_LAMP_ON_TICKS) {
+			level = 1.0D - smoothstep(
+					(phase - UNREAD_LAMP_EDGE_TICKS - UNREAD_LAMP_ON_TICKS) / UNREAD_LAMP_EDGE_TICKS);
+		} else {
+			level = 0.0D;
+		}
+		return UNREAD_LAMP_MIN_INTENSITY + (1.0D - UNREAD_LAMP_MIN_INTENSITY) * level;
+	}
+
+	private static double smoothstep(double linear) {
+		double t = Math.clamp(linear, 0.0D, 1.0D);
+		return t * t * (3.0D - 2.0D * t);
+	}
+
+	/**
+	 * The same blink as a yes/no, for the lamp baked into the item's texture.
+	 *
+	 * <p>The device in the hand cannot dim: its lamp is two of the six atlases, lit or not. So it
+	 * takes the plateau and ignores the ramps, and reads from {@link #unreadLampIntensity} rather
+	 * than from a second copy of the timing - the lamp on the panel and the lamp on the machine are
+	 * one statement shown twice, and the moment they are derived separately they can disagree.</p>
+	 */
+	public static boolean unreadLampBlinkOn(double elapsedTicks) {
+		return unreadLampIntensity(elapsedTicks) >= 0.5D;
 	}
 
 	public static boolean unreadFlashOn(double elapsedTicks) {

@@ -10,6 +10,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.CustomModelData;
 import com.xm.thefourthfrequency.terminal.TerminalAttentionPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalControlPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalProfileQuestionnaire;
 import com.xm.thefourthfrequency.terminal.SignalBand;
 import com.xm.thefourthfrequency.terminal.TerminalSignalLog;
 import com.xm.thefourthfrequency.terminal.TerminalTaskService;
@@ -62,6 +63,18 @@ public final class TerminalData {
 	public static final String LOCAL_FILE_VERSION = "local_file_version";
 	public static final String LOCAL_FILE_HASH = "local_file_hash";
 	public static final String EMPTY_SEGMENT_ACTIVE = "empty_segment_active";
+	/**
+	 * Which empty-segment event the record last carried, as a record only.
+	 *
+	 * <p><b>Written and never read, on purpose.</b> {@link #EMPTY_SEGMENT_ACTIVE} beside it is the
+	 * flag anything acts on; this one is the name of what happened, kept so a save that comes back
+	 * wrong can be read by a human. Wiring behaviour to it would give one event two sources of
+	 * truth, which is what the flag exists to avoid.
+	 *
+	 * <p>Pinned by {@code TerminalDataKeyContractTest}: a key that is written and never read is
+	 * usually a consumer somebody deleted, so the three deliberate ones are enumerated there and a
+	 * fourth fails the build.
+	 */
 	public static final String EMPTY_SEGMENT_EVENT = "empty_segment_event";
 	public static final String EMPTY_SEGMENT_RETURN_POS = "empty_segment_return_pos";
 	public static final String EMPTY_SEGMENT_COUNT = "empty_segment_count";
@@ -70,6 +83,14 @@ public final class TerminalData {
 	public static final String PORTAL_TRANSITIONS = "portal_transitions";
 	public static final String CONTINUITY_LEARNED = "continuity_learned";
 	public static final String CONTINUITY_CONFIDENCE = "continuity_confidence";
+	/**
+	 * Which side of the portal the player came from, as a record only.
+	 *
+	 * <p><b>Written and never read, on purpose</b> - see {@link #EMPTY_SEGMENT_EVENT}. The tools
+	 * page navigates to {@code LAST_PORTAL_POSITION} in {@code LAST_PORTAL_DIMENSION}; the origin is
+	 * the other half of the same crossing, kept because a continuity record with only one end of the
+	 * journey in it is not a record of a journey.
+	 */
 	public static final String LAST_PORTAL_ORIGIN = "last_portal_origin";
 	public static final String LAST_PORTAL_DESTINATION = "last_portal_destination";
 	public static final String PRIVATE_ANOMALY_VARIANT = "private_anomaly_variant";
@@ -89,6 +110,13 @@ public final class TerminalData {
 	public static final String ARMOR_CHANGE_COUNT = "armor_change_count";
 	public static final String MULTIPLAYER_ROLE = "multiplayer_role";
 	public static final String TERMINAL_CAPTURED = "terminal_captured";
+	/**
+	 * When the terminal was surrendered to the altar, as a record only.
+	 *
+	 * <p><b>Written and never read, on purpose</b> - see {@link #EMPTY_SEGMENT_EVENT}. Every gate in
+	 * the finale asks {@link #TERMINAL_CAPTURED}, which is a boolean because surrender is one-way;
+	 * the tick is here so the order eight players handed their devices over survives into the save.
+	 */
 	public static final String TERMINAL_CAPTURED_TICK = "terminal_captured_tick";
 	public static final String ANOMALY_LOGS = "anomaly_logs";
 	public static final String ANOMALY_LOG_SEQUENCE = "anomaly_log_sequence";
@@ -117,6 +145,11 @@ public final class TerminalData {
 	public static final String ACTIVE_ANOMALY_ID = "active_anomaly_id";
 	public static final String ACTIVE_ANOMALY_UNTIL = "active_anomaly_until";
 	public static final String LAST_AMBIENT_DIMENSION = "last_ambient_dimension";
+	/**
+	 * Ticks left on the anomaly schedule when the player stepped into a dimension that does not run
+	 * one, or 0 when nothing is frozen. See {@code AnomalyDimensionPolicy}.
+	 */
+	public static final String ANOMALY_FROZEN_REMAINING = "anomaly_frozen_remaining";
 	public static final String DEBUG_ENABLED = "debug_enabled";
 	public static final String CALIBRATED_BANDS_MASK = "calibrated_bands_mask";
 	public static final String NIGHT_ENTERED = "night_entered";
@@ -137,6 +170,14 @@ public final class TerminalData {
 	public static final String MINERAL_READING_MIN_DISTANCE = "mineral_reading_min_distance";
 	public static final String MINERAL_READING_MAX_DISTANCE = "mineral_reading_max_distance";
 	public static final String MINERAL_READING_DIMENSION = "mineral_reading_dimension";
+	/**
+	 * One-way latch: this save's mineral probe has already reported something that was not there.
+	 *
+	 * <p>Per player and per world, never cleared. The forged reading is worth exactly one use - the
+	 * second one is not a betrayal, it is a malfunction, and the player would simply stop using the
+	 * tool. See {@code MineralDeceptionPolicy}.
+	 */
+	public static final String MINERAL_READING_FORGED = "mineral_reading_forged";
 	public static final String MINERAL_SURVEY_PROXIMITY = "mineral_survey_proximity";
 	public static final String MINERAL_SURVEY_NEARBY = "mineral_survey_nearby";
 	public static final String MINERAL_SURVEY_POSITION = "mineral_survey_position";
@@ -148,11 +189,28 @@ public final class TerminalData {
 	public static final String LAST_PORTAL_DIMENSION = "last_portal_dimension";
 	public static final String EYE_SAMPLE_COUNT = "eye_sample_count";
 	public static final String STRONGHOLD_POSITION = "stronghold_position";
+	/**
+	 * Where each eye was thrown from, packed as {@code BlockPos.asLong()}.
+	 *
+	 * <p>The count alone cannot say how good the fix is. Two throws from one doorway are one
+	 * observation recorded twice, and triangulation needs a baseline - so the estimate reads the
+	 * widest gap between these, not how many there are. See {@code NavigationConvergencePolicy}.
+	 */
+	public static final String STRONGHOLD_SAMPLE_POSITIONS = "stronghold_sample_positions";
 	public static final String STRONGHOLD_DIMENSION = "stronghold_dimension";
 	public static final String SURVIVAL_MILESTONE_MASK = "survival_milestone_mask";
 	public static final String WOOD_MINED_COUNT = "wood_mined_count";
 	public static final String IRON_SAMPLE_COUNT = "iron_sample_count";
 	public static final String BLAZE_ROD_SAMPLE_COUNT = "blaze_rod_sample_count";
+	/**
+	 * How many rods this record is actually asked for, which shrinks with the size of the party.
+	 *
+	 * <p>Stored rather than derived at read time so that every consumer - the task card, the guidance
+	 * objective, the completion check - reads one number without any of them needing to know the
+	 * headcount. {@code SurvivalProgressService} only ever writes it downwards, so a player cannot
+	 * watch their own objective get harder because somebody logged off.
+	 */
+	public static final String BLAZE_ROD_REQUIRED = "blaze_rod_required";
 	public static final String CRAFTED_EYE_COUNT = "crafted_eye_count";
 	public static final String TERMINAL_PAGE_VISIT_MASK = "terminal_page_visit_mask";
 	public static final String TASK_REWARD_CLAIMED_MASK = "task_reward_claimed_mask";
@@ -166,6 +224,43 @@ public final class TerminalData {
 	 * around it is redefined.</p>
 	 */
 	public static final String ONBOARDING_DONE = "onboarding_done";
+	/**
+	 * The profile answers, one per question, in question order.
+	 *
+	 * <p>Stored as a fixed-length int array rather than five named keys so the length is itself the
+	 * assertion that the questionnaire and the storage agree; a question added without widening this
+	 * fails loudly at read instead of quietly answering {@code 0}.
+	 *
+	 * <p>{@code TerminalProfileQuestionnaire.UNANSWERED} is a real value here, not a placeholder. The
+	 * damage failsafe can release the walkthrough mid-question, and a gap has to survive as a gap -
+	 * filling it with a default would be exactly the quietly-wrong-but-plausible value the safety
+	 * rules forbid.
+	 */
+	public static final String PROFILE_ANSWERS = "profile_answers";
+	/** Which question the player is on. Advances only on the server, and only forward. */
+	public static final String PROFILE_QUESTION = "profile_question";
+	/** One-way latch: the profile was taken. Never replayed, however incomplete it turned out. */
+	public static final String PROFILE_TAKEN = "profile_taken";
+	/**
+	 * Whether the records page has been given the quarantined anomaly log.
+	 *
+	 * <p>Kept apart from the anomaly log itself for the same reason {@link #ONBOARDING_DONE} is kept
+	 * apart from the page-visit mask: the log is data that accumulates from the first anomaly onward,
+	 * and this is the single moment the terminal stopped withholding it.
+	 */
+	public static final String ANOMALY_BACKFILL_RELEASED = "anomaly_backfill_released";
+	/**
+	 * Lines captured from a nearby terminal, waiting out their delay.
+	 *
+	 * <p>Held on the receiver rather than in world state, so a relay is per-player by construction:
+	 * it saves, loads and migrates with the record it belongs to, and there is no shared structure
+	 * for two players' pending lines to get mixed up in.
+	 */
+	public static final String RELAY_PENDING = "relay_pending";
+	/** When this terminal last surfaced a relayed line, for the cooldown. */
+	public static final String RELAY_LAST_DELIVERED = "relay_last_delivered";
+	/** When this terminal first came into range of a qualifying peer, or zero. */
+	public static final String RELAY_CONTACT_SINCE = "relay_contact_since";
 	public static final String UNREAD_ALERT_ACTIVE = "unread_alert_active";
 	public static final String BREACH_MASK = "breach_mask";
 	public static final String TRUTH_READ = "truth_read";
@@ -192,6 +287,10 @@ public final class TerminalData {
 	public static final String PURSUIT_TUTORIAL_ARCHIVE_MASK = "pursuit_tutorial_archive_mask";
 	public static final String PURSUIT_WARNING_RECORDS_REDIRECT = "pursuit_warning_records_redirect";
 	public static final String PURSUIT_PENDING = "pursuit_pending";
+	/** Game time this record first became owed a chase, so the queue can serve the longest wait. */
+	public static final String PURSUIT_PENDING_SINCE = "pursuit_pending_since";
+	/** Whether the queue has already explained itself for the current pending chase. */
+	public static final String PURSUIT_QUEUE_NOTED = "pursuit_queue_noted";
 	public static final String PURSUIT_NEXT_ELIGIBLE_TICK = "pursuit_next_eligible_tick";
 	public static final String PURSUIT_EFFECTIVE_ACTIVITY_TICKS = "pursuit_effective_activity_ticks";
 	public static final String PURSUIT_EXPLORATION_DISTANCE = "pursuit_exploration_distance";
@@ -210,6 +309,33 @@ public final class TerminalData {
 	public static final String PURSUIT_SESSION_STARTED_TICK = "pursuit_session_started_tick";
 	public static final String PURSUIT_REFUND_LEDGER = "pursuit_refund_ledger";
 	public static final String PURSUIT_RECOVERY_QUEUE = "pursuit_recovery_queue";
+
+	/**
+	 * The unrendered layer keeps its own return address rather than reusing the pursuit one.
+	 *
+	 * <p>They are never active together, so one set of fields would have fit - and would have been a
+	 * mistake the first time an anomaly fired while a chase was still tearing down. A return address
+	 * is the one piece of state whose corruption is unrecoverable: whoever holds the wrong one puts
+	 * the player somewhere they never were.
+	 */
+	public static final String UNRENDERED_ACTIVE = "unrendered_active";
+	public static final String UNRENDERED_SESSION_ID = "unrendered_session_id";
+	public static final String UNRENDERED_SOURCE_DIMENSION = "unrendered_source_dimension";
+	public static final String UNRENDERED_SOURCE_POSITION = "unrendered_source_position";
+	public static final String UNRENDERED_SOURCE_YAW = "unrendered_source_yaw";
+	public static final String UNRENDERED_SOURCE_PITCH = "unrendered_source_pitch";
+	public static final String UNRENDERED_SLOT = "unrendered_slot";
+	public static final String UNRENDERED_STARTED_TICK = "unrendered_started_tick";
+	public static final String UNRENDERED_DURATION_TICKS = "unrendered_duration_ticks";
+	public static final String UNRENDERED_VISITS = "unrendered_visits";
+	/**
+	 * Earliest tick another layer event may start for this player.
+	 *
+	 * <p>Its own field rather than a reuse of the strong-anomaly cooldown, because it holds a much
+	 * longer interval - the pursuit's, twenty to thirty minutes - and sharing a field would have made
+	 * every other strong anomaly inherit that gap the first time the layer fired.
+	 */
+	public static final String UNRENDERED_NEXT_ELIGIBLE_TICK = "unrendered_next_eligible_tick";
 
 	private TerminalData() {
 	}
@@ -297,6 +423,7 @@ public final class TerminalData {
 		tag.putString(ACTIVE_ANOMALY_ID, "none");
 		tag.putLong(ACTIVE_ANOMALY_UNTIL, 0L);
 		tag.putString(LAST_AMBIENT_DIMENSION, player.level().dimension().identifier().toString());
+		tag.putLong(ANOMALY_FROZEN_REMAINING, 0L);
 		tag.putBoolean(DEBUG_ENABLED, false);
 		tag.putInt(CALIBRATED_BANDS_MASK, 0);
 		tag.putBoolean(NIGHT_ENTERED, false);
@@ -316,6 +443,7 @@ public final class TerminalData {
 		tag.putInt(MINERAL_READING_MIN_DISTANCE, 0);
 		tag.putInt(MINERAL_READING_MAX_DISTANCE, 0);
 		tag.putString(MINERAL_READING_DIMENSION, "");
+		tag.putBoolean(MINERAL_READING_FORGED, false);
 		tag.putBoolean(MINERAL_SURVEY_PROXIMITY, false);
 		tag.putBoolean(MINERAL_SURVEY_NEARBY, false);
 		tag.putLong(MINERAL_SURVEY_POSITION, 0L);
@@ -327,16 +455,25 @@ public final class TerminalData {
 		tag.putString(LAST_PORTAL_DIMENSION, "");
 		tag.putInt(EYE_SAMPLE_COUNT, 0);
 		tag.putLong(STRONGHOLD_POSITION, 0L);
+		tag.putLongArray(STRONGHOLD_SAMPLE_POSITIONS, new long[0]);
 		tag.putString(STRONGHOLD_DIMENSION, "");
 		tag.putInt(SURVIVAL_MILESTONE_MASK, 0);
 		tag.putInt(WOOD_MINED_COUNT, 0);
 		tag.putInt(IRON_SAMPLE_COUNT, 0);
 		tag.putInt(BLAZE_ROD_SAMPLE_COUNT, 0);
+		tag.putInt(BLAZE_ROD_REQUIRED, SurvivalProgressService.REQUIRED_BLAZE_RODS);
 		tag.putInt(CRAFTED_EYE_COUNT, 0);
 		tag.putInt(TERMINAL_PAGE_VISIT_MASK, 0);
 		tag.putInt(TASK_REWARD_CLAIMED_MASK, 0);
 		tag.putInt(TASK_COMPLETION_NOTIFIED_MASK, 0);
 		tag.putBoolean(ONBOARDING_DONE, false);
+		tag.putIntArray(PROFILE_ANSWERS, unansweredProfile());
+		tag.putInt(PROFILE_QUESTION, 0);
+		tag.putBoolean(PROFILE_TAKEN, false);
+		tag.putBoolean(ANOMALY_BACKFILL_RELEASED, false);
+		tag.put(RELAY_PENDING, new ListTag());
+		tag.putLong(RELAY_LAST_DELIVERED, 0L);
+		tag.putLong(RELAY_CONTACT_SINCE, 0L);
 		tag.putBoolean(UNREAD_ALERT_ACTIVE, false);
 		tag.putInt(BREACH_MASK, 0);
 		tag.putBoolean(TRUTH_READ, false);
@@ -357,6 +494,8 @@ public final class TerminalData {
 		tag.putInt(PURSUIT_TUTORIAL_ARCHIVE_MASK, 0);
 		tag.putBoolean(PURSUIT_WARNING_RECORDS_REDIRECT, false);
 		tag.putBoolean(PURSUIT_PENDING, false);
+		tag.putLong(PURSUIT_PENDING_SINCE, 0L);
+		tag.putBoolean(PURSUIT_QUEUE_NOTED, false);
 		tag.putLong(PURSUIT_NEXT_ELIGIBLE_TICK, 0L);
 		tag.putLong(PURSUIT_EFFECTIVE_ACTIVITY_TICKS, 0L);
 		tag.putDouble(PURSUIT_EXPLORATION_DISTANCE, 0.0D);
@@ -375,6 +514,17 @@ public final class TerminalData {
 		tag.putLong(PURSUIT_SESSION_STARTED_TICK, 0L);
 		tag.put(PURSUIT_REFUND_LEDGER, new ListTag());
 		tag.put(PURSUIT_RECOVERY_QUEUE, new ListTag());
+		tag.putBoolean(UNRENDERED_ACTIVE, false);
+		tag.putString(UNRENDERED_SESSION_ID, "");
+		tag.putString(UNRENDERED_SOURCE_DIMENSION, "");
+		tag.putLong(UNRENDERED_SOURCE_POSITION, 0L);
+		tag.putDouble(UNRENDERED_SOURCE_YAW, 0.0D);
+		tag.putDouble(UNRENDERED_SOURCE_PITCH, 0.0D);
+		tag.putInt(UNRENDERED_SLOT, -1);
+		tag.putLong(UNRENDERED_STARTED_TICK, 0L);
+		tag.putLong(UNRENDERED_DURATION_TICKS, 0L);
+		tag.putInt(UNRENDERED_VISITS, 0);
+		tag.putLong(UNRENDERED_NEXT_ELIGIBLE_TICK, 0L);
 		tag.put(SIGNAL_EVENTS, new ListTag());
 		tag.putInt(SIGNAL_EVENT_SEQUENCE, 0);
 		tag.putInt(UNREAD_SIGNAL_COUNT, 0);
@@ -424,6 +574,9 @@ public final class TerminalData {
 		if (!record.contains(ACTIVE_ANOMALY_ID)) record.putString(ACTIVE_ANOMALY_ID, "none");
 		if (!record.contains(ACTIVE_ANOMALY_UNTIL)) record.putLong(ACTIVE_ANOMALY_UNTIL, 0L);
 		if (!record.contains(LAST_AMBIENT_DIMENSION)) record.putString(LAST_AMBIENT_DIMENSION, "");
+		// Nothing to carry over: a record written before this field existed was scheduled by a
+		// director that had no frozen state, so zero is the truth rather than a default.
+		if (!record.contains(ANOMALY_FROZEN_REMAINING)) record.putLong(ANOMALY_FROZEN_REMAINING, 0L);
 		if (!record.contains(DEBUG_ENABLED)) record.putBoolean(DEBUG_ENABLED, false);
 		if (!record.contains(CALIBRATED_BANDS_MASK)) record.putInt(CALIBRATED_BANDS_MASK,
 				record.getBooleanOr(BOUND, false) ? 0b111 : 0);
@@ -451,6 +604,7 @@ public final class TerminalData {
 		if (!record.contains(MINERAL_READING_MIN_DISTANCE)) record.putInt(MINERAL_READING_MIN_DISTANCE, 0);
 		if (!record.contains(MINERAL_READING_MAX_DISTANCE)) record.putInt(MINERAL_READING_MAX_DISTANCE, 0);
 		if (!record.contains(MINERAL_READING_DIMENSION)) record.putString(MINERAL_READING_DIMENSION, "");
+		if (!record.contains(MINERAL_READING_FORGED)) record.putBoolean(MINERAL_READING_FORGED, false);
 		if (!record.contains(MINERAL_SURVEY_PROXIMITY)) record.putBoolean(MINERAL_SURVEY_PROXIMITY, false);
 		if (!record.contains(MINERAL_SURVEY_NEARBY)) record.putBoolean(MINERAL_SURVEY_NEARBY, false);
 		if (!record.contains(MINERAL_SURVEY_POSITION)) record.putLong(MINERAL_SURVEY_POSITION, 0L);
@@ -465,6 +619,10 @@ public final class TerminalData {
 		if (!record.contains(LAST_PORTAL_DIMENSION)) record.putString(LAST_PORTAL_DIMENSION, "");
 		if (!record.contains(EYE_SAMPLE_COUNT)) record.putInt(EYE_SAMPLE_COUNT, 0);
 		if (!record.contains(STRONGHOLD_POSITION)) record.putLong(STRONGHOLD_POSITION, 0L);
+		// Older saves carry a count but no vantage points. An empty array reads as "no baseline yet",
+		// which degrades to the wide bearing the count alone honestly supports rather than to an error.
+		if (!record.contains(STRONGHOLD_SAMPLE_POSITIONS))
+			record.putLongArray(STRONGHOLD_SAMPLE_POSITIONS, new long[0]);
 		if (!record.contains(STRONGHOLD_DIMENSION)) record.putString(STRONGHOLD_DIMENSION, "");
 		if (!record.contains(SURVIVAL_MILESTONE_MASK)) record.putInt(SURVIVAL_MILESTONE_MASK,
 				legacySurvivalMilestones(record));
@@ -475,6 +633,10 @@ public final class TerminalData {
 						? SurvivalProgressService.REQUIRED_IRON : 0);
 		if (!record.contains(BLAZE_ROD_SAMPLE_COUNT)) record.putInt(BLAZE_ROD_SAMPLE_COUNT,
 				(record.getIntOr(SURVIVAL_MILESTONE_MASK, 0) & (1 << 5 | 1 << 6 | 1 << 7)) == 0 ? 0 : 6);
+		// Defaults to the solo figure: a save written before the party scaling existed was played at
+		// three, and the next pass lowers it if this world actually has a party in it.
+		if (!record.contains(BLAZE_ROD_REQUIRED)) record.putInt(BLAZE_ROD_REQUIRED,
+				SurvivalProgressService.REQUIRED_BLAZE_RODS);
 		if (!record.contains(CRAFTED_EYE_COUNT)) record.putInt(CRAFTED_EYE_COUNT,
 				SurvivalMilestone.CRAFTED_EYE.present(record.getIntOr(SURVIVAL_MILESTONE_MASK, 0))
 						? SurvivalProgressService.REQUIRED_CRAFTED_EYES : 0);
@@ -498,6 +660,27 @@ public final class TerminalData {
 						milestones | SurvivalMilestone.FOUND_FORTRESS.mask());
 			}
 		}
+		// Schema 12 retired record_eye, which sat at index 8 - so find_stronghold, enter_end and
+		// defeat_boss all slide down one. Same bit-per-task hazard as the insert above, in reverse:
+		// without this a save that had claimed through the stronghold would be read as having claimed
+		// the End and would never be paid for it. The throw count itself stays; only the objective is
+		// gone, and StoryProgressService still uses it to gate the stronghold tool.
+		if (sourceSchema < 12) {
+			record.putInt(TASK_REWARD_CLAIMED_MASK, TerminalTaskService.migrateMaskForEyeRemoval(
+					record.getIntOr(TASK_REWARD_CLAIMED_MASK, 0)));
+			record.putInt(TASK_COMPLETION_NOTIFIED_MASK, TerminalTaskService.migrateMaskForEyeRemoval(
+					record.getIntOr(TASK_COMPLETION_NOTIFIED_MASK, 0)));
+		}
+		// Schema 13 retires craft_eye at index 7, so find_stronghold, enter_end and defeat_boss each
+		// slide down one. Ordered after the schema-12 shift and never merged with it: a save old
+		// enough to need both has to have the earlier hole closed before the later index means what
+		// this step thinks it means.
+		if (sourceSchema < 13) {
+			record.putInt(TASK_REWARD_CLAIMED_MASK, TerminalTaskService.migrateMaskForCraftEyeRemoval(
+					record.getIntOr(TASK_REWARD_CLAIMED_MASK, 0)));
+			record.putInt(TASK_COMPLETION_NOTIFIED_MASK, TerminalTaskService.migrateMaskForCraftEyeRemoval(
+					record.getIntOr(TASK_COMPLETION_NOTIFIED_MASK, 0)));
+		}
 		// A save from before the walkthrough existed: anything already visited or claimed proves this
 		// player has used the terminal, and replaying their first boot would be staging something
 		// that already happened to them. Only a record with neither gets the walkthrough.
@@ -505,6 +688,23 @@ public final class TerminalData {
 			record.putBoolean(ONBOARDING_DONE, record.getIntOr(TERMINAL_PAGE_VISIT_MASK, 0) != 0
 					|| record.getIntOr(TASK_REWARD_CLAIMED_MASK, 0) != 0);
 		}
+		// A save from before the profile existed has already bound its terminal, so there is nobody
+		// left to ask. The answers stay unanswered and the latch reads as taken: the walkthrough is
+		// one-shot, and "you never answered" is a truthful state the terminal is able to say out loud.
+		if (!record.contains(PROFILE_ANSWERS)) record.putIntArray(PROFILE_ANSWERS, unansweredProfile());
+		if (!record.contains(PROFILE_QUESTION)) record.putInt(PROFILE_QUESTION, 0);
+		if (!record.contains(PROFILE_TAKEN)) {
+			record.putBoolean(PROFILE_TAKEN, record.getBooleanOr(ONBOARDING_DONE, false));
+		}
+		// Anomalies were never written to the quarantined store before this version, so an old save
+		// has nothing to release. Opening the page on an empty list would spend the moment on nothing;
+		// leaving it closed lets the store fill from here and release on the next eye-of-ender bearing.
+		if (!record.contains(ANOMALY_BACKFILL_RELEASED)) {
+			record.putBoolean(ANOMALY_BACKFILL_RELEASED, false);
+		}
+		if (!record.contains(RELAY_PENDING)) record.put(RELAY_PENDING, new ListTag());
+		if (!record.contains(RELAY_LAST_DELIVERED)) record.putLong(RELAY_LAST_DELIVERED, 0L);
+		if (!record.contains(RELAY_CONTACT_SINCE)) record.putLong(RELAY_CONTACT_SINCE, 0L);
 		if (!record.contains(UNREAD_ALERT_ACTIVE)) record.putBoolean(UNREAD_ALERT_ACTIVE, false);
 		if (!record.contains(BREACH_MASK)) record.putInt(BREACH_MASK, 0);
 		if (!record.contains(TRUTH_READ)) record.putBoolean(TRUTH_READ,
@@ -532,6 +732,10 @@ public final class TerminalData {
 		if (!record.contains(PURSUIT_WARNING_RECORDS_REDIRECT))
 			record.putBoolean(PURSUIT_WARNING_RECORDS_REDIRECT, false);
 		if (!record.contains(PURSUIT_PENDING)) record.putBoolean(PURSUIT_PENDING, false);
+		// Zero rather than "now": a save that was already pending has been waiting since before this
+		// field existed, and the queue should treat that as the longest wait rather than the shortest.
+		if (!record.contains(PURSUIT_PENDING_SINCE)) record.putLong(PURSUIT_PENDING_SINCE, 0L);
+		if (!record.contains(PURSUIT_QUEUE_NOTED)) record.putBoolean(PURSUIT_QUEUE_NOTED, false);
 		if (!record.contains(PURSUIT_NEXT_ELIGIBLE_TICK)) record.putLong(PURSUIT_NEXT_ELIGIBLE_TICK, 0L);
 		if (!record.contains(PURSUIT_EFFECTIVE_ACTIVITY_TICKS)) record.putLong(PURSUIT_EFFECTIVE_ACTIVITY_TICKS, 0L);
 		if (!record.contains(PURSUIT_EXPLORATION_DISTANCE)) record.putDouble(PURSUIT_EXPLORATION_DISTANCE, 0.0D);
@@ -550,6 +754,17 @@ public final class TerminalData {
 		if (!record.contains(PURSUIT_SESSION_STARTED_TICK)) record.putLong(PURSUIT_SESSION_STARTED_TICK, 0L);
 		if (!record.contains(PURSUIT_REFUND_LEDGER)) record.put(PURSUIT_REFUND_LEDGER, new ListTag());
 		if (!record.contains(PURSUIT_RECOVERY_QUEUE)) record.put(PURSUIT_RECOVERY_QUEUE, new ListTag());
+		if (!record.contains(UNRENDERED_ACTIVE)) record.putBoolean(UNRENDERED_ACTIVE, false);
+		if (!record.contains(UNRENDERED_SESSION_ID)) record.putString(UNRENDERED_SESSION_ID, "");
+		if (!record.contains(UNRENDERED_SOURCE_DIMENSION)) record.putString(UNRENDERED_SOURCE_DIMENSION, "");
+		if (!record.contains(UNRENDERED_SOURCE_POSITION)) record.putLong(UNRENDERED_SOURCE_POSITION, 0L);
+		if (!record.contains(UNRENDERED_SOURCE_YAW)) record.putDouble(UNRENDERED_SOURCE_YAW, 0.0D);
+		if (!record.contains(UNRENDERED_SOURCE_PITCH)) record.putDouble(UNRENDERED_SOURCE_PITCH, 0.0D);
+		if (!record.contains(UNRENDERED_SLOT)) record.putInt(UNRENDERED_SLOT, -1);
+		if (!record.contains(UNRENDERED_STARTED_TICK)) record.putLong(UNRENDERED_STARTED_TICK, 0L);
+		if (!record.contains(UNRENDERED_DURATION_TICKS)) record.putLong(UNRENDERED_DURATION_TICKS, 0L);
+		if (!record.contains(UNRENDERED_VISITS)) record.putInt(UNRENDERED_VISITS, 0);
+		if (!record.contains(UNRENDERED_NEXT_ELIGIBLE_TICK)) record.putLong(UNRENDERED_NEXT_ELIGIBLE_TICK, 0L);
 		if (!record.contains(SIGNAL_EVENTS)) migrateLegacyAnomalyLogs(record);
 		if (!record.contains(SIGNAL_EVENT_SEQUENCE)) record.putInt(SIGNAL_EVENT_SEQUENCE, 0);
 		if (!record.contains(UNREAD_SIGNAL_COUNT))
@@ -680,6 +895,49 @@ public final class TerminalData {
 			case 2 -> "wry";
 			default -> "clinical";
 		};
+	}
+
+	/** A profile with every question unanswered. Sized from the questionnaire so the two cannot drift. */
+	public static int[] unansweredProfile() {
+		int[] answers = new int[TerminalProfileQuestionnaire.questionCount()];
+		java.util.Arrays.fill(answers, TerminalProfileQuestionnaire.UNANSWERED);
+		return answers;
+	}
+
+	/**
+	 * The stored profile, normalised to the questionnaire's current length.
+	 *
+	 * <p>A record written by a build with fewer questions is widened with unanswered slots rather
+	 * than rejected: the extra questions are ones that player was genuinely never asked, and that is
+	 * a true thing to store. Anything that is not a legal option for its own question also reads as
+	 * unanswered, so a hand-edited save cannot put an out-of-range index in front of a consumer.
+	 */
+	public static int[] profileAnswers(CompoundTag record) {
+		int[] stored = record.getIntArray(PROFILE_ANSWERS).orElse(new int[0]);
+		int[] answers = unansweredProfile();
+		for (int index = 0; index < answers.length && index < stored.length; index++) {
+			if (TerminalProfileQuestionnaire.validAnswer(index, stored[index])) answers[index] = stored[index];
+		}
+		return answers;
+	}
+
+	/** One stored answer, or {@code UNANSWERED}. Never throws on a question that does not exist. */
+	public static int profileAnswer(CompoundTag record, int questionIndex) {
+		int[] answers = profileAnswers(record);
+		if (questionIndex < 0 || questionIndex >= answers.length) {
+			return TerminalProfileQuestionnaire.UNANSWERED;
+		}
+		return answers[questionIndex];
+	}
+
+	/** Whether the profile was taken at all, however much of it the player actually answered. */
+	public static boolean profileTaken(CompoundTag record) {
+		return record.getBooleanOr(PROFILE_TAKEN, false);
+	}
+
+	/** Whether the records page may list the quarantined anomaly log. */
+	public static boolean anomalyBackfillReleased(CompoundTag record) {
+		return record.getBooleanOr(ANOMALY_BACKFILL_RELEASED, false);
 	}
 
 	public static CompoundTag copyTag(ItemStack stack) {

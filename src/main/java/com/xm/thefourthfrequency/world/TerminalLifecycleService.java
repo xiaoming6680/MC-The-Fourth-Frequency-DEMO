@@ -11,7 +11,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -80,7 +79,7 @@ public final class TerminalLifecycleService {
 	}
 
 	private static void recordDimension(ServerPlayer player, FrequencyWorldData data) {
-		if (PursuitDimensions.isMirror(player.level())) return;
+		if (PrivateDimensions.isPrivate(player.level())) return;
 		String dimension = player.level().dimension().identifier().toString();
 		CompoundTag current = data.terminalRecord(player.getUUID()).orElseThrow();
 		String visited = current.getStringOr(TerminalData.VISITED_DIMENSIONS, "");
@@ -183,9 +182,23 @@ public final class TerminalLifecycleService {
 		RECOVERY_NOTIFIED.remove(playerId);
 	}
 
+	/**
+	 * The stack on the player's cursor, which is where a terminal lives for as long as the player is
+	 * dragging it from one inventory slot to another. It is not an inventory slot, so a scan that only
+	 * walks the player's inventory reads a terminal mid-move as gone.
+	 */
+	private static ItemStack carriedStack(ServerPlayer player) {
+		return player.containerMenu == null ? ItemStack.EMPTY : player.containerMenu.getCarried();
+	}
+
 	private static int synchronizeValidCopies(ServerPlayer player, FrequencyWorldData data) {
 		int validCopies = 0;
 		boolean inventoryChanged = false;
+		// Counted ahead of the slot scan, and deliberately never cleared here: a terminal on the
+		// cursor is being moved, not lost. Without it, reconciliation reads zero copies and issues a
+		// recovery mid-drag, which bumps the copy generation and voids the very stack in hand - so
+		// the terminal appears to refuse being moved within the inventory at all.
+		if (data.isValidTerminal(carriedStack(player), player.getUUID())) validCopies++;
 		for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
 			ItemStack stack = player.getInventory().getItem(slot);
 			if (!stack.is(ModItems.OLD_TERMINAL)) {

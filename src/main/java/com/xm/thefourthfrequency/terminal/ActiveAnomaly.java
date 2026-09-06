@@ -54,6 +54,23 @@ public final class ActiveAnomaly {
 		return true;
 	}
 
+	/**
+	 * Accepts a completion the server decided on, without the earliest-completion check.
+	 *
+	 * <p>That check exists to stop a <em>client</em> claiming an anomaly finished the tick it
+	 * started; it is a statement about who is allowed to say so, not about how long an anomaly must
+	 * last. An anomaly whose end condition the server watches for itself - a player walking into the
+	 * way out of the unrendered layer - can legitimately end at any moment, and running it through
+	 * {@link #acceptCompletion} would reject that and let the instance time out as interrupted
+	 * instead, so a real success would never be recorded.
+	 */
+	public boolean acceptServerCompletion(UUID playerId, AnomalyCompletionStatus status) {
+		if (!targetPlayerId.equals(playerId) || stage == Stage.COMPLETED) return false;
+		stage = Stage.COMPLETED;
+		completionStatus = Objects.requireNonNull(status, "status");
+		return true;
+	}
+
 	public void interrupt() {
 		if (stage == Stage.COMPLETED) return;
 		stage = Stage.COMPLETED;

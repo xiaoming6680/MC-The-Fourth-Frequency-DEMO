@@ -86,6 +86,23 @@ public final class WorldInterfaceClientState {
 			return encounter != null && encounter.stage() == WorldInterfaceProtocol.Stage.COMPLETE;
 		}
 
+		/**
+		 * Whether the finale is live enough to hold the pause menu's exit shut.
+		 *
+		 * <p>Narrower than {@link #combatVisible()} on purpose. That predicate is about what the
+		 * client draws, and it stays true through the resolution stages and the open portal, which
+		 * are the epilogue - the fight is decided, the world has been handed back, and the menu is
+		 * exactly where a player should be able to go. Holding the door through those would be the
+		 * story taking something it no longer needs.
+		 */
+		public boolean locksPauseExit() {
+			if (encounter == null) return false;
+			return switch (encounter.stage()) {
+				case SUMMONING, PHASE_1, PHASE_2, PHASE_3 -> true;
+				default -> false;
+			};
+		}
+
 		public boolean combatVisible() {
 			if (encounter == null) return false;
 			return switch (encounter.stage()) {

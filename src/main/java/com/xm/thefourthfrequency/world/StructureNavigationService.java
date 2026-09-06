@@ -23,7 +23,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -71,8 +70,6 @@ public final class StructureNavigationService {
 			case "enter_nether", "find_fortress", "collect_blaze_rods", "return_from_nether" -> progressiveMask(
 					TerminalStructureTarget.RUINED_PORTAL, TerminalStructureTarget.VILLAGE,
 					TerminalStructureTarget.MINESHAFT, hintTier);
-			case "craft_eye" -> progressiveMask(TerminalStructureTarget.VILLAGE,
-					TerminalStructureTarget.RUINED_PORTAL, TerminalStructureTarget.TRIAL_CHAMBERS, hintTier);
 			case "record_eye", "find_stronghold", "enter_end", "defeat_boss", "complete" -> progressiveMask(
 					TerminalStructureTarget.NONE, TerminalStructureTarget.VILLAGE,
 					TerminalStructureTarget.TRIAL_CHAMBERS, hintTier);
@@ -206,7 +203,7 @@ public final class StructureNavigationService {
 	}
 
 	public static void updatePlayer(ServerPlayer player) {
-		if (PursuitDimensions.isMirror(player.level())) return;
+		if (PrivateDimensions.isPrivate(player.level())) return;
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag tag = data.terminalRecord(player.getUUID()).orElse(null);
 		if (tag == null || TerminalToolService.guidanceTool(tag) != TerminalTool.NAVIGATION.slot()) return;

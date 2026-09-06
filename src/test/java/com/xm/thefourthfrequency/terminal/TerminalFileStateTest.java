@@ -14,11 +14,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TerminalFileStateTest {
 	@Test
-	void catalogHasSevenConsolidatedFilesInStoryOrder() {
-		assertEquals(7, NarrativeFileCatalog.definitions().size());
+	void catalogHasSevenConsolidatedFilesInStoryOrderPlusTheRecoveredFragment() {
+		// Seven belong to this world, in story order. The eighth is the fragment a previous
+		// playthrough left on this machine and sits after all of them, because it is not part of the
+		// story this world tells - it is the previous one leaking into it.
+		assertEquals(8, NarrativeFileCatalog.definitions().size());
 		assertEquals("maintenance_handoff", NarrativeFileCatalog.definitions().getFirst().id());
 		assertEquals("encrypted_witness_file", NarrativeFileCatalog.definitions().get(5).id());
-		assertEquals("body_mapping_warning", NarrativeFileCatalog.definitions().getLast().id());
+		assertEquals("body_mapping_warning", NarrativeFileCatalog.definitions().get(6).id());
+		assertEquals("recovered_predecessor_record", NarrativeFileCatalog.definitions().getLast().id());
 		assertFalse(NarrativeFileCatalog.definitions().stream().anyMatch(definition ->
 				definition.id().equals("recovered_fragment")
 						|| definition.id().equals("correction_response_record")

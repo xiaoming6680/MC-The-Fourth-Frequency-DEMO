@@ -1,6 +1,7 @@
 package com.xm.thefourthfrequency.world;
 
 import com.xm.thefourthfrequency.content.ModEntities;
+import com.xm.thefourthfrequency.ending.FinaleRuntimePolicy;
 import com.xm.thefourthfrequency.entity.HimEntity;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -67,8 +68,22 @@ public final class HimService {
 	 */
 	private static final double DAYLIGHT_DISTANCE_SCALE = 1.6D;
 	/** Time between attempts per player, before the random spread below is added. */
-	private static final long BASE_INTERVAL_TICKS = 6000L;
-	private static final int INTERVAL_SPREAD_TICKS = 9000;
+	private static final long BASE_INTERVAL_TICKS = 3600L;
+	private static final int INTERVAL_SPREAD_TICKS = 5400;
+	/**
+	 * The wait after an attempt that never got as far as being a sighting.
+	 *
+	 * <p>Five to twelve minutes is the gap between two <em>chances</em> at seeing the figure. It was
+	 * also, wrongly, the gap after a chance that could not be taken: {@code findPosition} fails
+	 * whenever there is no spot at the right distance and angle - which is most of a cave system, a
+	 * boat, or anywhere hemmed in - and the full interval was spent on it regardless. So the players
+	 * least able to satisfy the placement rule were also the ones charged the most for failing it,
+	 * and the figure could go an hour without appearing while the clock said otherwise.
+	 *
+	 * <p>Half a minute, because a failed placement says nothing about whether the next one will work:
+	 * the player has moved since, and that is the entire input.
+	 */
+	private static final long RETRY_INTERVAL_TICKS = 600L;
 
 	private static final Map<UUID, Long> NEXT_ATTEMPT = new HashMap<>();
 	private static boolean initialized;
@@ -99,8 +114,20 @@ public final class HimService {
 		if (!(player.level() instanceof ServerLevel level) || !player.isAlive() || player.isSpectator()) {
 			return false;
 		}
+		// The mirror is the one place this cannot happen, forced or not. A private chase is the mod's
+		// statement that the observer has been taken out of shared reality; a second figure that the
+		// chase did not put there is the mirror leaking, and the debug entry point is not a reason to
+		// let it - an operator testing HIM inside somebody's correction layer would be testing the
+		// wrong thing and breaking the isolation to do it.
+		if (PrivateDimensions.isPrivate(level)) return false;
 		long now = level.getGameTime();
 		if (!forced) {
+			// Both of these are the standing gates every other ambient system already applies, and
+			// this service had neither: a sighting for somebody the story holds no record of, or after
+			// the story it belongs to has been answered, is a figure with nothing behind it.
+			FrequencyWorldData data = FrequencyWorldData.get(level.getServer());
+			if (data.terminalRecord(player.getUUID()).isEmpty()
+					|| !FinaleRuntimePolicy.ambientPressureAllowed(data, player)) return false;
 			// The first sighting has to be scheduled, not defaulted. Falling back to "now plus one
 			// interval" without writing it made every tick recompute a deadline it could never reach,
 			// so the figure only ever appeared through the debug entry point.
@@ -118,7 +145,11 @@ public final class HimService {
 				him -> him.haunts(player.getUUID())).isEmpty()) return false;
 
 		BlockPos position = findPosition(level, player);
-		if (position == null) return false;
+		if (position == null) {
+			// Not a sighting that happened, so not a sighting that should be paid for. See above.
+			if (!forced) NEXT_ATTEMPT.put(player.getUUID(), now + RETRY_INTERVAL_TICKS);
+			return false;
+		}
 		HimEntity him = ModEntities.HIM.create(level, EntitySpawnReason.EVENT);
 		if (him == null) return false;
 		// Facing the player from the start. There is no time to turn: it has a fifth of a second on

@@ -2,6 +2,7 @@ package com.xm.thefourthfrequency.test;
 
 import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.content.ModItems;
+import com.xm.thefourthfrequency.terminal.AnomalyCatalog;
 import com.xm.thefourthfrequency.terminal.AnomalyCompletionStatus;
 import com.xm.thefourthfrequency.terminal.AnomalyConditions;
 import com.xm.thefourthfrequency.terminal.AnomalyGameTestBridge;
@@ -336,8 +337,17 @@ public final class TerminalAnomalyGameTests implements CustomTestMethodInvoker {
 		helper.succeed();
 	}
 
+	/**
+	 * The cascade forces doors open; it no longer deletes them.
+	 *
+	 * <p>This test used to assert the opposite, and what it was guarding was a genuine swallow: both
+	 * halves were replaced with air and the resulting item was explicitly discarded, so a door simply
+	 * ceased to exist with nothing left to read it by. On a shared server it was doing that to doors
+	 * the target had never touched. Every part of the performance is unchanged - the crack overlay,
+	 * the break particles, the zombie's forcing sound - only the outcome is now a door standing open.
+	 */
 	@GameTest(maxTicks = 80)
-	public void doorCascadePermanentlyBreaksBothDoorHalvesWithoutDrops(GameTestHelper helper) {
+	public void doorCascadeForcesDoorsOpenWithoutDestroyingThem(GameTestHelper helper) {
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
 		player.setNoGravity(true);
 		AnomalyRuntimeService.interrupt(player, false);
@@ -381,26 +391,85 @@ public final class TerminalAnomalyGameTests implements CustomTestMethodInvoker {
 			helper.assertTrue(AmbientAnomalyService.trigger(player, "door_cascade", false),
 					"Multiple ordinary doors within twenty blocks start the cascade");
 			helper.runAfterDelay(14, () -> {
-				helper.assertTrue(helper.getLevel().getBlockState(doors.getLast()).isAir(),
-						"The farthest twenty-block door breaks first");
-				helper.assertTrue(helper.getLevel().getBlockState(doors.getFirst()).getBlock() instanceof net.minecraft.world.level.block.DoorBlock,
-						"A nearer door remains while the cascade advances inward");
+				helper.assertTrue(helper.getLevel().getBlockState(doors.getLast())
+								.getValue(BlockStateProperties.OPEN),
+						"The farthest twenty-block door is forced first");
+				helper.assertFalse(helper.getLevel().getBlockState(doors.getFirst())
+								.getValue(BlockStateProperties.OPEN),
+						"A nearer door is still shut while the cascade advances inward");
 			});
 			helper.runAfterDelay(55, () -> {
 				for (int index = 0; index < doors.size(); index++) {
 					BlockPos lower = doors.get(index);
-					helper.assertTrue(helper.getLevel().getBlockState(lower).isAir(),
-							"Lower half " + index + " is permanently removed at " + lower);
-					helper.assertTrue(helper.getLevel().getBlockState(lower.above()).isAir(),
-							"Upper half " + index + " is permanently removed at " + lower.above());
+					var forcedLower = helper.getLevel().getBlockState(lower);
+					var forcedUpper = helper.getLevel().getBlockState(lower.above());
+					helper.assertTrue(forcedLower.getBlock() instanceof net.minecraft.world.level.block.DoorBlock,
+							"Lower half " + index + " still exists at " + lower);
+					helper.assertTrue(forcedUpper.getBlock() instanceof net.minecraft.world.level.block.DoorBlock,
+							"Upper half " + index + " still exists at " + lower.above());
+					// Both halves, because a pair whose halves disagree renders as a broken door.
+					helper.assertTrue(forcedLower.getValue(BlockStateProperties.OPEN),
+							"Lower half " + index + " is forced open at " + lower);
+					helper.assertTrue(forcedUpper.getValue(BlockStateProperties.OPEN),
+							"Upper half " + index + " is forced open at " + lower.above());
 				}
 				helper.assertFalse(helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
 						player.getBoundingBox().inflate(22.0)).stream()
-						.anyMatch(item -> item.getItem().is(Items.OAK_DOOR)), "Door produces no oak-door drop");
+						.anyMatch(item -> item.getItem().is(Items.OAK_DOOR)),
+						"Nothing is destroyed, so nothing drops either");
 				AnomalyRuntimeService.interrupt(player, false);
 				helper.succeed();
 			});
 		});
+	}
+
+	/**
+	 * A stage-1 player in the open in daylight keeps getting anomalies after their first one.
+	 *
+	 * <p>This is the "you see nothing early unless you go mining" regression, reproduced exactly.
+	 * Stage 1 offers three entries and two of them are conditional - {@code phantom_echo} needs a
+	 * surface, {@code light_dropout} needs night - so above ground at noon the only one that can
+	 * start is {@code silent_world}. One success then puts it in the recent-ids list and the seen
+	 * mask, both of which narrow the next draw down to the two that cannot happen here, and the
+	 * thirty-second retry rebuilt the identical impossible pool for as long as the player stayed
+	 * out of a cave.
+	 *
+	 * <p>Asserted on the product endpoint rather than on the pools: what the player is owed is an
+	 * anomaly, and the freshness rules are allowed to decide which one only while one of them can
+	 * actually be delivered.
+	 */
+	@GameTest
+	public void daylightSurfaceDrawFallsBackWhenEveryFreshCandidateRefuses(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		AnomalyRuntimeService.interrupt(player, false);
+		// Noon, so light_dropout's night precondition refuses regardless of what is lit nearby.
+		helper.getLevel().setDayTime(6_000L);
+		// A one-block platform in open air: nothing beside the player at foot height, eye height or
+		// underfoot, which is what refuses phantom_echo. Lifted clear of neighbouring parallel
+		// structures for the same reason the dropout test is.
+		BlockPos origin = player.blockPosition().above(40);
+		player.snapTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D, 0.0F, 0.0F);
+		helper.getLevel().setBlockAndUpdate(origin.below(), Blocks.STONE.defaultBlockState());
+		helper.assertTrue(AnomalyConditions.surfaceTarget(helper.getLevel(), player) == null,
+				"The scenario has no surface for the fracture to open in");
+
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		ListTag recent = new ListTag();
+		recent.add(net.minecraft.nbt.StringTag.valueOf("silent_world"));
+		data.updateTerminalRecord(player.getUUID(), tag -> {
+			tag.put(TerminalData.ANOMALY_RECENT_IDS, recent);
+			tag.putLong(TerminalData.ANOMALY_SEEN_MASK, 1L << AnomalyCatalog.indexOf("silent_world"));
+			tag.putLong(TerminalData.NEXT_STRONG_ANOMALY_TICK, 0L);
+		});
+
+		helper.assertTrue(AnomalyGameTestBridge.draw(player, 1),
+				"A draw whose fresh candidates all refuse still starts an anomaly");
+		var active = AnomalyGameTestBridge.active(player);
+		helper.assertTrue(active != null, "The fallback draw produced a running instance");
+		helper.assertValueEqual(active.id(), "silent_world",
+				"The only stage-1 entry this place allows is the one that starts");
+		AnomalyGameTestBridge.cleanup(player);
+		helper.succeed();
 	}
 
 	@GameTest(maxTicks = 40)
@@ -412,26 +481,35 @@ public final class TerminalAnomalyGameTests implements CustomTestMethodInvoker {
 		// Isolate this real-light test vertically from protected stations and neighboring parallel structures.
 		BlockPos origin = player.blockPosition().above(40);
 		player.snapTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D, 0.0F, 0.0F);
+		// Three kinds, because the dropout now answers each of them differently. Glowstone is the
+		// kind with no unlit relative and is deliberately left alone; a sea lantern is the kind that
+		// has one and is swapped for it; a torch is a fitting and is cleared.
 		BlockPos glowstone = origin.offset(4, 1, 0);
+		BlockPos lantern = origin.offset(6, 1, 0);
 		BlockPos torch = origin.offset(-4, 1, 0);
 		BlockPos campfire = origin.offset(0, 1, 5);
 		helper.getLevel().setBlockAndUpdate(torch.below(), Blocks.STONE.defaultBlockState());
 		helper.getLevel().setBlockAndUpdate(campfire.below(), Blocks.STONE.defaultBlockState());
 		helper.getLevel().setBlockAndUpdate(glowstone, Blocks.GLOWSTONE.defaultBlockState());
+		helper.getLevel().setBlockAndUpdate(lantern, Blocks.SEA_LANTERN.defaultBlockState());
 		helper.getLevel().setBlockAndUpdate(torch, Blocks.TORCH.defaultBlockState());
 		helper.getLevel().setBlockAndUpdate(campfire, Blocks.CAMPFIRE.defaultBlockState()
 				.setValue(BlockStateProperties.LIT, true));
 
 		helper.assertTrue(AnomalyGameTestBridge.start(player, "light_dropout", 0x2200B22L, 12),
 				"Light dropout starts when any nearby extinguishable light exists");
-		helper.assertTrue(helper.getLevel().getBlockState(glowstone).is(Blocks.GLOWSTONE),
+		helper.assertTrue(helper.getLevel().getBlockState(torch).is(Blocks.TORCH),
 				"Lights go out over the extinguish window rather than on the starting frame");
 
 		// The lights go out farthest first across LightDropoutSequence.extinguishWindow, which is
 		// four ticks at this duration; every one of them is out well before the held dark.
 		helper.runAfterDelay(6, () -> {
-			helper.assertTrue(helper.getLevel().getBlockState(glowstone).isAir(),
-					"Solid luminous blocks are temporarily extinguished");
+			// A hole in a wall is not a light going out. Glowstone has no unlit relative, so it keeps
+			// standing and keeps shining rather than being deleted out of somebody's ceiling.
+			helper.assertTrue(helper.getLevel().getBlockState(glowstone).is(Blocks.GLOWSTONE),
+					"A solid light with no dark twin is left alone rather than removed");
+			helper.assertTrue(helper.getLevel().getBlockState(lantern).is(Blocks.PRISMARINE_BRICKS),
+					"A solid light with a dark twin becomes it, so the structure survives");
 			helper.assertTrue(helper.getLevel().getBlockState(torch).isAir(),
 					"Nearby torches are temporarily extinguished");
 			helper.assertFalse(helper.getLevel().getBlockState(campfire).getValue(BlockStateProperties.LIT),
@@ -439,14 +517,14 @@ public final class TerminalAnomalyGameTests implements CustomTestMethodInvoker {
 		});
 
 		helper.runAfterDelay(13, () -> {
-			helper.assertTrue(helper.getLevel().getBlockState(glowstone).is(Blocks.GLOWSTONE),
-					"Solid luminous blocks return after the anomaly");
+			helper.assertTrue(helper.getLevel().getBlockState(lantern).is(Blocks.SEA_LANTERN),
+					"A swapped solid light returns to itself after the anomaly");
 			helper.assertTrue(helper.getLevel().getBlockState(torch).is(Blocks.TORCH),
 					"Torches return after the anomaly");
 			helper.assertTrue(helper.getLevel().getBlockState(campfire).getValue(BlockStateProperties.LIT),
 					"Lit blocks return to their original state after the anomaly");
 			AnomalyRuntimeService.interrupt(player, false);
-			for (BlockPos pos : java.util.List.of(glowstone, torch, torch.below(), campfire, campfire.below())) {
+			for (BlockPos pos : java.util.List.of(glowstone, lantern, torch, torch.below(), campfire, campfire.below())) {
 				helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
 			}
 			helper.succeed();
@@ -483,15 +561,25 @@ public final class TerminalAnomalyGameTests implements CustomTestMethodInvoker {
 	public void surfacePreconditionRejectsEmptyCandidatesAndSelectsExactNeighbor(GameTestHelper helper) {
 		ServerPlayer player = helper.makeMockServerPlayerInLevel();
 		BlockPos origin = player.blockPosition();
-		for (Direction direction : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST})
+		Direction[] horizontals = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
+		// The floor beside the player is a target too, so emptying it is part of "there is nothing
+		// here to fracture". Clearing only the walls used to be enough because the floor was never
+		// probed at all, which is exactly the bug that made phantom_echo unavailable above ground.
+		for (Direction direction : horizontals) {
 			helper.getLevel().setBlockAndUpdate(origin.relative(direction), Blocks.AIR.defaultBlockState());
+			helper.getLevel().setBlockAndUpdate(origin.relative(direction).below(), Blocks.AIR.defaultBlockState());
+		}
 		player.setYRot(0.0F);
 		helper.assertTrue(AnomalyConditions.surfaceTarget(helper.getLevel(), player) == null,
-				"No exact foot/eye collision target cancels surface fracture");
+				"No wall and no ground beside the player cancels surface fracture");
+		BlockPos floorTarget = origin.relative(player.getDirection()).below();
+		helper.getLevel().setBlockAndUpdate(floorTarget, Blocks.STONE.defaultBlockState());
+		helper.assertValueEqual(AnomalyConditions.surfaceTarget(helper.getLevel(), player), floorTarget,
+				"Open flat ground beside the player is a valid fracture surface");
 		BlockPos target = origin.relative(player.getDirection());
 		helper.getLevel().setBlockAndUpdate(target, Blocks.STONE.defaultBlockState());
 		helper.assertValueEqual(AnomalyConditions.surfaceTarget(helper.getLevel(), player), target,
-				"Exact one-block front collision surface is selected");
+				"A wall still outranks the ground it stands on");
 		helper.succeed();
 	}
 

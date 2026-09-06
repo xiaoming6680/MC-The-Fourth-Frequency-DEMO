@@ -14,7 +14,15 @@ import java.io.IOException;
 
 /** Client-local, one-time safety notice shown when the title screen first becomes available. */
 public final class FirstRunNoticeController {
-	private static final int CURRENT_NOTICE_VERSION = 3;
+	/**
+	 * Bumped to 4 when the audio page was added in front of the disclosure.
+	 *
+	 * <p>The marker's whole job is "has this player seen <em>this</em> first-run flow", and the flow
+	 * now has a page in it that decides how loud the mod is. Leaving the marker at 3 would hide that
+	 * page from precisely the players who already own the mod - the ones with the most reason to want
+	 * it - and they would have no way of knowing the setting existed.
+	 */
+	private static final int CURRENT_NOTICE_VERSION = 4;
 	private static final String VERSION_FILE = "thefourthfrequency-safety-notice.version";
 	private static boolean initialized;
 	private static boolean acknowledged;

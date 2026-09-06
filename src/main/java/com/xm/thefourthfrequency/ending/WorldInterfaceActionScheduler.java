@@ -13,6 +13,22 @@ public final class WorldInterfaceActionScheduler {
 	public static final int STRONG_CONTROL_IMMUNITY_TICKS = 600;
 	public static final int FORCED_EVICTION_WARNING_TICKS = 120;
 	public static final int FORCED_EVICTION_COOLDOWN_TICKS = 3_600;
+	/**
+	 * Per player, before the gaze may empty their hotbar again. Three minutes.
+	 *
+	 * <p>Every exclusive action already grants its target {@link #STRONG_CONTROL_IMMUNITY_TICKS},
+	 * and for the sweep that is far too short: nine slots on the floor is a shock worth having once
+	 * and a chore worth having never, and at six hundred ticks a ten-minute fight has room to do it
+	 * to the same person ten times. This is the eviction's cooldown applied per player rather than
+	 * per encounter, for the same reason - it is the other action whose cost lands after the attack
+	 * is over.
+	 *
+	 * <p>It also thins the action out on its own. The pick is a shuffled deck in which every action
+	 * comes up once per cycle, so there is no weight to lower; a candidate with nobody left to aim
+	 * at is skipped by the scan, and on a solo table this turns "once per deck" into "at most once
+	 * every three minutes".
+	 */
+	public static final int HOTBAR_SWEEP_COOLDOWN_TICKS = 3_600;
 	public static final int RESTART_RECOVERY_TICKS = 40;
 
 	private static final long SHUFFLE_GAMMA = 0x9E3779B97F4A7C15L;

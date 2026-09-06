@@ -16,6 +16,9 @@
       ,"com.xm.thefourthfrequency.test.TerminalAnomalyGameTests"
       ,"com.xm.thefourthfrequency.test.SurvivalReworkGameTests"
       ,"com.xm.thefourthfrequency.test.PursuitDimensionGameTests"
+      ,"com.xm.thefourthfrequency.test.PursuitRuntimeGameTests"
+      ,"com.xm.thefourthfrequency.test.UnrenderedLayerGameTests"
+      ,"com.xm.thefourthfrequency.test.TerminalBackfillAndProfileGameTests"
     ],
     "fabric-client-gametest": [
       "com.xm.thefourthfrequency.test.M0ClientGameTest",
@@ -25,6 +28,7 @@
       ,"com.xm.thefourthfrequency.test.WorldInterfaceClientGameTest"
       ,"com.xm.thefourthfrequency.test.TerminalHandheldClientGameTest"
       ,"com.xm.thefourthfrequency.test.ScreenFilterClientGameTest"
+      ,"com.xm.thefourthfrequency.test.EndWeatherClientGameTest"
     ]
   },
   "depends": {

@@ -69,6 +69,27 @@ public final class WatcherEntity extends Monster {
 		return playerId.equals(observedPlayer);
 	}
 
+	/**
+	 * Tracked by the player it was placed for, and by nobody else.
+	 *
+	 * <p>The figure is an anomaly aimed at one person, and it was being sent to every client in
+	 * range. On a shared server that produced the three worst possible tells at once: somebody else
+	 * could walk up and inspect it at leisure while the target was fifty blocks away, a bystander
+	 * swinging at it got no reaction whatsoever because {@code hurtServer} only answers the observer,
+	 * and four players standing together at night got four of them. All three said the same thing -
+	 * that it is a spawned mob with rules - which is the one reading the whole effect exists to
+	 * avoid.
+	 *
+	 * <p>This is the entity-tracker's own per-viewer question, so it costs nothing and needs no
+	 * mixin: a client that is never sent the entity has nothing to render, nothing to hit, and no
+	 * packet to notice. The spawn-side de-duplication in {@code WatcherService} still keeps one per
+	 * observer, so a crowd produces a crowd of figures that each exist for exactly one person.
+	 */
+	@Override
+	public boolean broadcastToPlayer(ServerPlayer player) {
+		return observedPlayer == null || observes(player.getUUID());
+	}
+
 	@Override
 	protected void registerGoals() {
 		// It watches. Pathfinding would make it feel like an ordinary predator.

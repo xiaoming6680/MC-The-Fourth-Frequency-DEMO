@@ -17,35 +17,82 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class TerminalOnboardingPolicyTest {
 	@Test
 	void aSettledPlayerNeverSeesTheWalkthrough() {
-		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(false, 0));
-		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(false, 4));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(false, 0, true));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(false, 4, true));
 		// A server that still says "required" while the task has moved past learn_terminal is a state
 		// that should not happen; treating it as done beats handing out a walkthrough with no end.
-		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(true, 4));
-		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(true, 9));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(true, 4, true));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(true, 9, true));
+		// An owed profile does not resurrect a walkthrough that is otherwise over. The profile is part
+		// of the first boot, not a thing that can be demanded of a terminal already in service.
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(false, 0, false));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.initial(true, 4, false));
 	}
 
 	@Test
 	void onlyATrulyFirstOpenPlaysTheSelfTest() {
-		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.initial(true, 0));
+		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.initial(true, 0, true));
+		// The self test always comes first, profile owed or not - what follows it is afterBoot's call,
+		// and duplicating that fork here would give it two owners that could disagree.
+		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.initial(true, 0, false));
 		// One tab already visited is proof the self test has been seen, so a reconnect resumes at the
 		// walking steps instead of replaying it. This is what makes "not repeatable" hold across a
 		// disconnect without needing a second flag on the wire.
-		assertEquals(Phase.STEP_2, TerminalOnboardingPolicy.initial(true, 1));
-		assertEquals(Phase.STEP_3, TerminalOnboardingPolicy.initial(true, 2));
-		assertEquals(Phase.STEP_4, TerminalOnboardingPolicy.initial(true, 3));
+		assertEquals(Phase.STEP_2, TerminalOnboardingPolicy.initial(true, 1, true));
+		assertEquals(Phase.STEP_3, TerminalOnboardingPolicy.initial(true, 2, true));
+		assertEquals(Phase.STEP_4, TerminalOnboardingPolicy.initial(true, 3, true));
 	}
 
 	@Test
 	void bootHoldsUntilItsLinesHaveAllPrinted() {
-		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.afterBoot(Phase.BOOT, 0L));
+		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.afterBoot(Phase.BOOT, 0L, true));
 		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.afterBoot(Phase.BOOT,
-				TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS - 1L));
+				TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS - 1L, true));
 		assertEquals(Phase.STEP_1, TerminalOnboardingPolicy.afterBoot(Phase.BOOT,
-				TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS));
+				TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS, true));
 		// It only ever moves BOOT along; every other phase is left where it was.
-		assertEquals(Phase.STEP_3, TerminalOnboardingPolicy.afterBoot(Phase.STEP_3, 999_999L));
-		assertEquals(Phase.DONE, TerminalOnboardingPolicy.afterBoot(Phase.DONE, 999_999L));
+		assertEquals(Phase.STEP_3, TerminalOnboardingPolicy.afterBoot(Phase.STEP_3, 999_999L, true));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.afterBoot(Phase.DONE, 999_999L, true));
+	}
+
+	/**
+	 * The profile sits between the self test and the tabs, and only on a terminal that owes one.
+	 *
+	 * <p>Ordering matters both ways. It cannot come before the self test, because the device has not
+	 * finished claiming to be awake yet. It cannot come after the tab tour, because the tour ends by
+	 * completing {@code learn_terminal} and paying out - the profile would then be a form that
+	 * appears after the player has already been told they are finished.
+	 */
+	@Test
+	void theProfileIsAskedOnceBetweenTheSelfTestAndTheTabs() {
+		assertEquals(Phase.PROFILE, TerminalOnboardingPolicy.afterBoot(Phase.BOOT,
+				TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS, false));
+		// Still booting: the profile does not jump the self test.
+		assertEquals(Phase.BOOT, TerminalOnboardingPolicy.afterBoot(Phase.BOOT, 0L, false));
+		// It leaves only when the server says the profile has been taken, and it is the server that
+		// says so - an interrupted profile is taken too, gaps and all.
+		assertEquals(Phase.PROFILE, TerminalOnboardingPolicy.afterProfile(Phase.PROFILE, false));
+		assertEquals(Phase.STEP_1, TerminalOnboardingPolicy.afterProfile(Phase.PROFILE, true));
+		// Every other phase is left alone, in both directions.
+		assertEquals(Phase.STEP_3, TerminalOnboardingPolicy.afterProfile(Phase.STEP_3, false));
+		assertEquals(Phase.DONE, TerminalOnboardingPolicy.afterProfile(Phase.DONE, false));
+	}
+
+	/**
+	 * No tab may be opened while the profile is on screen.
+	 *
+	 * <p>Falls out of {@link TerminalOnboardingPolicy#target} being null for this phase rather than
+	 * from a rule written twice, but it is worth pinning: a player who could reach Tools mid-profile
+	 * would be looking at a page the walkthrough has not introduced, with the exit still held.
+	 */
+	@Test
+	void theProfileHoldsTheExitAndOffersNoTabs() {
+		assertTrue(TerminalOnboardingPolicy.locksExit(Phase.PROFILE));
+		assertNull(TerminalOnboardingPolicy.target(Phase.PROFILE));
+		assertEquals(0, TerminalOnboardingPolicy.stepIndex(Phase.PROFILE));
+		for (TerminalPage page : TerminalPage.values()) {
+			assertFalse(TerminalOnboardingPolicy.allowsPage(Phase.PROFILE, page), page.name());
+		}
 	}
 
 	@Test
@@ -219,5 +266,60 @@ final class TerminalOnboardingPolicyTest {
 		if (first.width() <= 0 || first.height() <= 0 || second.width() <= 0 || second.height() <= 0) return true;
 		return first.right() <= second.left() || second.right() <= first.left()
 				|| first.bottom() <= second.top() || second.bottom() <= first.top();
+	}
+
+	/**
+	 * The button may not open before the explanation has finished arriving.
+	 *
+	 * <p>It is the only way forward now, so an early button is an invitation to skip the step - and a
+	 * player who skips every step has been shown a tutorial that taught them nothing. The gate is the
+	 * text finishing rather than a timer of its own, so it can never drift from what is on screen.
+	 */
+	@Test
+	void theAdvanceButtonWaitsForTheExplanationAndThenOpensImmediately() {
+		assertFalse(TerminalOnboardingPolicy.advanceReady(0L, 40));
+		assertFalse(TerminalOnboardingPolicy.advanceReady(
+				TerminalOnboardingPolicy.detailTotalMillis(40) - 1L, 40));
+		assertTrue(TerminalOnboardingPolicy.advanceReady(
+				TerminalOnboardingPolicy.detailTotalMillis(40), 40));
+		assertTrue(TerminalOnboardingPolicy.advanceReady(Long.MAX_VALUE, 40));
+		// A longer translation delays the button rather than being cut off by it.
+		assertTrue(TerminalOnboardingPolicy.detailTotalMillis(80)
+				> TerminalOnboardingPolicy.detailTotalMillis(40));
+	}
+
+	/** Lines arrive one at a time and every one of them is fully printed by the time the button opens. */
+	@Test
+	void everyExplanationLineIsFinishedBeforeTheButtonOpens() {
+		assertEquals(0, TerminalOnboardingPolicy.visibleDetailLines(-1L));
+		assertEquals(1, TerminalOnboardingPolicy.visibleDetailLines(0L));
+		assertEquals(TerminalOnboardingPolicy.DETAIL_LINE_COUNT,
+				TerminalOnboardingPolicy.visibleDetailLines(Long.MAX_VALUE));
+		long ready = TerminalOnboardingPolicy.detailTotalMillis(40);
+		assertEquals(TerminalOnboardingPolicy.DETAIL_LINE_COUNT,
+				TerminalOnboardingPolicy.visibleDetailLines(ready));
+		for (int line = 0; line < TerminalOnboardingPolicy.DETAIL_LINE_COUNT; line++) {
+			assertEquals(40, TerminalOnboardingPolicy.typedDetailCharacters(40, ready, line),
+					"line " + line + " was still printing when the button opened");
+		}
+	}
+
+	/**
+	 * Only the fourth step offers to finish, and pressing it still has to go through a real page
+	 * visit - which is what {@link TerminalOnboardingPolicy#advance} continues to require.
+	 */
+	@Test
+	void onlyTheLastStepIsTheFinishingOne() {
+		assertFalse(TerminalOnboardingPolicy.finalStep(TerminalOnboardingPolicy.Phase.STEP_1));
+		assertFalse(TerminalOnboardingPolicy.finalStep(TerminalOnboardingPolicy.Phase.STEP_3));
+		assertTrue(TerminalOnboardingPolicy.finalStep(TerminalOnboardingPolicy.Phase.STEP_4));
+		assertFalse(TerminalOnboardingPolicy.finalStep(TerminalOnboardingPolicy.Phase.BOOT));
+		assertFalse(TerminalOnboardingPolicy.finalStep(TerminalOnboardingPolicy.Phase.DONE));
+		// The button is a shortcut to the click, never a substitute for it: the phase still only
+		// moves when the page the step asked for is actually reported as visited.
+		assertEquals(TerminalOnboardingPolicy.Phase.STEP_4,
+				TerminalOnboardingPolicy.advance(TerminalOnboardingPolicy.Phase.STEP_4, TerminalPage.TOOLS));
+		assertEquals(TerminalOnboardingPolicy.Phase.DONE,
+				TerminalOnboardingPolicy.advance(TerminalOnboardingPolicy.Phase.STEP_4, TerminalPage.HOME));
 	}
 }

@@ -2,6 +2,7 @@ package com.xm.thefourthfrequency.test;
 
 import com.xm.thefourthfrequency.content.ModItems;
 import com.xm.thefourthfrequency.content.TerminalData;
+import com.xm.thefourthfrequency.ending.ConfiscationService;
 import com.xm.thefourthfrequency.networking.TerminalControlPayload;
 import com.xm.thefourthfrequency.networking.TerminalNavigationPayload;
 import com.xm.thefourthfrequency.networking.TerminalToolSnapshotPayload;
@@ -37,9 +38,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.level.ChunkPos;
@@ -60,6 +64,7 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public final class M1GameTests implements CustomTestMethodInvoker {
 	@GameTest
@@ -90,6 +95,62 @@ public final class M1GameTests implements CustomTestMethodInvoker {
 								+ level.getBlockState(overhead) + " at " + overhead);
 			}
 		}
+		helper.succeed();
+	}
+
+	/**
+	 * Dying must not put custody stacks on the ground where anybody can pick them up.
+	 *
+	 * <p>Goes through {@code Inventory#dropAll} rather than through {@code Player#drop} on purpose:
+	 * that is the method a death calls, and it is the one the refusal used to miss. The two are
+	 * different overloads - {@code dropAll} reaches {@code LivingEntity#drop(ItemStack, boolean,
+	 * boolean)} directly - so a test that only exercises the drop key passes while every death on the
+	 * server scatters a bound terminal and a barrier placeholder across the floor. The placeholder is
+	 * the worse half: custody hands the real weapon back by scanning the <em>owner's</em> inventory,
+	 * so one picked up by somebody else never resolves and never leaves theirs.
+	 *
+	 * <p>Asserted on the return value rather than by sweeping the level for {@code ItemEntity}: the
+	 * dispatch is what is under test, and a spatial query around a mock player answers questions about
+	 * the fixture instead. The diamonds are the control - without a stack that is <em>supposed</em> to
+	 * drop, this would pass just as happily against a build where nothing drops at all.
+	 *
+	 * <p>{@code drop(stack, true, false)} is not an approximation of the death path, it is that path's
+	 * exact call: {@code Inventory#dropAll} passes those two arguments, and the override chain
+	 * {@code ServerPlayer.drop -> super -> LivingEntity.drop} is the same one it goes through. Which
+	 * method death reaches is pinned separately by {@code MultiplayerIsolationContractTest}.
+	 */
+	@GameTest
+	public void dyingDoesNotScatterTheTerminalOrACustodyPlaceholder(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), tag -> tag.putBoolean(TerminalData.BOUND, true));
+		ItemStack boundTerminal = TerminalData.stackFromRecord(
+				data.terminalRecord(player.getUUID()).orElseThrow());
+		helper.assertTrue(TerminalData.isBound(boundTerminal), "Fixture terminal must be bound");
+
+		ItemEntity control = player.drop(new ItemStack(Items.DIAMOND, 3), true, false);
+		helper.assertTrue(control != null,
+				"Control: an ordinary stack must still drop, or this test proves nothing");
+		control.discard();
+
+		helper.assertTrue(player.drop(boundTerminal, true, false) == null,
+				"A bound terminal must never become a pickup for whoever walks past the corpse");
+		ItemEntity placeholder = player.drop(ConfiscationService.placeholder(UUID.randomUUID()),
+				true, false);
+		helper.assertTrue(placeholder == null,
+				"A custody placeholder must never leave its owner's inventory: clearPlaceholder only "
+						+ "ever scans the owner, so one dropped here resolves for nobody");
+
+		// The other half of a death: whatever the refusal kept out of the world, vanilla still clears
+		// from the inventory, and terminal recovery is what puts it back on respawn.
+		Inventory inventory = player.getInventory();
+		for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+			inventory.setItem(slot, ItemStack.EMPTY);
+		}
+		inventory.setItem(0, boundTerminal.copy());
+		inventory.dropAll();
+		helper.assertTrue(inventory.getItem(0).isEmpty(),
+				"dropAll must still empty the slot; the refusal only stops the world from receiving it");
 		helper.succeed();
 	}
 
@@ -775,6 +836,312 @@ public final class M1GameTests implements CustomTestMethodInvoker {
 		helper.assertValueEqual(countTerminals(player), 1, "Administrator repair terminal count");
 		helper.assertValueEqual(TerminalData.copyGeneration(findTerminal(player)), recoveredGeneration + 1,
 				"Administrator repair copy generation");
+		helper.succeed();
+	}
+
+	@GameTest
+	public void boundTerminalShiftClicksBetweenOwnInventorySlots(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalRuntimeService.synchronizeProjection(player, data);
+		ItemStack terminal = findTerminal(player).copy();
+		helper.assertTrue(TerminalData.isBound(terminal), "Fixture must hold a bound terminal");
+		removeTerminals(player);
+		player.getInventory().setItem(9, terminal);
+
+		// Menu slot 9 is inventory slot 9, the first backpack row. InventoryMenu#quickMoveStack sends
+		// it to the hotbar and can reach nothing but the player's own slots, so the container guard
+		// has no business refusing it - refusing it left a bound terminal unable to be rearranged.
+		player.inventoryMenu.clicked(9, 0, ClickType.QUICK_MOVE, player);
+
+		helper.assertValueEqual(countTerminals(player), 1,
+				"Rearranging inside the backpack must not consume the terminal");
+		helper.assertFalse(player.getInventory().getItem(9).is(ModItems.OLD_TERMINAL),
+				"Bound terminal must leave the slot it was shift-clicked out of");
+		int hotbarSlot = -1;
+		for (int slot = 0; slot < 9; slot++) {
+			if (player.getInventory().getItem(slot).is(ModItems.OLD_TERMINAL)) hotbarSlot = slot;
+		}
+		helper.assertTrue(hotbarSlot >= 0, "Bound terminal must arrive in the hotbar");
+
+		// The rule this must still honour: the same click into an open chest stays refused.
+		ChestMenu chest = ChestMenu.oneRow(92, player.getInventory());
+		chest.clicked(chest.slots.size() - 9 + hotbarSlot, 0, ClickType.QUICK_MOVE, player);
+		helper.assertTrue(chest.getContainer().isEmpty(),
+				"Bound terminal must still refuse transfer into an external container");
+		helper.assertValueEqual(countTerminals(player), 1,
+				"A refused container transfer must leave the terminal with the player");
+		helper.succeed();
+	}
+
+	@GameTest
+	public void boundTerminalCannotBeDragDistributedIntoContainer(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalRuntimeService.synchronizeProjection(player, data);
+		ItemStack terminal = findTerminal(player).copy();
+		helper.assertTrue(TerminalData.isBound(terminal), "Fixture must hold a bound terminal");
+		removeTerminals(player);
+
+		// Drag-distributing onto a single slot is the route a plain click into a container cannot
+		// take: vanilla collapses it back into an ordinary PICKUP, which must be refused just the same.
+		ChestMenu chest = ChestMenu.oneRow(93, player.getInventory());
+		chest.setCarried(terminal);
+		dragDistribute(chest, player, 0);
+
+		helper.assertTrue(chest.getContainer().getItem(0).isEmpty(),
+				"Drag-distribute must not smuggle a bound terminal into an external container");
+		helper.assertTrue(TerminalData.isBound(chest.getCarried()),
+				"A refused drag must leave the terminal on the cursor");
+
+		// The refusal cancels clicks in the middle of vanilla's three-stage drag protocol, so prove it
+		// does not wedge that state machine: the very next drag in the same menu must behave normally.
+		chest.setCarried(new ItemStack(Items.STONE, 2));
+		dragDistribute(chest, player, 1, 2);
+		helper.assertValueEqual(chest.getContainer().getItem(1).getCount(), 1,
+				"A refused terminal drag must leave the menu's drag state usable");
+		helper.assertValueEqual(chest.getContainer().getItem(2).getCount(), 1,
+				"A refused terminal drag must leave the menu's drag state usable");
+		chest.setCarried(ItemStack.EMPTY);
+		helper.succeed();
+	}
+
+	/**
+	 * A bound terminal can be dragged around the player's own inventory.
+	 *
+	 * <p>Vanilla overloads slot id {@code -999}: it means "clicked outside the window", and it is also
+	 * the id the drag protocol sends for its own start and end headers. The container guard read the
+	 * id alone, so every drag gesture that had a bound terminal on the cursor was refused on its first
+	 * click - including one that never left the player's own backpack. Click-to-pick-up and
+	 * shift-click both had their own tests and both worked, which is why this survived: dragging is
+	 * the gesture nothing covered.
+	 */
+	@GameTest
+	public void boundTerminalDragsBetweenOwnInventorySlots(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalRuntimeService.synchronizeProjection(player, data);
+		ItemStack terminal = findTerminal(player).copy();
+		helper.assertTrue(TerminalData.isBound(terminal), "Fixture must hold a bound terminal");
+		removeTerminals(player);
+
+		// Menu slot 9 of InventoryMenu is inventory slot 9, the first backpack row - a slot the player
+		// already owns, reachable by no other party, and the destination of an entirely ordinary drag.
+		player.inventoryMenu.setCarried(terminal);
+		dragDistribute(player.inventoryMenu, player, 9);
+
+		helper.assertTrue(player.getInventory().getItem(9).is(ModItems.OLD_TERMINAL),
+				"Dragging a bound terminal onto the player's own backpack slot must place it there");
+		helper.assertTrue(player.inventoryMenu.getCarried().isEmpty(),
+				"A completed drag must clear the cursor");
+		helper.assertValueEqual(countTerminals(player), 1, "The drag must not duplicate the terminal");
+		helper.succeed();
+	}
+
+	/**
+	 * And the plain pick-up-then-place gesture, inside the player's own inventory and inside the
+	 * player's half of an open chest.
+	 *
+	 * <p>The second half is the one worth stating: with a chest open, the guard has an external menu
+	 * in front of it, and the rule it enforces there is about the chest's slots - not about the
+	 * player rearranging their own backpack while a chest happens to be on screen.
+	 */
+	@GameTest
+	public void boundTerminalPicksUpAndPlacesInsideThePlayersOwnSlots(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalRuntimeService.synchronizeProjection(player, data);
+		ItemStack terminal = findTerminal(player).copy();
+		helper.assertTrue(TerminalData.isBound(terminal), "Fixture must hold a bound terminal");
+		removeTerminals(player);
+		player.getInventory().setItem(9, terminal);
+
+		player.inventoryMenu.clicked(9, 0, ClickType.PICKUP, player);
+		helper.assertTrue(TerminalData.isBound(player.inventoryMenu.getCarried()),
+				"Picking a bound terminal up off the player's own slot must be allowed");
+		player.inventoryMenu.clicked(20, 0, ClickType.PICKUP, player);
+		helper.assertTrue(player.getInventory().getItem(20).is(ModItems.OLD_TERMINAL),
+				"Placing it back down on another of the player's own slots must be allowed");
+		helper.assertTrue(player.inventoryMenu.getCarried().isEmpty(), "The cursor must end empty");
+
+		// Same gesture with a chest open. The player's own half of that menu is still their own.
+		ChestMenu chest = ChestMenu.oneRow(94, player.getInventory());
+		int playerHalf = chest.slots.size() - 36;
+		chest.clicked(playerHalf + 11, 0, ClickType.PICKUP, player);
+		helper.assertTrue(TerminalData.isBound(chest.getCarried()),
+				"An open chest must not stop the player rearranging their own backpack");
+		chest.clicked(playerHalf + 12, 0, ClickType.PICKUP, player);
+		helper.assertTrue(chest.getCarried().isEmpty(),
+				"Placing it into another of the player's own slots must be allowed with a chest open");
+		helper.assertTrue(chest.getContainer().isEmpty(), "Nothing may have entered the chest");
+		helper.assertValueEqual(countTerminals(player), 1, "The terminal must survive exactly once");
+		helper.succeed();
+	}
+
+	/**
+	 * The guidance bearing keeps being resolved once the terminal screen is shut.
+	 *
+	 * <p>Navigation used to be sent only from the loop over open views, so closing the terminal
+	 * stopped the bearing updating - which is backwards for a tool whose whole use is walking
+	 * somewhere. What is asserted here is the decision the tick loop makes, not the packet: an open
+	 * screen has its own stream, a player with no usable terminal has no device to speak for them,
+	 * and a guidance tool with nothing selected has nothing to say.
+	 */
+	@GameTest
+	public void closedTerminalKeepsResolvingTheGuidanceBearing(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		BlockPos target = player.blockPosition().offset(-40, -6, -40);
+		data.updateTerminalRecord(player.getUUID(), record -> {
+			record.putInt(TerminalData.ACTIVE_GUIDANCE_TOOL, TerminalTool.MINERALS.slot());
+			record.putString(TerminalData.TARGET_KIND, "iron");
+			record.putBoolean(TerminalData.TARGET_LOCATED, true);
+			record.putLong(TerminalData.TARGET_POSITION, target.asLong());
+			record.putString(TerminalData.TARGET_DIMENSION,
+					player.level().dimension().identifier().toString());
+		});
+		TerminalRuntimeService.synchronizeProjection(player, data);
+
+		// The terminal is never opened in this test - this is exactly the state the readout is for.
+		helper.assertFalse(TerminalRuntimeService.isOpen(player), "Fixture must keep the terminal shut");
+		var streamed = TerminalRuntimeService.closedNavigationFor(player, data);
+		helper.assertTrue(streamed != null, "A shut terminal with a guidance target must still stream");
+		helper.assertValueEqual(streamed.targetKind(), TerminalNavigationPayload.IRON,
+				"The shut terminal resolves the persisted quick tool, not an on-screen tab");
+		helper.assertTrue(streamed.located() && streamed.navigable(),
+				"A located same-dimension target must arrive navigable");
+		helper.assertTrue(streamed.targetDx() < 0 && streamed.targetDz() < 0,
+				"The bearing must point back at the target the fixture placed");
+
+		// Moving changes the answer without the player touching anything, which is the live part.
+		int before = streamed.targetDx();
+		player.teleportTo(player.getX() - 10.0D, player.getY(), player.getZ());
+		helper.assertTrue(TerminalRuntimeService.closedNavigationFor(player, data).targetDx() > before,
+				"Walking toward the target must shorten the streamed bearing");
+
+		// No terminal, no voice.
+		removeTerminals(player);
+		helper.assertTrue(TerminalRuntimeService.closedNavigationFor(player, data) == null,
+				"A player without a usable terminal must be streamed nothing at all");
+		helper.succeed();
+	}
+
+	/**
+	 * The offhand key is a swap key too.
+	 *
+	 * <p>Vanilla's swap click accepts buttons 0-8 for the hotbar <em>and</em> 40 for the offhand; the
+	 * guard only knew about the first nine. Hovering a container slot and pressing F would therefore
+	 * put a bound terminal into that container, past a rule written specifically to prevent it.
+	 * Found while fixing the drag refusal, in the same expression.
+	 */
+	@GameTest
+	public void boundTerminalCannotBeOffhandSwappedIntoContainer(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalRuntimeService.synchronizeProjection(player, data);
+		ItemStack terminal = findTerminal(player).copy();
+		helper.assertTrue(TerminalData.isBound(terminal), "Fixture must hold a bound terminal");
+		removeTerminals(player);
+		player.getInventory().setItem(Inventory.SLOT_OFFHAND, terminal);
+
+		ChestMenu chest = ChestMenu.oneRow(95, player.getInventory());
+		chest.clicked(0, Inventory.SLOT_OFFHAND, ClickType.SWAP, player);
+		helper.assertTrue(chest.getContainer().getItem(0).isEmpty(),
+				"The offhand swap key must not carry a bound terminal into a container");
+		helper.assertTrue(player.getInventory().getItem(Inventory.SLOT_OFFHAND).is(ModItems.OLD_TERMINAL),
+				"A refused offhand swap must leave the terminal where it was");
+
+		// The same key against the player's own slots is ordinary rearranging and stays allowed.
+		int playerHalf = chest.slots.size() - 36;
+		chest.clicked(playerHalf + 11, Inventory.SLOT_OFFHAND, ClickType.SWAP, player);
+		helper.assertTrue(player.getInventory().getItem(20).is(ModItems.OLD_TERMINAL),
+				"Swapping a bound terminal between the player's own slots must stay allowed");
+		helper.assertValueEqual(countTerminals(player), 1, "The swap must not duplicate the terminal");
+		helper.succeed();
+	}
+
+	@GameTest
+	public void ordinaryItemsStillDragDistributeIntoContainers(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		removeTerminals(player);
+		ChestMenu chest = ChestMenu.oneRow(94, player.getInventory());
+
+		// One slot, which vanilla collapses into a PICKUP - the same path the terminal is refused on.
+		chest.setCarried(new ItemStack(Items.STONE, 1));
+		dragDistribute(chest, player, 0);
+		helper.assertValueEqual(chest.getContainer().getItem(0).getCount(), 1,
+				"A single-slot drag must still deposit an ordinary item");
+		helper.assertTrue(chest.getCarried().isEmpty(), "A completed single-slot drag empties the cursor");
+
+		// Several slots, which runs vanilla's real distribution loop rather than the PICKUP shortcut.
+		chest.setCarried(new ItemStack(Items.STONE, 3));
+		dragDistribute(chest, player, 1, 2, 3);
+		for (int slot = 1; slot <= 3; slot++) {
+			helper.assertValueEqual(chest.getContainer().getItem(slot).getCount(), 1,
+					"A multi-slot drag must still spread an ordinary item across every dragged slot");
+		}
+		helper.assertTrue(chest.getCarried().isEmpty(), "A completed multi-slot drag empties the cursor");
+		chest.setCarried(ItemStack.EMPTY);
+		helper.succeed();
+	}
+
+	/** The three-click sequence a client sends for a drag-distribute: start, one per slot, then end. */
+	private static void dragDistribute(AbstractContainerMenu menu, ServerPlayer player, int... slotIds) {
+		int type = AbstractContainerMenu.QUICKCRAFT_TYPE_GREEDY;
+		menu.clicked(AbstractContainerMenu.SLOT_CLICKED_OUTSIDE,
+				AbstractContainerMenu.getQuickcraftMask(AbstractContainerMenu.QUICKCRAFT_HEADER_START, type),
+				ClickType.QUICK_CRAFT, player);
+		for (int slotId : slotIds) {
+			menu.clicked(slotId,
+					AbstractContainerMenu.getQuickcraftMask(AbstractContainerMenu.QUICKCRAFT_HEADER_CONTINUE, type),
+					ClickType.QUICK_CRAFT, player);
+		}
+		menu.clicked(AbstractContainerMenu.SLOT_CLICKED_OUTSIDE,
+				AbstractContainerMenu.getQuickcraftMask(AbstractContainerMenu.QUICKCRAFT_HEADER_END, type),
+				ClickType.QUICK_CRAFT, player);
+	}
+
+	@GameTest
+	public void cursorHeldTerminalIsNotReissuedAsLost(GameTestHelper helper) {
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		FrequencyWorldData data = FrequencyWorldData.get(helper.getLevel().getServer());
+		data.updateTerminalRecord(player.getUUID(), record -> record.putBoolean(TerminalData.BOUND, true));
+		TerminalLifecycleService.ensureCarried(player, false);
+		ItemStack terminal = findTerminal(player).copy();
+		int generation = TerminalData.copyGeneration(terminal);
+		int recoveries = data.terminalRecord(player.getUUID()).orElseThrow()
+				.getIntOr(TerminalData.RECOVERY_COUNT, 0);
+
+		// What a player halfway through dragging the terminal to another slot looks like server-side:
+		// the stack is on the cursor, which is not part of the inventory the reconciliation scans.
+		removeTerminals(player);
+		player.containerMenu.setCarried(terminal);
+
+		helper.assertTrue(TerminalLifecycleService.ensureCarried(player, false),
+				"A terminal on the cursor is being moved, not lost");
+		helper.assertValueEqual(countTerminals(player), 0,
+				"Reconciliation must not issue a second terminal while one is mid-move");
+		helper.assertTrue(data.isValidTerminal(player.containerMenu.getCarried(), player.getUUID()),
+				"The stack being moved must stay the authoritative copy");
+		CompoundTag midMove = data.terminalRecord(player.getUUID()).orElseThrow();
+		helper.assertValueEqual(midMove.getIntOr(TerminalData.COPY_GENERATION, 0), generation,
+				"Moving a terminal must not bump the copy generation");
+		helper.assertValueEqual(midMove.getIntOr(TerminalData.RECOVERY_COUNT, 0), recoveries,
+				"Moving a terminal must not be recorded as a recovery");
+
+		// Completing the move leaves exactly the stack the player picked up.
+		player.getInventory().setItem(9, player.containerMenu.getCarried());
+		player.containerMenu.setCarried(ItemStack.EMPTY);
+		helper.assertTrue(TerminalLifecycleService.ensureCarried(player, false),
+				"The dropped-off terminal must reconcile as the valid copy");
+		helper.assertValueEqual(countTerminals(player), 1, "Exactly one terminal after the move");
+		helper.assertValueEqual(TerminalData.copyGeneration(findTerminal(player)), generation,
+				"The moved terminal is the same copy the player picked up");
 		helper.succeed();
 	}
 

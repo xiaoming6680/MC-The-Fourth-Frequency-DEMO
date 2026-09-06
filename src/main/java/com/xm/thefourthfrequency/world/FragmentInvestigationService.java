@@ -1,28 +1,32 @@
 package com.xm.thefourthfrequency.world;
 
-import com.mojang.datafixers.util.Pair;
 import com.xm.thefourthfrequency.audio.AudioService;
 import com.xm.thefourthfrequency.content.TerminalData;
 import com.xm.thefourthfrequency.narrative.HiddenFilePolicy;
 import com.xm.thefourthfrequency.narrative.TerminalFileState;
 import com.xm.thefourthfrequency.networking.PrivateAnomalyPayload;
 import com.xm.thefourthfrequency.state.NavigationState;
+import com.xm.thefourthfrequency.terminal.TerminalRecordPolicy;
+import com.xm.thefourthfrequency.terminal.TerminalTool;
+import com.xm.thefourthfrequency.terminal.TerminalToolService;
 import com.xm.thefourthfrequency.terminal.SignalBand;
 import com.xm.thefourthfrequency.terminal.TerminalControlPolicy;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.terminal.TerminalSignalLog;
+import com.xm.thefourthfrequency.terminal.TerminalNoticeService;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -36,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -44,20 +49,24 @@ public final class FragmentInvestigationService {
 	private static final String STATE = "fragment_investigation";
 	private static final String CANDIDATES = "candidates";
 	private static final String DISCOVERIES = "discoveries";
-	private static final String ALLOCATION_CURSOR = "allocation_cursor";
-	private static final String ALLOCATION_COMPLETE = "allocation_complete";
-	/** Set once the rescue pass has run. Absent on saves written before that pass existed. */
-	private static final String ALLOCATION_RESCUED = "allocation_rescued";
-	private static final String OVERWORLD = "minecraft:overworld";
+	/**
+	 * Per-fragment count of scans that found nothing in that fragment's own pool.
+	 *
+	 * <p>The keys the retired station-origin allocation wrote - {@code allocation_cursor},
+	 * {@code allocation_complete}, {@code allocation_rescued} - are left untouched on old saves. They
+	 * are never read now, and rewriting them would be a change to persisted data in exchange for
+	 * nothing.</p>
+	 */
+	private static final String POOL_MISSES = "pool_misses";
 	private static final String NEAR_KEY = "fragment_near_candidate";
 	private static final int STATE_VERSION = 1;
 	private static final int FRAGMENT_COUNT = HiddenFilePolicy.FILE_COUNT;
-	private static final int GROUPS_PER_FRAGMENT = 4;
-	private static final int MAX_CANDIDATES_PER_FRAGMENT = 3;
-	/** One step per (fragment, pooled group), then one rescue step per fragment. */
-	private static final int POOL_ALLOCATION_STEPS = FRAGMENT_COUNT * GROUPS_PER_FRAGMENT;
-	private static final int TOTAL_ALLOCATION_STEPS = POOL_ALLOCATION_STEPS + FRAGMENT_COUNT;
-	private static final int LOCATE_RADIUS_CHUNKS = 256;
+	/**
+	 * Stride for the wire encoding of "fragment N's candidate S", and the ceiling old saves were
+	 * allocated against. Exploration gives a fragment one lead and never a second, but saves written
+	 * by the retired allocator can hold up to this many, so the encoding still has to span them.
+	 */
+	private static final int MAX_CANDIDATES_PER_FRAGMENT = TerminalRecordPolicy.MAX_CANDIDATES_PER_FRAGMENT;
 	private static final int ENTER_CHECK_INTERVAL = 10;
 	private static final SignalBand[] SIGNAL_BANDS = {
 			SignalBand.WEATHER, SignalBand.MINING, SignalBand.PUBLIC, SignalBand.UNKNOWN
@@ -70,6 +79,13 @@ public final class FragmentInvestigationService {
 	};
 	private static final Map<UUID, Nearby> NEARBY = new LinkedHashMap<>();
 	private static final Map<UUID, Nearby> FORCED_NEARBY_FOR_TESTS = new LinkedHashMap<>();
+	/**
+	 * When each player is next due a scan.
+	 *
+	 * <p>In memory rather than persisted: a lead is opportunistic, so a restart redrawing the timer
+	 * costs at most one interval and saves a per-player key that would have to be migrated.</p>
+	 */
+	private static final Map<UUID, Long> NEXT_SCAN_TICK = new LinkedHashMap<>();
 	private static boolean initialized;
 
 	private FragmentInvestigationService() { }
@@ -81,91 +97,182 @@ public final class FragmentInvestigationService {
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			NEARBY.clear();
 			FORCED_NEARBY_FOR_TESTS.clear();
+			NEXT_SCAN_TICK.clear();
 		});
 	}
 
 	private static void tick(MinecraftServer server) {
-		if (server.getTickCount() % 20 == 0) allocateNext(server);
 		if (server.getTickCount() % ENTER_CHECK_INTERVAL != 0) return;
 		FrequencyWorldData data = FrequencyWorldData.get(server);
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) updateNearby(player, data);
+		scanOneDuePlayer(server, data, server.getTickCount());
 	}
 
 	/**
-	 * Walks the allocation cursor one step per call: first the pooled pass, then a rescue pass for any
-	 * fragment the pool left empty.
+	 * Gives at most one player a lead scan per check, however many are online.
 	 *
-	 * <p>The pooled pass gives each fragment exactly one attempt per group in its own pool, and an
-	 * attempt is spent whether or not the structure was found. A fragment whose four groups all failed
-	 * to locate therefore ended with no candidate at all, and because the cursor latched
-	 * {@link #ALLOCATION_COMPLETE} at the end it never got another chance for the life of the world.
-	 * That fragment's hidden file becomes unreachable: the receiver has nothing to point at, so no
-	 * structure the player walks into is ever the right one and the terminal stays silent. The rescue
-	 * pass looks outside the pool for those fragments, and runs on existing saves too.</p>
+	 * <p>The scan is cheap - a map read per loaded chunk, no search - but it is not free, and the
+	 * budget that matters on a full server is the one nobody notices until there are eight players.
+	 * One per check, with each player's own randomised interval on top, means the cost does not grow
+	 * with the player count at all: it grows the wait.</p>
 	 */
-	private static void allocateNext(MinecraftServer server) {
-		FrequencyWorldData data = FrequencyWorldData.get(server);
+	private static void scanOneDuePlayer(MinecraftServer server, FrequencyWorldData data, long now) {
 		if (!investigationsActive(data)) return;
-		CompoundTag state = state(data);
-		// Being complete is not enough on its own: saves written before the rescue pass existed
-		// latched that flag with the cursor parked at the end of the pooled pass, which is exactly
-		// where the rescue begins. Those worlds pick it up from there rather than staying stranded.
-		if (state.getBooleanOr(ALLOCATION_COMPLETE, false)
-				&& state.getBooleanOr(ALLOCATION_RESCUED, false)) return;
-		int cursor = Math.clamp(state.getIntOr(ALLOCATION_CURSOR, 0), 0, TOTAL_ALLOCATION_STEPS);
-		if (cursor >= TOTAL_ALLOCATION_STEPS) {
-			storeAllocationCursor(data, cursor, true, true);
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			Long due = NEXT_SCAN_TICK.get(player.getUUID());
+			if (due == null) {
+				// First seen: wait a full interval rather than scanning on the join tick, so logging in
+				// is never itself the thing that hands out a lead.
+				NEXT_SCAN_TICK.put(player.getUUID(), now + nextInterval(player));
+				continue;
+			}
+			if (now < due) continue;
+			NEXT_SCAN_TICK.put(player.getUUID(), now + nextInterval(player));
+			scanForLead(player, data);
 			return;
 		}
-		ServerLevel level = server.overworld();
-		BlockPos origin = data.stationPosition().orElse(BlockPos.ZERO);
-		List<Candidate> current = candidates(data);
-		if (cursor < POOL_ALLOCATION_STEPS) allocateFromPool(data, level, origin, current, cursor);
-		else allocateRescue(data, level, origin, current, cursor - POOL_ALLOCATION_STEPS);
-		int next = cursor + 1;
-		boolean done = next >= TOTAL_ALLOCATION_STEPS;
-		storeAllocationCursor(data, next, done, done);
-	}
-
-	private static void allocateFromPool(FrequencyWorldData data, ServerLevel level, BlockPos origin,
-			List<Candidate> current, int cursor) {
-		int fragment = cursor / GROUPS_PER_FRAGMENT;
-		if (current.stream().filter(candidate -> candidate.fragment() == fragment).count()
-				>= MAX_CANDIDATES_PER_FRAGMENT) return;
-		int rotation = Math.floorMod(data.worldId().hashCode() + fragment * 31, GROUPS_PER_FRAGMENT);
-		Group group = POOLS[fragment][Math.floorMod(cursor % GROUPS_PER_FRAGMENT + rotation, GROUPS_PER_FRAGMENT)];
-		addCandidate(data, level, origin, current, fragment, group);
+		NEXT_SCAN_TICK.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
 	}
 
 	/**
-	 * Last resort for a fragment the pooled pass left with nothing: try every group, not just that
-	 * fragment's four. Runs at most once per fragment and only while it has no candidate, so the extra
-	 * structure lookups are bounded and happen only on a world that would otherwise be missing a file.
+	 * Scans faster for a player the terminal is not currently helping.
+	 *
+	 * <p>"Has an open lead" is read as a candidate already filed and not yet resolved, which is the
+	 * same thing the navigation page offers. A player before the Nether has none of those, gets the
+	 * short interval, and stops being the one the device has nothing to say to.
 	 */
-	private static void allocateRescue(FrequencyWorldData data, ServerLevel level, BlockPos origin,
-			List<Candidate> current, int fragment) {
-		if (current.stream().anyMatch(candidate -> candidate.fragment() == fragment)) return;
-		Group[] groups = Group.values();
-		int rotation = Math.floorMod(data.worldId().hashCode() + fragment * 31, groups.length);
-		for (int step = 0; step < groups.length; step++) {
-			if (addCandidate(data, level, origin, current, fragment,
-					groups[Math.floorMod(step + rotation, groups.length)])) return;
-		}
+	private static int nextInterval(ServerPlayer player) {
+		return FragmentLeadPolicy.scanIntervalTicks(player.getRandom().nextDouble(),
+				hasUndiscoveredCandidate(player));
 	}
 
-	private static boolean addCandidate(FrequencyWorldData data, ServerLevel level, BlockPos origin,
-			List<Candidate> current, int fragment, Group group) {
-		Pair<BlockPos, Holder<Structure>> located = level.getChunkSource().getGenerator()
-				.findNearestMapStructure(level, holders(level, group), origin, LOCATE_RADIUS_CHUNKS, false);
-		if (located == null) return false;
-		BlockPos position = located.getFirst().immutable();
-		if (current.stream().anyMatch(candidate -> candidate.dimension().equals(OVERWORLD)
-				&& candidate.position().equals(position))) return false;
+	/**
+	 * One scan: what is loaded around this player, and does any of it answer a fragment still waiting.
+	 *
+	 * <p>Reads structure references out of chunks that are already loaded and never asks for one that
+	 * is not. That single rule is what keeps this from being a terrain generator: an unloaded chunk is
+	 * simply not part of the world as far as a receiver is concerned.</p>
+	 *
+	 * <p>Mirror dimensions are excluded with everything else that reads real progress. A structure
+	 * copied into a pursuit mirror is a copy, and a lead taken from one would point at a place that
+	 * stops existing when the chase ends.</p>
+	 */
+	private static void scanForLead(ServerPlayer player, FrequencyWorldData data) {
+		if (!(player.level() instanceof ServerLevel level) || PrivateDimensions.isPrivate(level)) return;
+		if (data.terminalRecord(player.getUUID()).isEmpty()) return;
+		Set<Integer> discovered = discoveredFragments(data);
+		List<Candidate> current = candidates(data);
+		int waiting = 0;
+		for (int fragment = 0; fragment < FRAGMENT_COUNT; fragment++) {
+			if (discovered.contains(fragment)) continue;
+			final int index = fragment;
+			// One lead per fragment, and it is never moved once given. A lead that quietly relocates
+			// because the player wandered somewhere closer is a coordinate they were told and can no
+			// longer trust - and the log line announcing it was written once, at the old place.
+			if (current.stream().anyMatch(candidate -> candidate.fragment() == index)) continue;
+			waiting |= 1 << fragment;
+		}
+		if (waiting == 0) return;
+		List<Found> found = nearbyStructures(player, level);
+		int[] misses = poolMisses(data);
+		// Nearest first, and the pool decides which fragment it can serve. Walking the structures on
+		// the outside rather than the fragments is what makes "nearest" mean nearest: the other order
+		// hands fragment 1 something across the valley while fragment 2's mineshaft is underfoot.
+		for (Found entry : found) {
+			for (int fragment = 0; fragment < FRAGMENT_COUNT; fragment++) {
+				if ((waiting & 1 << fragment) == 0 || !pooled(fragment, entry.group())) continue;
+				if (recordLead(data, fragment, entry, level)) return;
+			}
+		}
+		// Patience spent: this fragment has watched enough loaded chunks go by without one of its own
+		// four kinds of place, so the nearest anything carries it instead.
+		for (int fragment = 0; fragment < FRAGMENT_COUNT; fragment++) {
+			if ((waiting & 1 << fragment) == 0 || FragmentLeadPolicy.poolStillBinding(misses[fragment])) continue;
+			for (Found entry : found) if (recordLead(data, fragment, entry, level)) return;
+		}
+		for (int fragment = 0; fragment < FRAGMENT_COUNT; fragment++) {
+			if ((waiting & 1 << fragment) != 0) misses[fragment]++;
+		}
+		storePoolMisses(data, misses);
+	}
+
+	/** Every group structure whose footprint reaches a loaded chunk near the player, nearest first. */
+	private static List<Found> nearbyStructures(ServerPlayer player, ServerLevel level) {
+		Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+		Map<ResourceKey<Structure>, Group> byKey = new java.util.HashMap<>();
+		for (Group group : Group.values()) for (ResourceKey<Structure> key : group.keys) byKey.put(key, group);
+		BlockPos here = player.blockPosition();
+		ChunkPos centre = player.chunkPosition();
+		Set<Long> seen = new HashSet<>();
+		List<Found> found = new ArrayList<>();
+		int radius = FragmentLeadPolicy.SCAN_CHUNK_RADIUS;
+		for (int dx = -radius; dx <= radius; dx++) {
+			for (int dz = -radius; dz <= radius; dz++) {
+				int chunkX = centre.x + dx;
+				int chunkZ = centre.z + dz;
+				// Never generate. startsForStructure would happily create the chunk to answer.
+				if (!level.hasChunk(chunkX, chunkZ)) continue;
+				for (StructureStart start : level.structureManager().startsForStructure(
+						new ChunkPos(chunkX, chunkZ),
+						structure -> byKey.containsKey(registry.getResourceKey(structure).orElse(null)))) {
+					if (!start.isValid()) continue;
+					Group group = byKey.get(registry.getResourceKey(start.getStructure()).orElse(null));
+					// One entry per structure however many of its chunks were walked.
+					if (group == null || !seen.add(start.getChunkPos().toLong() * 31L + group.code)) continue;
+					BlockPos position = start.getBoundingBox().getCenter();
+					found.add(new Found(group, position, horizontalDistanceSquared(here, position)));
+				}
+			}
+		}
+		found.sort(Comparator.comparingLong(Found::distanceSquared));
+		return List.copyOf(found);
+	}
+
+	/**
+	 * Writes the lead, unless that exact place is already somebody's.
+	 *
+	 * <p>The position stored is the structure's own centre, with its real height - not
+	 * {@code getLocatePos}, which is the corner of the starting chunk with Y pinned to 0. That is the
+	 * whole reason this reads the real {@code StructureStart}: the navigator now points at the thing,
+	 * and the height difference on the readout means something.</p>
+	 */
+	private static boolean recordLead(FrequencyWorldData data, int fragment, Found found, ServerLevel level) {
+		List<Candidate> current = candidates(data);
+		String dimension = level.dimension().identifier().toString();
+		if (current.stream().anyMatch(candidate -> candidate.dimension().equals(dimension)
+				&& candidate.position().equals(found.position()))) return false;
 		List<Candidate> next = new ArrayList<>(current);
-		next.add(new Candidate(fragment, group, position, OVERWORLD));
+		next.add(new Candidate(fragment, found.group(), found.position(), dimension));
 		storeCandidates(data, next);
+		int[] misses = poolMisses(data);
+		misses[fragment] = 0;
+		storePoolMisses(data, misses);
 		return true;
 	}
+
+	private static boolean pooled(int fragment, Group group) {
+		for (Group candidate : POOLS[fragment]) if (candidate == group) return true;
+		return false;
+	}
+
+	private static int[] poolMisses(FrequencyWorldData data) {
+		int[] stored = state(data).getIntArray(POOL_MISSES).orElse(new int[0]);
+		int[] misses = new int[FRAGMENT_COUNT];
+		System.arraycopy(stored, 0, misses, 0, Math.min(stored.length, FRAGMENT_COUNT));
+		return misses;
+	}
+
+	private static void storePoolMisses(FrequencyWorldData data, int[] misses) {
+		data.updateNarrativeState(root -> {
+			CompoundTag state = root.getCompoundOrEmpty(STATE).copy();
+			state.putInt("version", STATE_VERSION);
+			state.putIntArray(POOL_MISSES, misses.clone());
+			root.put(STATE, state);
+		});
+	}
+
+	/** One structure the scan can see, and how far away it is horizontally. */
+	private record Found(Group group, BlockPos position, long distanceSquared) { }
 
 	private static boolean investigationsActive(FrequencyWorldData data) {
 		for (UUID owner : data.terminalOwnerIds()) {
@@ -198,6 +305,20 @@ public final class FragmentInvestigationService {
 						found.candidate().position().asLong(), found.candidate().group().code, 1, true);
 			}
 		});
+		// Says, where the player is standing, that this is a place the receiver can be tuned.
+		//
+		// The records line above is written once per fragment for the life of the save, which is
+		// right for a log and useless as a prompt: a player who walks in, reads nothing, leaves, and
+		// comes back a week later is in exactly the spot the mechanic exists for and is told nothing
+		// at all. Worse, the log entry only ever said a lead was "nearby" - never that tuning the
+		// near-field receiver is the thing that opens it - so the one hint a player did get named no
+		// action. Both halves are why the tuning mechanic could go a whole run unused.
+		//
+		// Fires on entering the signal, not on a timer: updateNearby has already returned above
+		// unless the key changed, so standing still cannot repeat it and walking back in re-arms it.
+		if (found != null) {
+			TerminalNoticeService.tunableSignal(player);
+		}
 		if (found != null || previous != null) {
 			TerminalLifecycleService.ensureCarried(player, false);
 			TerminalRuntimeService.synchronizeProjection(player);
@@ -218,19 +339,28 @@ public final class FragmentInvestigationService {
 		Set<Integer> discovered = discoveredFragments(data);
 		for (Candidate candidate : candidates(data)) {
 			if (discovered.contains(candidate.fragment()) || !candidate.dimension().equals(dimension)) continue;
-			if (horizontalDistanceSquared(player.blockPosition(), candidate.position()) > 320L * 320L) continue;
+			BlockPos here = player.blockPosition();
+			BlockPos mark = candidate.position();
+			if (!FragmentSignalPolicy.withinSignalRange(here.getX(), here.getZ(), mark.getX(), mark.getZ())) continue;
 			StructureStart start = player.level().structureManager().getStructureWithPieceAt(
-					player.blockPosition(), holders(player.level(), candidate.group()));
-			if (!start.isValid() || !matchesCandidate(start, candidate.position())) continue;
+					here, holders(player.level(), candidate.group()));
+			if (!start.isValid() || !matchesCandidate(start, mark)) continue;
 			return Optional.of(new Nearby(candidate, receiverTuning(candidate)));
 		}
 		return Optional.empty();
 	}
 
-	private static boolean matchesCandidate(StructureStart start, BlockPos located) {
+	/**
+	 * Whether the structure the player is standing in is the one this candidate marked.
+	 *
+	 * <p>The whole rule lives in {@link FragmentSignalPolicy}, which is where the reasoning about what
+	 * the marked coordinate actually is - and why 96 blocks was not enough of it - is written down.
+	 * This only unpacks the bounding box for it.</p>
+	 */
+	private static boolean matchesCandidate(StructureStart start, BlockPos mark) {
 		var box = start.getBoundingBox();
-		return located.getX() >= box.minX() - 96 && located.getX() <= box.maxX() + 96
-				&& located.getZ() >= box.minZ() - 96 && located.getZ() <= box.maxZ() + 96;
+		return FragmentSignalPolicy.answersCandidate(mark.getX(), mark.getZ(),
+				box.minX(), box.minZ(), box.maxX(), box.maxZ());
 	}
 
 	public static boolean insideSupportedStructure(ServerPlayer player) {
@@ -241,20 +371,59 @@ public final class FragmentInvestigationService {
 		return false;
 	}
 
+	/**
+	 * Writes the per-fragment candidate lines, marking unread only what Records will actually list.
+	 *
+	 * <p>The unread badge and the amber lamp both count entries the page passes through
+	 * {@link TerminalRecordPolicy#visibleInRecords}, which lets every {@code _0} candidate through.
+	 * The page then applies a <em>second</em> filter the count never knew about: without the
+	 * navigator the whole class is hidden, and with it, only the first entry per location is listed.
+	 * So the tab could say something was new, the player could open Records on the strength of that,
+	 * and find the list exactly as they left it - which teaches them the marker is noise.
+	 *
+	 * <p>Decided here rather than in the count because "does this player have the navigator" is not a
+	 * pure read of the record - it needs the player - while the count is called from a dozen places
+	 * that only have the tag.
+	 *
+	 * <p><b>The cost, stated:</b> a candidate written before the navigator exists stays read. When the
+	 * player later unlocks the tool the line is simply there in the list, without a badge announcing
+	 * it. That is the acceptable direction of the two - a marker that under-promises is a marker that
+	 * still means something.</p>
+	 */
 	public static boolean appendCandidateLogs(CompoundTag record, ServerPlayer player, FrequencyWorldData data) {
 		if (record.getIntOr(TerminalData.BAND_STAGE, 0) == 0) return false;
 		boolean changed = false;
 		int[] slots = new int[FRAGMENT_COUNT];
+		boolean navigator = (TerminalToolService.availableToolsMask(player, record)
+				& 1 << TerminalTool.NAVIGATION.ordinal()) != 0;
+		// The page keeps one entry per location, so a second candidate sharing a group is listed only
+		// once however many fragments point at it. Seeded with what the log already holds, or a later
+		// call would hand out a badge for a line the page has been collapsing since the first one.
+		Set<Integer> announcedLocations = listedCandidateLocations(record);
 		for (Candidate candidate : candidates(data)) {
 			int slot = slots[candidate.fragment()]++;
 			String type = "fragment_candidate_" + (candidate.fragment() + 1) + "_" + slot;
 			if (TerminalSignalLog.containsType(record, type)) continue;
+			boolean listed = TerminalRecordPolicy.listedInRecords(type, candidate.group().code,
+					navigator, announcedLocations);
 			TerminalSignalLog.append(record, bandForFragment(candidate.fragment()), type, player.level().getGameTime(),
 					player.level().getDayTime(), candidate.dimension(), candidate.position().asLong(),
-					candidate.group().code, candidate.group().location.code, slot == 0);
+					candidate.group().code, candidate.group().location.code, listed);
 			changed = true;
 		}
 		return changed;
+	}
+
+	/** Group codes already carried by a listed candidate line in the log. */
+	private static Set<Integer> listedCandidateLocations(CompoundTag record) {
+		Set<Integer> locations = new HashSet<>();
+		for (TerminalSignalLog.Entry entry : TerminalSignalLog.entries(record)) {
+			if (TerminalRecordPolicy.visibleInRecords(entry.type())
+					&& TerminalRecordPolicy.isCandidate(entry.type())) {
+				locations.add(entry.variant());
+			}
+		}
+		return locations;
 	}
 
 	public static boolean ensureSignalMarkers(CompoundTag record, ServerPlayer player) {
@@ -342,7 +511,7 @@ public final class FragmentInvestigationService {
 	public static boolean selectCandidate(ServerPlayer player, int encoded) {
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
-		if (record == null || !unstableNavigationUnlocked(record)) return false;
+		if (record == null || !investigationOffered(player)) return false;
 		int fragment = Math.floorDiv(encoded, MAX_CANDIDATES_PER_FRAGMENT);
 		int slot = Math.floorMod(encoded, MAX_CANDIDATES_PER_FRAGMENT);
 		if (fragment < 0 || fragment >= FRAGMENT_COUNT || discoveredFragments(data).contains(fragment)) return false;
@@ -357,41 +526,104 @@ public final class FragmentInvestigationService {
 		return true;
 	}
 
+	/**
+	 * Whether any lead the player has not resolved yet still exists, in any world.
+	 *
+	 * <p>Deliberately not filtered to the dimension the player is standing in. A lead in the
+	 * Overworld does not stop existing because its owner walked through a nether portal, and the
+	 * records line announcing it certainly does not - so filtering here produced a terminal that
+	 * disagreed with its own log about whether there was anything to investigate.
+	 */
 	public static boolean hasUndiscoveredCandidate(ServerPlayer player) {
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
 		if (record == null || record.getIntOr(TerminalData.BAND_STAGE, 0) == 0) return false;
-		String dimension = player.level().dimension().identifier().toString();
 		Set<Integer> discovered = discoveredFragments(data);
-		return candidates(data).stream().anyMatch(candidate -> !discovered.contains(candidate.fragment())
-				&& candidate.dimension().equals(dimension));
+		return candidates(data).stream()
+				.anyMatch(candidate -> !discovered.contains(candidate.fragment()));
+	}
+
+	/**
+	 * The one answer to "is the terminal offering the unstable investigation right now".
+	 *
+	 * <p><b>Two callers had grown separate answers, and they disagreed.</b> The navigation page asked
+	 * {@code TerminalToolService.unstableSignalAvailable} whether to draw the option; the click asked
+	 * {@code unstableNavigationUnlocked} whether to honour it. Neither matched the records page,
+	 * which announces a lead and then keeps that line for the rest of the run.
+	 *
+	 * <p><b>The hint tier is gone from this gate, and that was the worse of the two faults.</b>
+	 * {@code guidanceHintTier} measures how long the player has been <em>stalled</em>, and
+	 * {@code StoryProgressService} zeroes it on any objective progress at all. Requiring tier 2 meant
+	 * the investigation appeared only after five minutes of being stuck and vanished the moment the
+	 * player mined the next iron ore - an option that blinks in and out on a timer nobody can see,
+	 * while its records line sits there permanently saying it is available. Being stuck is a
+	 * reasonable trigger for <em>offering help</em>; it is not a precondition for an optional thread
+	 * the terminal has already told the player about.
+	 *
+	 * <p><b>The Nether milestone is gone from it too, for the other half of the same fault.</b> The
+	 * records line is written the moment a lead is filed - band stage above zero and the navigator
+	 * unlocked - which on a normal run is the first day, long before any portal. So the log announced
+	 * an optional investigation with an "open navigation" shortcut, and both the shortcut and the
+	 * navigator's own option were refused until the player reached the Nether: a location the terminal
+	 * named and would not take them to.
+	 *
+	 * <p>What replaces both is monotone: once the receiver has resolved a band and a lead exists, the
+	 * offer stands until the lead is resolved. An offer that can be withdrawn without the player
+	 * doing anything is the thing this class must not produce again, and one that was never honoured
+	 * in the first place is worse.
+	 */
+	/**
+	 * One bit per fragment the player has already found, for the records page.
+	 *
+	 * <p>The page keeps a candidate line after its fragment is discovered - the log is a record of
+	 * what happened, not a to-do list, and deleting the row would rewrite history. What it must drop
+	 * is the row's navigation shortcut: {@link #selectCandidate} refuses a discovered fragment, so a
+	 * shortcut left on that row would be a control that silently does nothing. Marking something the
+	 * player cannot follow is exactly what the records page is not allowed to do.
+	 */
+	public static int discoveredFragmentMask(ServerPlayer player) {
+		MinecraftServer server = player.level().getServer();
+		if (server == null) return 0;
+		int mask = 0;
+		for (int fragment : discoveredFragments(FrequencyWorldData.get(server))) mask |= 1 << fragment;
+		return mask;
+	}
+
+	public static boolean investigationOffered(ServerPlayer player) {
+		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
+		if (record == null || record.getIntOr(TerminalData.BAND_STAGE, 0) == 0) return false;
+		NavigationState navigation = NavigationState.read(record);
+		boolean fragmentSelected = navigation.kind().equals("structure_fragment") && navigation.located();
+		// Short-circuits the candidate scan when the cheaper answer already decides it.
+		return FragmentInvestigationPolicy.offered(record.getIntOr(TerminalData.BAND_STAGE, 0),
+				fragmentSelected, fragmentSelected || hasUndiscoveredCandidate(player));
 	}
 
 	public static boolean selectNearestCandidate(ServerPlayer player) {
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
-		if (record == null || record.getIntOr(TerminalData.BAND_STAGE, 0) == 0) return false;
-		if (!unstableNavigationUnlocked(record)) return false;
+		if (record == null || !investigationOffered(player)) return false;
 		String dimension = player.level().dimension().identifier().toString();
 		Set<Integer> discovered = discoveredFragments(data);
-		Candidate nearest = candidates(data).stream()
-				.filter(candidate -> !discovered.contains(candidate.fragment()) && candidate.dimension().equals(dimension))
+		List<Candidate> open = candidates(data).stream()
+				.filter(candidate -> !discovered.contains(candidate.fragment())).toList();
+		// This world first, because a lead you can walk to beats one you have to build a portal for.
+		// But "none here" is a reason to point somewhere else, not a reason to do nothing: the click
+		// used to return false in that case, so a player in the Nether tapped the option the terminal
+		// was drawing for them and got silence.
+		Candidate nearest = open.stream()
+				.filter(candidate -> candidate.dimension().equals(dimension))
 				.min(Comparator.comparingLong(candidate -> horizontalDistanceSquared(
-						player.blockPosition(), candidate.position()))).orElse(null);
+						player.blockPosition(), candidate.position())))
+				.orElseGet(() -> open.stream().min(Comparator.comparingLong(candidate ->
+						horizontalDistanceSquared(player.blockPosition(), candidate.position())))
+						.orElse(null));
 		if (nearest == null) return false;
 		List<Candidate> fragmentCandidates = candidates(data).stream()
 				.filter(candidate -> candidate.fragment() == nearest.fragment()).toList();
 		int slot = fragmentCandidates.indexOf(nearest);
 		return slot >= 0 && selectCandidate(player, nearest.fragment() * MAX_CANDIDATES_PER_FRAGMENT + slot);
-	}
-
-	private static boolean unstableNavigationUnlocked(CompoundTag record) {
-		if (record.getIntOr(TerminalData.BAND_STAGE, 0) == 0) return false;
-		NavigationState navigation = NavigationState.read(record);
-		if (navigation.kind().equals("structure_fragment") && navigation.located()) return true;
-		int milestones = record.getIntOr(TerminalData.SURVIVAL_MILESTONE_MASK, 0);
-		return SurvivalMilestone.ENTERED_NETHER.present(milestones)
-				&& StoryProgressService.guidanceHintTier(record) >= 2;
 	}
 
 	public static boolean completeNearby(ServerPlayer discoverer, int tuning) {
@@ -471,21 +703,32 @@ public final class FragmentInvestigationService {
 		// and game tests share one server: clearing them here let one test silently pull the
 		// candidate out from under another that was mid-hold.
 		NEARBY.clear();
-		// Fixed candidates are the whole point of this hook, so both passes count as already run.
-		storeAllocationCursor(data, TOTAL_ALLOCATION_STEPS, true, true);
 	}
 
 	public static List<Candidate> candidatesForTesting(FrequencyWorldData data) {
 		return candidates(data);
 	}
 
-	/** Reproduces a save whose allocation latched before the rescue pass existed. */
-	public static void reopenAllocationForTesting(FrequencyWorldData data) {
-		storeAllocationCursor(data, POOL_ALLOCATION_STEPS, true, false);
+	/** Runs one lead scan immediately, bypassing the randomised timer. */
+	public static void scanForLeadForTesting(ServerPlayer player) {
+		scanForLead(player, FrequencyWorldData.get(player.level().getServer()));
 	}
 
-	public static boolean allocationRescuedForTesting(FrequencyWorldData data) {
-		return state(data).getBooleanOr(ALLOCATION_RESCUED, false);
+	/** How many scans this fragment has spent without finding one of its own four kinds of place. */
+	public static int poolMissesForTesting(FrequencyWorldData data, int fragment) {
+		return poolMisses(data)[Math.clamp(fragment, 0, FRAGMENT_COUNT - 1)];
+	}
+
+	/**
+	 * Sets how much patience a fragment has already spent.
+	 *
+	 * <p>Game tests share one server whose tick loop keeps scanning between them, so a test that
+	 * needs a known starting count has to write one rather than assume zero.</p>
+	 */
+	public static void setPoolPatienceForTesting(FrequencyWorldData data, int fragment, int scans) {
+		int[] misses = poolMisses(data);
+		misses[Math.clamp(fragment, 0, FRAGMENT_COUNT - 1)] = Math.max(0, scans);
+		storePoolMisses(data, misses);
 	}
 
 	public static void setNearbyForTesting(ServerPlayer player, Candidate candidate) {
@@ -561,18 +804,6 @@ public final class FragmentInvestigationService {
 			CompoundTag state = root.getCompoundOrEmpty(STATE).copy();
 			state.putInt("version", STATE_VERSION);
 			state.put(CANDIDATES, encoded);
-			root.put(STATE, state);
-		});
-	}
-
-	private static void storeAllocationCursor(FrequencyWorldData data, int cursor, boolean complete,
-			boolean rescued) {
-		data.updateNarrativeState(root -> {
-			CompoundTag state = root.getCompoundOrEmpty(STATE).copy();
-			state.putInt("version", STATE_VERSION);
-			state.putInt(ALLOCATION_CURSOR, cursor);
-			state.putBoolean(ALLOCATION_COMPLETE, complete);
-			state.putBoolean(ALLOCATION_RESCUED, rescued);
 			root.put(STATE, state);
 		});
 	}

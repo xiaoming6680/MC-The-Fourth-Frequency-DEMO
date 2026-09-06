@@ -1,108 +1,176 @@
 # Background music
 
-`MusicDirector` takes over two vanilla seams through `MinecraftMusicMixin`: `getSituationalMusic` decides what plays, and `getMusicVolume` decides the target gain for fades. Scheduling, fading and the "now playing" toast therefore all remain vanilla behaviour.
+`MusicDirector` takes over vanilla's two seams through `MinecraftMusicMixin`: `getSituationalMusic` decides what plays, `getMusicVolume` decides the fade target gain. Scheduling, fading and the "now playing" toast all stay vanilla.
 
-This document covers music only. Sound-effect mix headroom is in [The World Interface finale](world-interface.md); client lifecycle is in [Architecture](architecture.md).
+This document covers music only; the mix headroom for sound effects is in [The World Interface finale](world-interface.md), client lifecycle in [Architecture](architecture.md), and trade-offs in [Design notes](design-notes.md#background-music).
 
 ## Situation table
 
-The first matching row from the top wins.
+**Read top to bottom; the first match wins.**
 
 | Situation | Result |
 | --- | --- |
-| Pursuit mirror world (already active during the black screen and loading screen) | `music_pursuit` (1 track, looping) |
-| All other pursuit phases (warning, capture, escape resolution, return) | Silence |
-| After stepping into the finale portal (including the End poem, credits and post-credits) | Success `music_ending` / failure `music_ending_failure` (1 track each, looping) |
-| World Interface summoning and phases 1–2 | `music_encounter` (1 track, looping) — **from the first tick of the summon**, not from the ritual's last beat |
+| Pursuit mirror world (already started under the blackout and loading screen) | `music_pursuit` (1 track, looping) |
+| Every other pursuit phase (warning, capture, escape resolution, return) | Silence |
+| After stepping into the finale portal (including the End Poem, credits and post-credits) | `music_ending` / `music_ending_failure` (1 track each, looping) |
+| World Interface summon and phase 1 | `music_encounter_phase_1` (1 track, looping), **from the first tick of the summon**. Summon and form 1 share one track with no swap between them |
+| World Interface phase 2 | `music_encounter_phase_2` (1 track, looping) |
 | World Interface phase 3 | `music_encounter_final` (1 track, looping) |
-| Both resolutions and the portal opening | Silence |
-| Loading and transition screens (`LevelLoadingScreen` / `ProgressScreen` / `GenericMessageScreen` / `ConnectScreen` / any overlay) | Silence |
-| Main menu / no player | `music_menu` (4 tracks), but only once the safety notice releases it |
+| Both resolutions and portal opening | Silence |
+| Loading and transition screens (`LevelLoadingScreen` / `ProgressScreen` / `GenericMessageScreen` / `ConnectScreen` / any Overlay) | Silence |
+| Main menu / no player | `music_menu` (4 tracks), but only after the safety notice releases it |
 | Safety notice not yet released | Silence |
-| Any other boss bar flagged with music (ender dragon, wither) | Silence |
-| Ordinary gameplay | `music_game` (7 tracks, 4800-tick / 4-minute interval, still subject to the music-frequency option) |
+| Any other boss bar flagged as music (Ender Dragon, Wither) | Silence |
+| The End with the World Interface not yet summoned (`UNPREPARED` / `ARENA_READY` / `WAITING_TERMINALS`, or no snapshot yet) | `music_end` (1 track, looping) |
+| Ordinary gameplay | `music_game` (9 tracks, interval 4800 ticks / 4 minutes, still subject to the music-frequency option) |
+| The unrendered layer, once the Bacteria has appeared this session (`UnrenderedLayerClient.hunted()`, latched once true) | `music_unrendered` (1 track, looping), with the fade target scaled by `UNRENDERED_MUSIC_TRIM = 0.45` |
+| The unrendered layer before it appears | Silence: the first minute down there is the place establishing that it is empty, and a track arriving with the player says it is not |
 
-Silence before the notice is released exists because that screen is still body text the player has to read, and music would compete with it. "Released" is taken at the moment the acknowledge button is pressed, not at `FirstRunNoticeController.acknowledge()` — the latter waits out a 28-tick exit animation. Waiting for it would put the music a second and a half behind the player's decision, with the fade-in after that, landing the music behind the very main menu it is supposed to underscore. By the time the button is pressed the text has long been read, and silence is no longer protecting anything. The same entry also zeroes `nextSongDelay`: the menu track's own 20-tick gap is for the space *between* tracks and should not sit in front of this one starting.
+**"Released" is the instant the player presses "I understand"**, not `FirstRunNoticeController.acknowledge()` (which waits out a 28-tick exit animation). The same entry also zeroes `nextSongDelay`.
 
-The quiet after defeating the World Interface is deliberate in the same way: the ending track waits until the player actually steps into the portal. At that moment the server sends the poem packet, `WorldInterfaceVanillaPoemClient` latches the ending kind, and the score picks one of the two tracks accordingly. A win releases that latch after poem confirmation but before the resource packs are restored, so the reload cannot pull the ending track back up; a loss does not release it, because everything after that point is the remainder of this run.
+**The End track keys off the dimension, not the stage**: the World Interface snapshot arrives with the world, and the player is already standing in the End before it lands — so "no stage" also counts as not summoned. `COMPLETE` is excluded.
 
-A loading screen is not a *scene*; it is the gap between two scenes. Letting the menu track sit under the progress bar means carrying whatever the menu randomly picked into the place the player just went.
+## Master volume
 
-## The menu fade-out on world entry
+`meta.peakVolume` is this mod's **master volume**, and music is inside it: `musicVolume` multiplies vanilla's fade target by it before returning, and the cached `fadeTarget` stores the multiplied value.
 
-This is the only fade-out **racing something else**, so it does not use the vanilla curve: it is a 10-tick (0.5 s) linear ramp.
+There are two entry points: `config/thefourthfrequency.json`, and the **audio calibration page** of the first-run flow. Dragging the slider only changes the in-process config, so the neighbouring "Preview" is immediately at the new level. Preview plays `signal/tuning_sweep` — this mod's own 3-second signal sweep.
 
-Entering a world hard-kills whatever is playing twice, and neither kill can be lengthened: `Minecraft#updateLevelInEngines` calls `soundManager.stop()` outright, and switching to the Alpha resource pack makes `SoundManager#apply` call `SoundEngine#reload()`, rebuilding the whole engine. Worse, the window available for a fade is neither fixed-length nor continuous — the main thread blocks while save data is read, and not a single tick runs during that time; the usable ticks only start once it begins waiting for the server to be ready. A fade measured in seconds necessarily loses that race and gets cut off half way, which sounds identical to just disappearing. That is exactly why the earlier "steepen it to 1.5 seconds" was still not enough.
+## Four fade rules
 
-Linear rather than eased, because easing crowds most of the decay into the first few ticks and leaves a long tail — compressed to 10 ticks that sounds like something was sliced off rather than faded out. An equal-length straight ramp is short, but it is unambiguously a fade. The ramp is recomputed each tick from the recorded start value (rather than multiplied tick by tick), so vanilla easing the same value on the same tick cannot pull it off course. Completing the ramp actively calls `stopPlaying()`: by then it is inaudible, but the track has to be genuinely handed back, or a zero-gain song holds the channel until the world switch wipes it.
+### 1. The menu-track fade on world entry
 
-A single `stopPlaying()` fallback remains on the load-complete edge, for loads too short to fit even a 0.5-second ramp. Pursuits are exempt from both, because what the black screen is covering *is* the mirror-dimension switch, and the pursuit track is fading in underneath it.
+**The only fade that is racing something else**, so it does not use vanilla's curve: it is a **10-tick (0.5 s) linear ramp**.
 
-## Quitting to the title after the win: the score follows the player
+- The ramp is **recomputed each tick from the recorded start point** (rather than multiplied down tick by tick), so vanilla's own easing on the same value in the same tick cannot pull it off course.
+- Finishing the ramp actively calls `stopPlaying()`: it is inaudible by then, but the track has to actually be handed back.
+- The end-of-loading edge keeps one `stopPlaying()` backstop, for loads too short to fit even a 0.5-second ramp.
+- **Pursuits are exempt from both**, because what the blackout is covering is the mirror dimension switch, and the pursuit track is fading in right then.
 
-This is the third exemption, and the only time the score has to keep playing across a world unload.
+### 2. Quitting to the title after a win: the score follows the player
 
-The state machine is the pure class `client_ui.EndingScoreHandoff` (main source set, directly unit-testable), with three states:
+**The only time music has to survive world unload.** The state machine is the pure class `client_ui.EndingScoreHandoff` (main, directly unit-testable):
 
 | State | Entered when | Effect |
 |---|---|---|
-| `OFF` | Default | Business as usual: the menu track owns the title screen, loading screens are silent |
-| `ARMED` | The ending is confirmed **and** the player is back in the world **and** not loading | Loading gaps score as ordinary gameplay music; the entry fade-out and the load fallback are skipped; the music channel survives the disconnect |
-| `HOLDING` | No world and no loading screen (already on the title screen) | The title screen keeps scoring from `music_game`; the menu track does not take over |
-| Back to `OFF` | Any loading screen or world is entered again | Normal behaviour resumes, entry fade-out included |
+| `OFF` | Default | Everything normal: menu music owns the title screen, loading screens are silent |
+| `ARMED` | Ending confirmed **and** the player is back in the world **and** not loading | Loading gaps score as ordinary gameplay music; the world-entry fade and loading backstop are skipped; the music channel survives disconnect |
+| `HOLDING` | No world and no loading screen (settled on the title screen) | The title screen keeps scoring from `music_game`; menu music does not take over |
+| Back to `OFF` | Entering any loading screen or world again | Normal service resumes; the world-entry fade applies again |
 
-Three details are required:
+Three constraints, none optional:
 
-1. **It cannot arm at poem confirmation.** Win cleanup restores the resource packs, which is a full resource reload and raises a loading overlay. Armed at that point, the reload would be underscored by ordinary gameplay music — exactly the "menu track under the progress bar" this chapter has been preventing, only in the other direction. So it waits for the world to come back.
-2. **It must arm before the quit.** Quitting gives no lead time: `Minecraft#disconnect` tears down the world internally and stops all sound in the same call.
-3. **It must bypass the engine-wide stop.** The `soundManager.stop()` inside `Minecraft#updateLevelInEngines(ClientLevel, boolean)` clears every channel, music included, and no fade can lengthen it. `MinecraftEndingScoreCarryMixin` redirects only that one call, and only when the hold is `ARMED` **and** the level being loaded is null — entering a world goes through the same line, and the deliberately timed menu fade there must not be touched. After the redirect it stops per `SoundSource`, skipping `MUSIC`: every instance the engine registers belongs to some category, so nothing but music survives.
+1. **It cannot arm at poem confirmation.** Win cleanup restores resource packs, which is a full reload and raises a loading overlay.
+2. **It must arm before the quit.** `Minecraft#disconnect` tears the world down internally and stops sound in the same call.
+3. **It must bypass the engine-wide stop.** The `soundManager.stop()` inside `updateLevelInEngines` clears every channel.
 
-The failure ending does not participate: its `scoredOutcome` latch is never released, `music_ending_failure` scores all the way to the locked menu, there is no gap for the menu track to take over, and the whole failure sequence has its own audio plan.
+**The failure ending does not participate**: its `scoredOutcome` latch is never released anyway.
 
-## Why the pursuit track waits for the mirror world
+### 3. Combat hand-off (about 3 seconds)
 
-`music_pursuit` keys on "the client has the mirror world", not "the black screen started". The reason is vanilla: `ClientPacketListener#handleRespawn` contains an unconditional `getMusicManager().stopPlaying()` that runs on every dimension change. A track started *before* the teleport gets cut off mid-fade-in, and because `music_pursuit` has `minDelay` 0 the manager immediately replays it from the first bar — which sounds like the track starting and then snapping back to the beginning. Starting it *after* the teleport costs nothing: the black screen covers both the teleport and the loading screen, so the fade-in still happens underneath it.
+Every other track change has a deliberate silence between it, which vanilla's curves cover (target gain to 0, ~15 s out, ~10 s in). The boss fight is the sole exception; `MusicDirector` drives the same two curves far more steeply:
 
-## No click on the first note
+| Step | How |
+|---|---|
+| Fade out | `situationalMusic` returns null during the hand-off, and each tick multiplies an extra **0.80** on top of vanilla's 0.97 decay — the channel clears in about 1.5 s |
+| Start | Zero `nextSongDelay` (every stop adds 100 ticks to it, and the "constant" option pins the interval at 100 ticks too) |
+| Fade in | Run vanilla's fade-in step **7 extra times** per tick — back to target gain in about 1.2 s |
 
-Gain is only pushed into the audio engine inside `MusicManager`'s own fade (`updateCategoryVolume`), and that fade only runs while something is already playing. So on the "previous track hard-stopped → next track starts" path, the engine still holds the previous track's category volume: the new track's first tick plays at that volume for a full 50 ms before the next tick drags it back to the fade-in start. That is a click, landing exactly where a fade-in was supposed to be. `silenceGain` therefore zeroes the gain **and** the category volume together, so the entry really does start from silence.
+> **`replaceCurrentMusic` must be false on all three `music_encounter*` events.** The flag is evaluated inside the music manager's own tick, before this class sees the frame; leaving it true cuts the old track off before the hand-off even begins. Every other track stays 0-delay + immediate replace.
 
-## The same track never plays twice in a row
+### 4. An entry must start from silence
 
-Minecraft has no playlists. Multiple `sounds` entries under one event in `sounds.json` are a **weighted random pool** drawn independently on every play, so seven ordinary gameplay tracks will play the one that just finished again roughly every seventh handover. That is the kind of repetition a listener always notices — two halves back to back do not sound like a random collision, they sound like something got stuck.
+`MusicManagerGainAccessor` pushes the gain to 0 on the edge where "nothing is playing but something is about to". That write is conditional on `currentMusic == null`, so a single frame of situation jitter cannot cut off a track that is fading out.
 
-The rule is declared by `audio/MusicRotationPolicy` and enforced by `AbstractSoundInstanceRotationMixin`. The single place the draw happens is `AbstractSoundInstance#resolve` (`this.sound = events.getSound(this.random)`), which is also the last point the choice can still be changed; past it the engine holds a `Sound`, not a pool. **It cannot hang off `WeighedSoundEvents`** — that class does not know its own event id, so hanging there could not tell the score apart from the eight attack sounds that are supposed to draw freely.
+`silenceGain` zeroes **both** the gain and the category volume.
 
-On a repeat it **re-draws** rather than picking by index, so vanilla weights are preserved: hand-picking another entry quietly flattens the weighting, while re-drawing and rejecting the repeat leaves every other entry's relative probability intact. Re-draws are capped at 8, because a repeat is a blemish and a hang is a fault.
+**There are exactly two hard cuts**: the pursuit blackout and capture — where the fiction is that the signal was severed.
 
-Only `music_game` (7 tracks) and `music_menu` (4 tracks) rotate. Single-track events (pursuit, both encounter phases, both endings) have nothing to say about repeats and are excluded automatically; the World Interface's attack sounds carry three variants each precisely so the same move sounds different, and banning repeats there would cancel the point of having variants. `MusicRotationPolicyTest` cross-checks the declared list against the actual pool sizes in `sounds.json` in both directions, so adding a track and forgetting about it is a test failure rather than something an ear finds months later.
+## Rotation: no repeat until a full pass
 
-## The ordinary gameplay interval
+Minecraft has no playlist. Multiple `sounds` on one event in `sounds.json` is a **weighted random pool**, drawn independently every time.
 
-`music_game` uses `Music(holder, 4800, 7200, false)` rather than vanilla's `Musics.createGameMusic` (10–20 minutes). **Only the lower bound actually matters**: the manager re-rolls within that range every tick and takes the minimum against the current value, including during the several thousand ticks a track is playing, so the drawn value is pushed to the bottom of the range and the upper bound is essentially a statement of intent.
+| Item | Rule |
+|---|---|
+| Events that rotate | Only `music_game` (9) and `music_menu` (4). Single-track events and attack-sound variants are excluded automatically |
+| Declared in | `audio/MusicRotationPolicy` |
+| Enforced at | `AbstractSoundInstanceRotationMixin`, hooked on `AbstractSoundInstance#resolve` |
+| End of a pass | `MusicRotationPolicy.passComplete(event, poolSize)` **counts** the tracks used this pass; it is not inferred from failed redraws |
+| Pool size source | `WeighedSoundEventsPoolAccessor` reads `WeighedSoundEvents`' private `list` (`getWeight` is the sum of weights and cannot be used as a count) |
+| On a repeat | **Redraw** rather than picking by index, so vanilla weights are not flattened. Capped at 32 redraws per track (320 for a ten-track pool, 32 at a seam) |
+| Pass seam | The first track of a new pass cannot be the last track of the previous one |
 
-Vanilla's pacing was designed for "one playlist shared by the whole game". Seven tracks averaging 2 min 11 s at a 10-minute interval means music is audible less than a fifth of the time and one full rotation takes over eighty minutes — a player could finish a whole stretch of the mainline without hearing half of them. At 4 minutes the cycle is about 6 min 10 s, audibility about a third, and a rotation about 43 minutes, which fits inside one normal session. Pushing it lower would start contradicting the work: here silence is the default state, and music starting tells the player this moment was composed and therefore safe. The gaps do not sound like a disconnection because the signal bed is underneath them.
+> **The rotation cannot hang off `WeighedSoundEvents`** — it does not know its own event id, so hooking there cannot tell music apart from the eight attack sounds that are supposed to draw freely.
 
-The player's music-frequency option still applies: "Frequent" caps at 12000 ticks, above 4800, so it has no effect; "Constant" is hard-coded to 100 ticks in the manager and overrides any track's own pacing.
+`MusicRotationPolicyTest` cross-checks the declared list against the real pool sizes in `sounds.json`, so adding a track and forgetting it is a test failure.
 
-## Music from the first tick of the summon
+## The ordinary-gameplay interval
 
-The summon used to be entirely silent until the ritual's `MUSIC_HANDOVER` beat, on the grounds that thirteen seconds of descent were already carried by the rising cue and ten anchor chains, and a track underneath would flatten both. The actual effect was that the mod's largest entrance **had no music**, and the track arrived after the thing had already landed. It now returns `music_encounter` from the summon's first tick and fades in during the descent — a fade-in has contrast precisely because it starts from zero; and colliding with the previous track is what the handover mechanism is for.
+`music_game` uses `Music(holder, 4800, 7200, false)` rather than vanilla's `Musics.createGameMusic` (10–20 minutes).
 
-## The combat handover
+**Only the lower bound really matters**: the manager redraws a random number in that range every tick and takes the minimum with the current value — including the thousands of ticks while a track plays — so the upper bound is essentially a statement of intent.
 
-Every other track change has a deliberate silence in between that vanilla's fade curves cover exactly: target gain drops to 0, the old track fades out over roughly 15 seconds and the new one fades in over roughly 10. The boss fight is the only exception — ordinary gameplay music yields directly to the summon, and the first two phases yield directly to the third. At vanilla speed those two handovers are either a hard cut or a 25-second hole in the middle of a fight.
+The current cycle is about 6 m 10 s, roughly a third audible (nine tracks averaging 2 m 10 s).
 
-So `MusicDirector` takes over both handovers using the same two curves, much steeper:
+The player's music-frequency option still applies: "frequent" caps at 12000 ticks, above 4800, so it has no effect; "constant" is hard-coded to 100 ticks in the manager and overrides any track's own pacing.
 
-1. **Fade-out** — `situationalMusic` returns null during the handover (so target gain is 0) while each tick multiplies an extra 0.80 on top of vanilla's 0.97 decay, clearing the channel in about 1.5 seconds, after which vanilla calls `stopPlaying()` itself.
-2. **Start** — `nextSongDelay` is zeroed. Every stop adds 100 ticks to it, and the "Constant" music-frequency option pins the interval at 100 ticks; either would conjure 5 seconds of extra silence.
-3. **Fade-in** — seven extra vanilla fade-in steps per tick, back to target gain in about 1.2 seconds.
+## Four sounds in the unrendered layer
 
-The whole handover is slightly under 3 seconds, which fits inside the transformation animation. `replaceCurrentMusic` must therefore be **false** for `music_encounter` and `music_encounter_final`: that flag is evaluated inside the music manager's own tick, before this class sees the frame, and leaving it set would cut the old track before the handover begins. All other tracks keep 0 delay and immediate replacement.
+All four are played and stopped by the client off the dimension alone, **with no protocol at all**.
 
-Silence is reached by fading the gain rather than stopping outright, so leaving a situation is a track exiting rather than being cut. Vanilla's gain only eases while something is playing and starts at 1, so `MusicManagerGainAccessor` pushes it to 0 on the "nothing playing, but something is about to" edge, making every entry a fade-in. That write is conditional on `currentMusic == null`, so a single frame of situation jitter cannot cut a track that is currently fading out. There are exactly two hard cuts — the pursuit black screen and being captured — where the fiction is that the signal was severed; the black-screen cut exists precisely so the pursuit track fades in out of real silence.
+| Source | Channel | Volume / radius | Note |
+|---|---|---|---|
+| `music/unrendered/nice_boys.ogg` | `MUSIC` | **−23 LUFS** at import, played at **0.45** | **The layer used to be deliberately unscored** (`select` returned null), on the reasoning that somewhere never authored for anybody should not sound authored. What plays now is not a piece written for the layer but one lifted out of the ordinary-gameplay rotation: the player recognises it, and this is not where they should be recognising it. **It scores the Bacteria rather than the room**, so it waits for the entity, and it sits under both the bed and the heartbeat because those are what the player navigates by |
+| `layer_ambience.ogg` (20 s loop) | `AMBIENT` | play volume **0.11** (the file is a −20.1 LUFS reference level) | **The opposite of the signal bed**: the bed is "transmission" and is deliberately built to survive the silence anomaly; this bed **is** the world the player is standing in |
+| `heartbeat.ogg` (1 s, one beat) | `HOSTILE` | Shipped **-22.2 LUFS**; playback volume 0.35 to 1.0 by distance | **Faster and louder as it closes**: about one beat per thirty ticks at sixty-four blocks, one per seven at contact. Both curves running the same way is deliberate - louder alone reads as the player's hearing improving, faster alone reads as a timer, and only together do they read as something approaching. The asset is a second long, so at the fast end beats overlap slightly, which is what makes the last few metres panic rather than a metronome. <br>**It used to be one looping instance**: a loop can be moved and faded but cannot be made to beat faster, and speeding up as it closes is the entire point. Now discrete one-shots on a distance-derived schedule, played **at the entity** so the engine's attenuation and panning still supply the direction. <br>It shipped at -34.2 LUFS, which after distance attenuation was effectively nothing |
+| `capture_scream.ogg` | Client UI playback (`SimpleSoundInstance.forUI`) | — | **Not** a server positional sound: it has to survive the return-teleport frame, and positional sounds are discarded the instant the client changes dimension |
 
-## Assets
+## Thunder in the End
 
-Audio ships as 44.1 kHz stereo Ogg Vorbis (q4). Master gain is baked into the files at 40% by `tools/import_music.py` at import time rather than written into `sounds.json`. That ratio is always relative to the lossless master, so re-importing does not compound it. See [Art and asset pipeline](art-pipeline.md).
+Thunder borrows vanilla's `LIGHTNING_BOLT_THUNDER`, scheduled by the client off the world clock and played locally (scheduling rules in [The World Interface finale](world-interface.md#rain-in-the-end)).
+
+- **It uses `SoundSource.WEATHER`**, not `AMBIENT` and not `HOSTILE`. `silent_world` silences MUSIC / AMBIENT / HOSTILE, so thunder cuts through that anomaly — **deliberately consistent with vanilla rain**.
+- **Vanilla's cue declares no attenuation distance of its own**, so it dies out at 16 blocks, while thunder is emitted 64 blocks above and 96 blocks out from the player. It goes through the same conversion as `AudioService.playWithReach`.
+- **Volume is still bounded by `peakVolume`**; at 0 it is silent. It does **not** go through `ENCOUNTER_MIX_TRIM` — that trim is for the encounter's authored cues, and this is weather.
+
+## Ingest: align loudness first, attenuate second
+
+Assets ship as 44.1 kHz stereo Ogg Vorbis (q4). Playback level is **baked into the file** by `tools/import_music.py` at import time rather than written into `sounds.json`. **Two steps, and the order cannot be reversed:**
+
+1. **Align loudness.** Measure each master's integrated loudness with ffmpeg's `loudnorm`, then apply one **purely linear** gain shift to **−24 LUFS**. Masters span −3.6 to −16.4 LUFS.
+2. **Then attenuate.** Multiply the aligned level by a ratio — **0.8 (−20%)** by default, overridable per source folder (`GAIN_BY_DIRECTORY`).
+
+**The three encounter tracks take a target of their own: `ENCOUNTER_LOUDNESS_TARGET_LUFS = −17.0`, with no attenuation (a fraction of 1.0).** The −24 reasoning above is about a score heard against silence, and the encounter is the one stretch that is not: the interface is throwing eight authored attack cues, a shockwave and vanilla explosions over the top of it, and the score is what tells the player which body they are fighting. Matched to the same target as everything else, it was reported as simply missing during the fight. The source folder used to carry an annotation asking for the opposite ("reduce volume by 10%"), and that was followed; the user removed the annotation and asked for these three to be louder on 2026-08-29, so the folder is now plain `BOSS战` and this constant replaced the note.
+
+**The number took three passes**: −20 was too quiet, −15 overshot, and −17 is where the user called a halt. Headroom is not the constraint: the three masters measure −3.56 / −7.00 / −11.26 LUFS with true peaks near +0.5 dBFS, so at −17 they land at −13.0 / −9.5 / −5.4 dBFS.
+
+**The unrendered layer's single track works the same way, at `UNRENDERED_LOUDNESS_TARGET_LUFS = −23.0` with a fraction of 1.0.** It is the one place in the project where the score competes with the mod's own audio rather than with vanilla: everywhere else the opposition is vanilla ambience and the signal beds (around −24 dBFS peak by construction), while down there the only other source is `unrendered/layer_ambience.ogg`, shipped at −20.1 LUFS because it has to carry six minutes on its own. At the default target the track lands six decibels under that drone and never comes out from behind it — the failure the encounter already hit once. Three decibels under the bed rather than level with it: the room still belongs to the bed, and the score is the thing that should not be in it. **On top of the ingest level there is a playback-side `UNRENDERED_MUSIC_TRIM = 0.45`**, kept beside the playback rather than baked into the file, the same way the ambience bed is mixed.
+
+The shift is gain only — **no compression, no limiting** — so no track's dynamics are touched. It can run unattended because every master is louder than the target, making every gain negative.
+
+Measured results: default group −26.10 to −25.80 LUFS; the unrendered layer track −23 LUFS (true peak −12.5 dBFS); **the boss group now sits at −17 LUFS, about 8.9 dB above the rest of the set**.
+
+### Why the target is −24 rather than vanilla's own tier
+
+**Those 4 dB of headroom pay for the dynamic range this score lacks, not for it being too loud.** Vanilla's tracks peak **4 to 6 dB** above their own integrated loudness, because they spend most of their length in the quiet passages between. This set does not: its short-term maximum sits only **0.8 to 1.9 dB** above, `game/hi` has a loudness range of just **1.9 LU**, `game/tenshi` 2.9, `encounter/especially_you` 3.3 — all below the lowest of vanilla's 60 tracks, `broken_clocks` (4.2).
+
+**A track with no quiet passages is heard at its integrated loudness the whole time it plays**, so matching that number to vanilla's median (−16.4 LUFS) would make it the loudest thing in the mix in practice. At −24 the set sits alongside the C418 tracks players know best (−26.6 to −27.8 LUFS).
+
+The ratio is always relative to the lossless master, and so is the loudness target, **so re-importing does not compound**. See [Art and asset pipeline](art-pipeline.md).
+
+### Sound effects do not follow this rule
+
+Effects are quiet to begin with and must be **measured and aligned to repository reference values**:
+
+| File | Master | Ingested | Basis |
+|---|---|---|---|
+| `unrendered/layer_ambience.ogg` | −31.5 LUFS | **−20.1 LUFS / peak −7.8 dBFS** (a reference level; played at 0.11) | Present for six minutes as the only source |
+| `unrendered/capture_scream.ogg` | −27.3 LUFS | **−5.0 LUFS / peak −0.2 dBFS** | **The loudest cue in the mod, deliberately.** It is above `alpha_corruption_collapse` (−9.2 LUFS) and above the pursuit's own scream (−7.8 LUFS), because it is the last thing the player hears before the layer takes them, and nothing else is allowed to reach this tier |
+| `client/pursuit/capture_scream.ogg` | −12.3 LUFS (before ingest) | **−7.8 LUFS / peak −0.1 dBFS** | The second loudest. No lossless master was found, so this is a second encoding generation off the existing Ogg — acceptable for three seconds of a loud signal, but redo it from the master if one ever turns up |
+| `unrendered/heartbeat.ogg` | Synthesised | **−34.3 LUFS / peak −14 dBFS** | Synthesised straight to level by `tools/generate_unrendered_audio.py`, no loudnorm |
+
+**The ambience bed has exactly one knob, and it is not in the file.** The file stays at its −20 LUFS reference level and the whole mix is carried by `UnrenderedLayerClient.AMBIENCE_VOLUME` (currently 0.11, about −39 LUFS in play). That rule was learned the hard way: two adjustments that could not see each other — one on the file, one on the constant — multiplied and left the bed inaudible. The signal beds work the same way: the mix lives in a relative volume beside the playback, never baked into the asset.
+
+The recorded assets all have an LRA under 1.5 LU, so `loudnorm ... linear=true` is a pure gain shift.
+
+> **Always verify the codec with `ffprobe` before ingest.** A source may carry the `.ogg` extension and an Ogg container while **the stream inside is FLAC** — Minecraft only decodes Ogg Vorbis, so dropping it into the resource tree **plays nothing at all**, with no error, no log, and the `OggS` page-header magic check passing happily.

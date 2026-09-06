@@ -19,7 +19,11 @@ public final class AnomalyTestTimeline {
 	}
 
 	public static void assertCatalogCoverage() {
-		List<String> catalog = AnomalyCatalog.definitions().stream().map(value -> value.id()).toList();
+		// Reads the exemption from AnomalyClientScenario rather than keeping a second copy: two lists
+		// of "what we do not test" drift apart, and the direction they drift is always towards
+		// something being untested in one of them and unnoticed in both.
+		List<String> catalog = AnomalyCatalog.definitions().stream().map(value -> value.id())
+				.filter(id -> !AnomalyClientScenario.UNCOVERED.contains(id)).toList();
 		if (!TIMELINES.keySet().equals(new java.util.LinkedHashSet<>(catalog)))
 			throw new AssertionError("Anomaly test timelines differ from the catalog: " + TIMELINES.keySet() + " vs " + catalog);
 		for (Timeline timeline : TIMELINES.values()) timeline.validate();
@@ -27,9 +31,8 @@ public final class AnomalyTestTimeline {
 
 	private static Map<String, Timeline> timelines() {
 		Map<String, Timeline> values = new LinkedHashMap<>();
-		add(values, "phantom_echo", 28, 14, "start", "sound_peak", "restore");
+		add(values, "phantom_echo", 40, 20, "approach", "first_blow", "crack_peak", "restore");
 		add(values, "light_dropout", 24, 10, "start", "server_extinguished", "restore");
-		add(values, "surface_fracture", 24, 14, "start", "crack_peak", "restore");
 		add(values, "silent_world", 32, 16, "start", "ambient_silenced", "restore");
 		add(values, "peripheral_residue", 32, 27, "fast_enter", "corruption_impact_and_hands_removed", "restore");
 		add(values, "watcher_alignment", 28, 12, "start", "aligned", "restore");
@@ -38,10 +41,10 @@ public final class AnomalyTestTimeline {
 		add(values, "viewpoint_separation", 28, 12, "capture_view", "fixed_camera_controllable_body", "restore");
 		add(values, "door_cascade", 68, 42, "select", "break_sequence", "permanent", "cleanup");
 		add(values, "organ_misread", 32, 14, "select", "replace", "restore");
-		add(values, "temporal_drift", 32, 16, "start", "sky_desynchronised", "restore");
 		add(values, "experience_gap", 36, 18, "blackout", "safe_move", "restore");
-		add(values, "local_rule_collapse", 80, 40, "select", "proxy", "persistent_trace", "restore");
-		add(values, "metric_drift", 32, 16, "start", "readout_skewed", "restore");
+		add(values, "local_rule_collapse", 80, 40,
+				"select", "proxy", "lighting_unsolved", "persistent_trace", "restore");
+		add(values, "metric_drift", 32, 16, "start", "sky_desynchronised", "readout_skewed", "restore");
 		add(values, "red_horizon", 40, 18, "red_peak", "distance_limit", "fade", "restore");
 		add(values, "window_pulse", 24, 12, "start", "fallback", "restore");
 		add(values, "channel_override", 44, 24, "open", "script", "final_hold", "restore");

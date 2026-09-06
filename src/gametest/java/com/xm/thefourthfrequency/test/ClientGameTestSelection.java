@@ -42,6 +42,18 @@ public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
 
 	public boolean runsMainline() { return suite == Suite.ALL || suite == Suite.MAINLINE || suite == Suite.TOOLS_UI; }
 	public boolean runsToolsUi() { return suite == Suite.ALL || suite == Suite.TOOLS_UI; }
+
+	/**
+	 * Whether the mainline run is finished once the tools-UI checks are done.
+	 *
+	 * <p>Only the focused suite stops there. {@code all} must keep going, and this predicate exists
+	 * because it did not: the early return sat inside {@code runsToolsUi()}, which is true for both
+	 * suites, so the unfiltered run silently dropped the entire second half of the mainline - band
+	 * progression, the four damaged files, the diary unlock, Nether continuity, the capability model
+	 * and the alpha main-menu stamp - and still reported success. A suite that is documented as the
+	 * superset has to actually be one, and a gap that reports green is worse than no suite at all.
+	 */
+	public boolean stopsAfterToolsUi() { return suite == Suite.TOOLS_UI; }
 	public boolean runsNoticeEntry() { return suite == Suite.NOTICE_ENTRY; }
 	public boolean runsAlphaRelaunch() { return suite == Suite.ALPHA_RELAUNCH; }
 	public boolean runsAnomalies() { return suite == Suite.ALL || suite == Suite.ANOMALIES; }

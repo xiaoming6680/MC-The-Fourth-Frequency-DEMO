@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.Level;
 
 import java.util.HashMap;
@@ -99,16 +100,36 @@ public final class PursuitSessionService {
 		ServerLevel source = PursuitDimensions.sourceLevel(player.level().getServer(),
 				record.getStringOr(TerminalData.PURSUIT_SOURCE_DIMENSION, ""))
 				.orElse(player.level().getServer().overworld());
+		// A session abandoned before the transfer never moved the player, so ending it must not move
+		// them either. See PursuitReturnPolicy: the phase that reaches this most often is the one
+		// tickPendingTransfers abandons *because* the player changed dimension, and teleporting them
+		// then undoes the very move that ended the chase. Everything else the return does - the
+		// ledger, visibility, vision and the session record - still has to happen.
+		if (!PursuitReturnPolicy.requiresTeleport(
+				record.getStringOr(TerminalData.PURSUIT_SESSION_PHASE, ""),
+				PursuitDimensions.isMirror(player.level()))) {
+			// No blackout either. It exists to cover a teleport, and there is not going to be one;
+			// clearSession sends CLEAR, which is what takes the warning presentation off the screen.
+			PursuitVisibilityService.restore(player);
+			PursuitVisionService.clear(player);
+			PursuitRecoveryLedger.settleAndDeliver(player);
+			clearSession(data, player, resolution);
+			return true;
+		}
 		BlockPos entry = BlockPos.of(record.getLongOr(TerminalData.PURSUIT_SOURCE_POSITION,
 				source.getRespawnData().pos().asLong()));
 		// The mirror is a block-for-block copy at the same coordinates, so wherever the chase left
 		// the player is a real place in the source world. Always returning them to the entry point
 		// threw the whole chase away: someone who ran two hundred blocks to break line of sight was
 		// put back where they started, which reads as the escape not having counted for anything.
-		BlockPos preferred = PursuitDimensions.isMirror(player.level()) ? player.blockPosition() : entry;
+		boolean fromMirror = PursuitDimensions.isMirror(player.level());
+		BlockPos preferred = fromMirror ? player.blockPosition() : entry;
 		BlockPos safe = PursuitReturnLocator.find(source, preferred, entry);
-		float yaw = (float) record.getDoubleOr(TerminalData.PURSUIT_SOURCE_YAW, player.getYRot());
-		float pitch = (float) record.getDoubleOr(TerminalData.PURSUIT_SOURCE_PITCH, player.getXRot());
+		// Facing comes off the same clock as the position above; the rule and its reasoning live in
+		// PursuitReturnView, where they are directly testable.
+		PursuitReturnView view = PursuitReturnView.forReturn(fromMirror,
+				(float) record.getDoubleOr(TerminalData.PURSUIT_SOURCE_YAW, player.getYRot()),
+				(float) record.getDoubleOr(TerminalData.PURSUIT_SOURCE_PITCH, player.getXRot()));
 		sendPresentation(player, record.getStringOr(TerminalData.PURSUIT_SESSION_ID, ""),
 				PursuitPresentationPayload.BLACKOUT,
 				record.getIntOr(TerminalData.PURSUIT_SESSION_FORM, 0));
@@ -122,7 +143,7 @@ public final class PursuitSessionService {
 		// Vanilla PlayerList.placeNewPlayer observes the same ordering for the same reason.
 		PursuitVisibilityService.restore(player);
 		player.teleportTo(source, safe.getX() + 0.5D, safe.getY(), safe.getZ() + 0.5D,
-				Set.of(), yaw, pitch, true);
+				view.relative(), view.yaw(), view.pitch(), true);
 		// interrupt() above already clears this for a session that reached the mirror; this also
 		// covers a return from the prelude, and a recovery join where no runtime exists any more but
 		// the effect was persisted with the player.
@@ -190,6 +211,10 @@ public final class PursuitSessionService {
 	}
 
 	private static void recoverOnJoin(ServerPlayer player) {
+		// Before this player's own recovery, and unconditional: it is about everybody else's chase,
+		// not theirs. Vanilla has just handed them the whole player list, which includes anyone the
+		// mirror is supposed to have removed from shared reality.
+		PursuitVisibilityService.isolateFromArrival(player);
 		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
 		var record = data.terminalRecord(player.getUUID()).orElse(null);
 		if (record == null) return;
@@ -226,8 +251,13 @@ public final class PursuitSessionService {
 		ServerLevel departureLevel = (ServerLevel) player.level();
 		BlockPos departurePosition = player.blockPosition();
 		mirror.getChunkAt(player.blockPosition());
-		player.teleportTo(mirror, player.getX(), player.getY(), player.getZ(), Set.of(),
-				player.getYRot(), player.getXRot(), true);
+		// Same rule as the return below: the entry keeps the view rather than re-applying it. The
+		// black screen and the two-second freeze hide this one, so nothing was visibly wrong here -
+		// but re-applying the server's copy of a rotation is a snap by however far the mouse moved
+		// since the last movement packet, and leaving the two ends of the same trip asymmetric is how
+		// the return drifted in the first place.
+		player.teleportTo(mirror, player.getX(), player.getY(), player.getZ(), Relative.ROTATION,
+				0.0F, 0.0F, true);
 		data.updateTerminalRecord(playerId,
 				value -> value.putString(TerminalData.PURSUIT_SESSION_PHASE, "running"));
 		notifyNearbyObservers(departureLevel, departurePosition, playerId);
@@ -270,6 +300,10 @@ public final class PursuitSessionService {
 		boolean debugSession = data.terminalRecord(player.getUUID())
 				.map(record -> record.getBooleanOr(TerminalData.PURSUIT_SESSION_DEBUG, false))
 				.orElse(false);
+		// Read before the update lambda, which zeroes the session form on its way through.
+		int survivedForm = Math.clamp(data.terminalRecord(player.getUUID())
+				.map(record -> record.getIntOr(TerminalData.PURSUIT_SESSION_FORM, 0))
+				.orElse(0), 1, 5);
 		data.updateTerminalRecord(player.getUUID(), record -> {
 			record.putBoolean(TerminalData.PURSUIT_ACTIVE, false);
 			record.putString(TerminalData.PURSUIT_SESSION_ID, "");
@@ -282,6 +316,20 @@ public final class PursuitSessionService {
 			record.putLong(TerminalData.PURSUIT_SESSION_STARTED_TICK, 0L);
 			if (successfulResolution) {
 				TerminalSignalLog.removeTypesStartingWith(record, "pursuit_warning_");
+				// The only thing the terminal says about a pursuit the player lived through, and it
+				// explains nothing. Naming what the form does would hand over rules the next form is
+				// about to break, and the page would start reading as a walkthrough. It notes that the
+				// signal is gone and that this was not the last of it.
+				//
+				// Gated on a real escape, so a capture leaves the page silent: not being told anything
+				// is what dying costs. Debug sessions are excluded for the same reason they are
+				// excluded from every other progress write.
+				if (!debugSession) {
+					TerminalSignalLog.append(record, SignalBand.UNKNOWN, "pursuit_survived",
+							player.level().getGameTime(), player.level().getDayTime(),
+							player.level().dimension().identifier().toString(),
+							player.blockPosition().asLong(), survivedForm, 2, true);
+				}
 			}
 			if (completedResolution) {
 				record.putBoolean(TerminalData.PURSUIT_WARNING_RECORDS_REDIRECT, true);

@@ -3,6 +3,7 @@ package com.xm.thefourthfrequency.content;
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.correction.ReworkCollisionProfile;
 import com.xm.thefourthfrequency.entity.ReworkEntity;
+import com.xm.thefourthfrequency.entity.BacteriaEntity;
 import com.xm.thefourthfrequency.entity.HimEntity;
 import com.xm.thefourthfrequency.entity.StabilityAnchorEntity;
 import com.xm.thefourthfrequency.entity.StabilityAnchorGeometry;
@@ -25,6 +26,8 @@ public final class ModEntities {
 			Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, "rework_body"));
 	private static final ResourceKey<EntityType<?>> WATCHER_KEY = ResourceKey.create(
 			Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, "watcher"));
+	private static final ResourceKey<EntityType<?>> BACTERIA_KEY = ResourceKey.create(
+			Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, "bacteria"));
 	private static final ResourceKey<EntityType<?>> HIM_KEY = ResourceKey.create(
 			Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, "him"));
 	private static final ResourceKey<EntityType<?>> WORLD_INTERFACE_KEY = ResourceKey.create(
@@ -45,6 +48,29 @@ public final class ModEntities {
 					.clientTrackingRange(8)
 					.updateInterval(2)
 					.build(REWORK_KEY));
+
+	/**
+	 * Wider than it is tall, and short enough to clear the layer's four-block headroom with room to
+	 * spare - a large arachnid, low and broad.
+	 *
+	 * <p>Sized to the legs rather than to the body. The model's feet stand about 0.88 blocks either
+	 * side of centre, so 1.7 is the span of the thing as the player sees it; the body itself is
+	 * barely half that. Height follows the body rather than the knees, because the knees are the part
+	 * that rises above it and a box drawn to them would be mostly empty air.
+	 *
+	 * <p>None of it is collision - {@code canBeCollidedWith} is false and nothing can push it - so
+	 * this box exists for render culling and for looking right in a debug overlay, not for physics.
+	 * The capture check is a distance test that does not read it at all.
+	 */
+	public static final EntityType<BacteriaEntity> BACTERIA = Registry.register(
+			BuiltInRegistries.ENTITY_TYPE,
+			BACTERIA_KEY,
+			EntityType.Builder.of(BacteriaEntity::new, MobCategory.MONSTER)
+					.sized(1.7F, 1.0F)
+					.eyeHeight(0.7F)
+					.clientTrackingRange(10)
+					.updateInterval(2)
+					.build(BACTERIA_KEY));
 
 	public static final EntityType<WatcherEntity> WATCHER = Registry.register(
 			BuiltInRegistries.ENTITY_TYPE,
@@ -131,6 +157,7 @@ public final class ModEntities {
 	public static void initialize() {
 		FabricDefaultAttributeRegistry.register(REWORK_BODY, ReworkEntity.createAttributes());
 		FabricDefaultAttributeRegistry.register(WATCHER, WatcherEntity.createAttributes());
+		FabricDefaultAttributeRegistry.register(BACTERIA, BacteriaEntity.createAttributes());
 		FabricDefaultAttributeRegistry.register(HIM, HimEntity.createAttributes());
 		FabricDefaultAttributeRegistry.register(WORLD_INTERFACE, WorldInterfaceEntity.createAttributes());
 		TheFourthFrequency.LOGGER.info(

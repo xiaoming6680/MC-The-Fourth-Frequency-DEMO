@@ -87,6 +87,10 @@ public final class TerminalNoticeHud {
 	private static long lastAttentionAt;
 	private static long lastFrameAt;
 	private static NoticeEntry exiting;
+	/** The guidance readout's entry, rebuilt whenever its sentence changes. Never queued. */
+	private static NoticeEntry navigationEntry;
+	/** The unrendered layer's bearing, on the same terms: permanent, never queued, never expiring. */
+	private static NoticeEntry unrenderedEntry;
 	private static boolean initialized;
 	private static boolean statusHeightUnavailable;
 
@@ -140,7 +144,15 @@ public final class TerminalNoticeHud {
 	private static void promotePending(long now) {
 		if (PENDING.isEmpty() || visibleCount() >= MAX_VISIBLE) return;
 		if (!ENTRIES.isEmpty() && now - lastActivatedAt < appearInterval()) return;
-		NoticeEntry pending = PENDING.removeFirst();
+		// While the encounter is running, only its own voice gets through. Everything else stays in
+		// the queue on its ordinary TTL rather than being dropped here, so a fight that ends inside
+		// twenty seconds of a notice still delivers it; a long one lets it lapse, and the record it
+		// was announcing is waiting in the terminal either way. Held rather than filtered at the
+		// source because this is a presentation decision and the server has no business knowing which
+		// frame the player is looking at.
+		int index = encounterRunning() ? indexOfEncounterNotice() : 0;
+		if (index < 0) return;
+		NoticeEntry pending = PENDING.remove(index);
 		pending.promotedAt = now;
 		pending.expiresAt = now + holdMillis(pending);
 		pending.currentOffset = -SLIDE_IN_PIXELS;
@@ -151,6 +163,24 @@ public final class TerminalNoticeHud {
 			lastAttentionAt = now;
 			TerminalClientAudio.attention(pending.tone);
 		}
+	}
+
+	/**
+	 * Whether the local player is inside a running World Interface encounter.
+	 *
+	 * <p>The same projection the boss HUD draws from, so the two agree about when the fight is on
+	 * without a second definition to keep in step.</p>
+	 */
+	private static boolean encounterRunning() {
+		return WorldInterfaceClientState.snapshot().combatVisible();
+	}
+
+	/** First queued notice the encounter allows through, or -1 while it allows none. */
+	private static int indexOfEncounterNotice() {
+		for (int index = 0; index < PENDING.size(); index++) {
+			if (TerminalNoticePayload.surfacesDuringEncounter(PENDING.get(index).tone)) return index;
+		}
+		return -1;
 	}
 
 	/** A backlog tightens the cadence so late notices still land near the event that caused them. */
@@ -258,6 +288,11 @@ public final class TerminalNoticeHud {
 			suspend(delta);
 			return;
 		}
+		// The guidance readout sits below the stack and lifts it, rather than taking the HUD over the
+		// way a pursuit does. It is a state the player is reading continuously, not an event: it must
+		// not silence a task completion or a lock warning, and none of those may push it off screen.
+		anchor = drawNavigationReadout(graphics, font, anchor);
+		anchor = drawUnrenderedReadout(graphics, font, anchor);
 		boolean frozen = client.isPaused() || client.screen != null;
 		if (frozen) suspend(delta);
 		else advance(now);
@@ -274,6 +309,49 @@ public final class TerminalNoticeHud {
 			drawEntry(graphics, font, entry, anchor,
 					entry.currentOffset + exitProgress * EXIT_LIFT_PIXELS, alpha);
 		}
+	}
+
+	/**
+	 * Draws the guidance readout, and returns the anchor the notice stack should sit on top of.
+	 *
+	 * <p>Never queued and never expiring on its own clock: the sentence is rebuilt from the newest
+	 * navigation payload every frame, and it disappears when {@link TerminalNavigationReadout} judges
+	 * that stream to have stopped. That is the whole reason it is not an ordinary notice - a bearing
+	 * that changes every step would spend the entire stack on itself within seconds.
+	 */
+	private static int drawNavigationReadout(GuiGraphics graphics, Font font, int anchor) {
+		Component line = TerminalNavigationReadout.line();
+		if (line == null) {
+			navigationEntry = null;
+			return anchor;
+		}
+		// Rebuilt only when the sentence actually changes, so the entry's wrapped-line cache survives
+		// the frames where the player has not moved far enough to change a number.
+		if (navigationEntry == null || !navigationEntry.message.equals(line)) {
+			navigationEntry = new NoticeEntry(line, TerminalNoticePayload.TONE_NONE);
+		}
+		drawEntry(graphics, font, navigationEntry, anchor, 0.0D, 230);
+		return anchor - navigationEntry.height(font, wrapWidth(graphics)) - ENTRY_GAP;
+	}
+
+	/**
+	 * Draws the unrendered layer's bearing, and returns the anchor the stack sits on top of.
+	 *
+	 * <p>Sits with the guidance readout rather than in the notice stack, and for the same reason: it
+	 * is a state the player reads continuously, not an event. As a notice it spent a stack slot every
+	 * time it repeated and was absent in between, which made a permanent fact behave like news.
+	 */
+	private static int drawUnrenderedReadout(GuiGraphics graphics, Font font, int anchor) {
+		Component line = UnrenderedLayerClient.bearingLine();
+		if (line == null) {
+			unrenderedEntry = null;
+			return anchor;
+		}
+		if (unrenderedEntry == null || !unrenderedEntry.message.equals(line)) {
+			unrenderedEntry = new NoticeEntry(line, TerminalNoticePayload.TONE_UNRENDERED);
+		}
+		drawEntry(graphics, font, unrenderedEntry, anchor, 0.0D, 230);
+		return anchor - unrenderedEntry.height(font, wrapWidth(graphics)) - ENTRY_GAP;
 	}
 
 	/**
@@ -392,6 +470,11 @@ public final class TerminalNoticeHud {
 		PENDING.clear();
 		RECENT.clear();
 		exiting = null;
+		navigationEntry = null;
+		unrenderedEntry = null;
+		// Leaving the world drops the readout with everything else, so a bearing from the last save
+		// cannot survive into the next one for the second it would take the stream to correct it.
+		TerminalNavigationReadout.clear();
 		lastActivatedAt = 0L;
 		lastAttentionAt = 0L;
 		lastFrameAt = 0L;

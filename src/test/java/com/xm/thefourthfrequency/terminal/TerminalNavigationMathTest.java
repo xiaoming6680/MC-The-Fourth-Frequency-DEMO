@@ -9,11 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class TerminalNavigationMathTest {
 	@Test
 	void computesNorthAndTargetNeedlesInPlayerSpace() {
-		assertEquals(0.0D, TerminalNavigationMath.northNeedleDegrees(180.0F), 0.0001D);
-		assertEquals(-180.0D, TerminalNavigationMath.northNeedleDegrees(0.0F), 0.0001D);
-		assertEquals(0.0D, TerminalNavigationMath.targetNeedleDegrees(0, 20, 0.0F), 0.0001D);
-		assertEquals(-90.0D, TerminalNavigationMath.targetNeedleDegrees(20, 0, 0.0F), 0.0001D);
-		assertEquals(0.0D, TerminalNavigationMath.targetNeedleDegrees(20, 0, -90.0F), 0.0001D);
+		// The dial's top is north, so both needles read as compass bearings. Minecraft yaw is 0 at
+		// south and grows towards west, which is why every expectation here is the yaw plus half a
+		// circle rather than minus it - the old formula mirrored east and west onto each other.
+		assertEquals(0.0D, TerminalNavigationMath.facingNeedleDegrees(180.0F), 0.0001D, "facing north");
+		assertEquals(-180.0D, TerminalNavigationMath.facingNeedleDegrees(0.0F), 0.0001D, "facing south");
+		assertEquals(90.0D, TerminalNavigationMath.facingNeedleDegrees(-90.0F), 0.0001D, "facing east");
+		assertEquals(-90.0D, TerminalNavigationMath.facingNeedleDegrees(90.0F), 0.0001D, "facing west");
+		// A target due north of the player, from a player who is facing anywhere at all.
+		assertEquals(0.0D, TerminalNavigationMath.targetNeedleDegrees(0, -20), 0.0001D, "target north");
+		assertEquals(-180.0D, TerminalNavigationMath.targetNeedleDegrees(0, 20), 0.0001D, "target south");
+		assertEquals(90.0D, TerminalNavigationMath.targetNeedleDegrees(20, 0), 0.0001D, "target east");
+		assertEquals(-90.0D, TerminalNavigationMath.targetNeedleDegrees(-20, 0), 0.0001D, "target west");
 	}
 
 	@Test
@@ -65,5 +72,26 @@ final class TerminalNavigationMathTest {
 		assertTrue(TerminalNavigationMath.withinHorizontalRadius(10, -10, 60, -10, 50));
 		assertFalse(TerminalNavigationMath.withinHorizontalRadius(10, -10, 61, -10, 50));
 		assertFalse(TerminalNavigationMath.withinHorizontalRadius(10, -10, 46, 26, 50));
+	}
+
+	/**
+	 * The two needles have to live in the same frame, or the dial means nothing.
+	 *
+	 * <p>Walking north towards a target that is north must line the needles up, whichever way the
+	 * player happens to be looking while they do it. That is the whole interaction the compass
+	 * offers, and it is exactly what a relative needle over an absolute rose could not deliver.
+	 */
+	@org.junit.jupiter.api.Test
+	void bothNeedlesAgreeWhenTheTargetIsStraightAhead() {
+		for (float yaw : new float[]{-180.0F, -90.0F, 0.0F, 90.0F, 179.0F}) {
+			double facing = TerminalNavigationMath.facingNeedleDegrees(yaw);
+			// The offset a player at this yaw would have to walk to move straight forwards.
+			int dx = (int) Math.round(-Math.sin(Math.toRadians(yaw)) * 100.0D);
+			int dz = (int) Math.round(Math.cos(Math.toRadians(yaw)) * 100.0D);
+			double target = TerminalNavigationMath.targetNeedleDegrees(dx, dz);
+			double gap = Math.abs(TerminalNavigationMath.wrapDegrees(target - facing));
+			org.junit.jupiter.api.Assertions.assertTrue(gap < 1.0D,
+					"needles disagreed by " + gap + " degrees at yaw " + yaw);
+		}
 	}
 }

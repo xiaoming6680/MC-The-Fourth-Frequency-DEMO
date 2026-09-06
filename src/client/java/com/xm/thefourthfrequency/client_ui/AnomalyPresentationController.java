@@ -137,6 +137,8 @@ public final class AnomalyPresentationController {
 	private static double phantomSoundZ;
 	private static double phantomWalkX;
 	private static double phantomWalkZ;
+	private static double phantomApproachDistance;
+	private static int phantomDigStartTick = -1;
 	private static BlockState phantomSoundMaterial;
 	private static int dedicatedSoundCount;
 	private static int ambientSoundCount;
@@ -195,6 +197,9 @@ public final class AnomalyPresentationController {
 		soundDelay = 0;
 		phantomBurstRemaining = 0;
 		phantomSoundMaterial = null;
+		phantomApproachDistance = 0.0D;
+		phantomMiningBurst = false;
+		phantomDigStartTick = -1;
 		dedicatedSoundCount = 0;
 		ambientSoundCount = 0;
 		fractureStage = -1;
@@ -204,24 +209,39 @@ public final class AnomalyPresentationController {
 		playTriggerCue(client, payload);
 
 		switch (anomalyId) {
-			case "surface_fracture" -> {
+			// The anchor is learned here and nothing is done to it yet. The crack used to open on this
+			// tick, on the reasoning that a player who turns around immediately should find it
+			// already there rather than watch it appear - which was right while the digging also
+			// started here. It is exactly wrong now that the digging is deliberately held back:
+			// a crack that is already in the wall while the only thing audible is somebody walking
+			// says the hole came first and the person second, and it hands the player the answer
+			// before the anomaly has asked anything. See {@link #tickPhantomEcho} - the first blow
+			// opens it, so what the player turns around to find is a wall that is still intact.
+			case "phantom_echo" -> {
 				if (!payload.hasAnchor()) { fail(client); return; }
 				fracturePos = BlockPos.of(payload.anchorPosition());
-				activeLevel.destroyBlockProgress(fractureBreakerId(), fracturePos, 0);
-				BlockState target = activeLevel.getBlockState(fracturePos);
-				activeLevel.playLocalSound(Vec3.atCenterOf(fracturePos).x, Vec3.atCenterOf(fracturePos).y,
-						Vec3.atCenterOf(fracturePos).z, target.getSoundType().getHitSound(),
-						SoundSource.BLOCKS, 0.95F, 0.70F, false);
-				ambientSoundCount++;
 			}
 			case "organ_misread" -> selectMisreadItems(client, seed);
 			case "peripheral_residue" -> { }
 			case "viewpoint_separation" -> beginFixedCamera(client);
 			case "action_echo" -> beginActionEcho(client);
+			// Two failures of the same solver in one volume, and they end differently on purpose.
+			// The lighting is released section by section by any block update, so the player repairs
+			// it themselves by doing the first thing they will try; the missing textures stay for the
+			// rest of the session. What comes back and what does not is the anomaly.
+			//
+			// No cue, by omission rather than by exception: CUED_ANOMALIES is a whitelist of four.
+			// A sound would be the wrong instrument twice over - this is not somewhere to be pointed
+			// at, it is already everywhere the player can see, and announcing it turns a light that
+			// stopped working into a thing that was done to them.
 			case "local_rule_collapse" -> {
 				addPurpleTraces(client, seed);
-				// A full one-shot rebuild also works when the anomaly was requested while a GUI covered the world.
+				// A full one-shot rebuild also works when the anomaly was requested while a GUI covered
+				// the world. It runs before the fault is published rather than after: a reload that
+				// happens to route through setSectionDirty would otherwise release the very region it
+				// had just been handed, and this ordering is correct whether it routes there or not.
 				client.levelRenderer.allChanged();
+				LuminanceFaultClient.begin(client);
 			}
 			case "red_horizon" -> {
 				// The pursuit's own warning, deliberately. This is not something to be pointed at -
@@ -265,8 +285,10 @@ public final class AnomalyPresentationController {
 		}
 		int elapsed = totalTicks - remainingTicks;
 		switch (anomalyId) {
-			case "phantom_echo" -> tickPhantomEcho(client, elapsed);
-			case "surface_fracture" -> tickSurfaceFracture(client);
+			case "phantom_echo" -> {
+				tickPhantomEcho(client, elapsed);
+				tickSurfaceFracture(client);
+			}
 			case "peripheral_residue" -> {
 				int impactAt = Math.max(2, Math.round(totalTicks * 0.72F));
 				if (!glitchTriggered && elapsed >= impactAt) triggerGlitchImpact(client);
@@ -293,17 +315,37 @@ public final class AnomalyPresentationController {
 		if (anomalyId.equals("channel_override") && !(client.screen instanceof ChannelOverrideScreen))
 			client.setScreen(new ChannelOverrideScreen());
 		remainingTicks--;
-		if (fracturePos != null) {
-			int stage = Math.clamp(9 - Math.max(0, remainingTicks) / 10, 0, 9);
+		if (fracturePos != null && fractureStage >= 0 && phantomDigStartTick >= 0) {
+			// Spread across the digging act, not the whole instance. It was proportional to the
+			// instance while the crack existed for all of it; now the wall is intact until somebody
+			// starts hitting it, and a ramp still measured from tick zero would open the crack at
+			// stage four - already half broken by the first blow that made it.
+			int elapsedTicks = Math.max(0, totalTicks - Math.max(0, remainingTicks));
+			int span = Math.max(1, totalTicks - phantomDigStartTick);
+			int stage = Math.clamp((elapsedTicks - phantomDigStartTick) * 9 / span, 0, 9);
 			fractureStage = stage;
 			activeLevel.destroyBlockProgress(fractureBreakerId(), fracturePos, stage);
 		}
 		if (remainingTicks <= 0) restore(client, true, AnomalyCompletionStatus.COMPLETED);
 	}
 
+	/**
+	 * The strike on the fracture, and the reason it only lands once.
+	 *
+	 * <p>{@code glitchTriggered} was previously only read by peripheral_residue. It matters here now
+	 * that the fracture lives inside a fourteen-to-twenty second anomaly rather than a five second
+	 * one: a player who works out that hitting it does something has time to hit it eight more times,
+	 * and a burst that answers on demand is a button, not a thing that happened to them.
+	 *
+	 * <p>{@code fractureStage} rather than {@code fracturePos}, because those two now answer
+	 * different questions. The anchor is known from the first tick and the crack is not in the wall
+	 * until the digging opens it, so keying off the position would let a player who happens to swing
+	 * at that block during the approach collect the payoff of a fracture that does not exist yet -
+	 * and spend it, since it only lands once.
+	 */
 	private static void tickSurfaceFracture(Minecraft client) {
 		boolean attackDown = client.options.keyAttack.isDown();
-		if (attackDown && !attackWasDown && fracturePos != null
+		if (attackDown && !attackWasDown && !glitchTriggered && fracturePos != null && fractureStage >= 0
 				&& client.hitResult instanceof BlockHitResult block && block.getBlockPos().equals(fracturePos))
 			triggerGlitchImpact(client);
 		attackWasDown = attackDown;
@@ -436,25 +478,112 @@ public final class AnomalyPresentationController {
 				Math.clamp(frameIndex / 6, 0, 9));
 	}
 
+	/**
+	 * How much of the instance is spent walking up to the wall before the first blow lands.
+	 *
+	 * <p>A fraction rather than a fixed count of ticks, because the client GameTests run the whole
+	 * anomaly in forty ticks and a constant sized for a sixteen-second instance would put the entire
+	 * digging act past the end of the accelerated one - the crack would never open and the test
+	 * would be asserting a presentation nobody plays.
+	 */
+	private static int phantomApproachTicks() {
+		return Math.max(1, totalTicks * 2 / 5);
+	}
+
+	/**
+	 * The two acts: somebody walks up to the wall, then they start digging through it.
+	 *
+	 * <p>Which act was playing used to be {@code random.nextBoolean()} on every burst, so the merged
+	 * anomaly delivered digging and footsteps shuffled together while a crack that had been in the
+	 * wall since the first tick deepened on a clock of its own. Every individual part was there and
+	 * the sequence they describe was not: a hole that predates the person, blows that stop for a
+	 * walk and resume, and no moment where anything begins.
+	 *
+	 * <p>So the order is the anomaly now rather than an outcome of it. The approach is walked in a
+	 * straight line from beyond the anchor down to it, positioned from {@code elapsed} rather than
+	 * integrated from a velocity, so the footsteps provably arrive at the wall at the moment the
+	 * digging starts instead of merely tending that way. Then the walking is cut off mid-burst, one
+	 * short beat of nothing, and the first blow - which is also what opens the crack, so the wall the
+	 * player has been listening to stays intact until somebody is actually hitting it.
+	 */
 	private static void tickPhantomEcho(Minecraft client, int elapsed) {
+		boolean approaching = elapsed < phantomApproachTicks();
+		// Cut the approach off on the tick it ends rather than at the end of whatever gap the
+		// footsteps had already queued: the pause between the last step and the first blow is the
+		// hinge of the whole thing and must not be however long the walking burst had left to run.
+		if (!approaching && !phantomMiningBurst && phantomSoundMaterial != null) {
+			phantomBurstRemaining = 0;
+			phantomSoundMaterial = null;
+			phantomApproachDistance = 0.0D;
+			// Scaled for the same reason the approach is. About two thirds of a second in play; one
+			// tick in an accelerated test, where a fixed beat would eat most of the digging act.
+			soundDelay = Math.clamp(totalTicks / 24, 1, 13);
+			return;
+		}
 		if (soundDelay-- > 0) return;
 		RandomSource random = RandomSource.create(seed ^ elapsed * 0x9E3779B97F4A7C15L);
 		if (phantomBurstRemaining <= 0 || phantomSoundMaterial == null) {
-			phantomMiningBurst = random.nextBoolean();
+			phantomMiningBurst = !approaching;
 			phantomBurstRemaining = phantomMiningBurst ? 3 + random.nextInt(3) : 2 + random.nextInt(5);
-			double angle = Math.toRadians(client.player.getYRot() + 50.0D + random.nextDouble() * 260.0D);
-			double distance = 1.7D + random.nextDouble() * 3.0D;
-			phantomSoundX = client.player.getX() - Math.sin(angle) * distance;
-			phantomSoundY = client.player.getY();
-			phantomSoundZ = client.player.getZ() + Math.cos(angle) * distance;
-			double walkAngle = angle + (random.nextBoolean() ? Math.PI / 2.0D : -Math.PI / 2.0D);
-			phantomWalkX = Math.cos(walkAngle) * (0.28D + random.nextDouble() * 0.16D);
-			phantomWalkZ = Math.sin(walkAngle) * (0.28D + random.nextDouble() * 0.16D);
-			BlockPos materialPos = BlockPos.containing(phantomSoundX, phantomSoundY - 1.0D, phantomSoundZ);
-			phantomSoundMaterial = client.level.getBlockState(materialPos);
-			client.level.playLocalSound(phantomSoundX, phantomSoundY, phantomSoundZ, ModSounds.ANOMALY_ECHO,
+			// A digging burst sounds from the block that is visibly cracking, a walking one closes on
+			// it. Before the merge every burst was placed on its own random bearing, which was the
+			// only option while there was nothing in the world to point at; now there is, and having
+			// either act come from anywhere but the anchor would say the two are unrelated.
+			if (phantomMiningBurst && fracturePos != null) {
+				Vec3 anchor = Vec3.atCenterOf(fracturePos);
+				phantomSoundX = anchor.x;
+				phantomSoundY = anchor.y;
+				phantomSoundZ = anchor.z;
+				phantomWalkX = 0.0D;
+				phantomWalkZ = 0.0D;
+				phantomApproachDistance = 0.0D;
+				phantomSoundMaterial = client.level.getBlockState(fracturePos);
+				openPhantomFracture(client, elapsed, random);
+			} else if (fracturePos != null && armPhantomApproach(client)) {
+				phantomSoundMaterial = phantomStepMaterial(client);
+			} else {
+				// No anchor to walk towards. Unreachable from the server path, which refuses the whole
+				// anomaly without one, and kept because it is what makes this method safe to call at
+				// all if an anchor ever stops being guaranteed.
+				double angle = Math.toRadians(client.player.getYRot() + 50.0D + random.nextDouble() * 260.0D);
+				double distance = 1.7D + random.nextDouble() * 3.0D;
+				phantomSoundX = client.player.getX() - Math.sin(angle) * distance;
+				phantomSoundY = client.player.getY();
+				phantomSoundZ = client.player.getZ() + Math.cos(angle) * distance;
+				double walkAngle = angle + (random.nextBoolean() ? Math.PI / 2.0D : -Math.PI / 2.0D);
+				phantomWalkX = Math.cos(walkAngle) * (0.28D + random.nextDouble() * 0.16D);
+				phantomWalkZ = Math.sin(walkAngle) * (0.28D + random.nextDouble() * 0.16D);
+				phantomApproachDistance = 0.0D;
+				phantomSoundMaterial = phantomStepMaterial(client);
+			}
+			// The signature echo is a near-subliminal tell at 0.16, and vanilla derives a sound's
+			// audible range from its volume - about two and a half blocks at that level. Played from
+			// the walker's own position it would simply not exist across an approach that starts five
+			// blocks out, so during the approach it is placed just ahead of the player on the same
+			// bearing. What has to survive the distance is which direction it comes from; the
+			// distance itself is already being carried by the footsteps, which are loud enough to.
+			double cueX = phantomSoundX;
+			double cueY = phantomSoundY;
+			double cueZ = phantomSoundZ;
+			if (phantomApproachDistance > 0.0D) {
+				cueX = client.player.getX() + phantomWalkX * 1.8D;
+				cueY = client.player.getY();
+				cueZ = client.player.getZ() + phantomWalkZ * 1.8D;
+			}
+			client.level.playLocalSound(cueX, cueY, cueZ, ModSounds.ANOMALY_ECHO,
 					SoundSource.AMBIENT, 0.16F, 0.72F + random.nextFloat() * 0.08F, false);
 			dedicatedSoundCount++;
+		}
+		// Placed from elapsed on every step rather than advanced by phantomWalkX/Z, so the walk lands
+		// at the wall exactly when the approach runs out however the burst lengths happened to fall.
+		if (phantomApproachDistance > 0.0D) {
+			Vec3 anchor = Vec3.atCenterOf(fracturePos);
+			double remaining = phantomApproachDistance
+					* (1.0D - Math.clamp(elapsed / (double) phantomApproachTicks(), 0.0D, 1.0D));
+			phantomSoundX = anchor.x + phantomWalkX * remaining;
+			phantomSoundZ = anchor.z + phantomWalkZ * remaining;
+			phantomSoundY = client.player.getY();
+			phantomSoundMaterial = phantomStepMaterial(client);
 		}
 		SoundEvent humanSound = phantomMiningBurst ? phantomSoundMaterial.getSoundType().getHitSound()
 				: phantomSoundMaterial.getSoundType().getStepSound();
@@ -463,13 +592,71 @@ public final class AnomalyPresentationController {
 				(phantomMiningBurst ? 0.72F : 0.88F) + random.nextFloat() * 0.12F, false);
 		ambientSoundCount++;
 		phantomBurstRemaining--;
-		if (!phantomMiningBurst) {
+		if (!phantomMiningBurst && phantomApproachDistance <= 0.0D) {
 			phantomSoundX += phantomWalkX;
 			phantomSoundZ += phantomWalkZ;
 		}
 		soundDelay = phantomMiningBurst ? 5 + random.nextInt(4) : 7 + random.nextInt(5);
-		if (phantomBurstRemaining == 0)
-			soundDelay += phantomMiningBurst ? 14 + random.nextInt(18) : 20 + random.nextInt(26);
+		// The gap between bursts, except during the approach: somebody who leaves for a second and
+		// comes back is two people, and the act is meant to read as one who never stops getting
+		// closer. A short catch of breath is as much as it may have.
+		if (phantomBurstRemaining == 0) soundDelay += phantomMiningBurst ? 14 + random.nextInt(18)
+				: phantomApproachDistance > 0.0D ? 3 + random.nextInt(4) : 20 + random.nextInt(26);
+	}
+
+	/**
+	 * Aims the approach: a straight line inward from beyond the anchor, on the far side of the wall.
+	 *
+	 * <p>{@code phantomWalkX/Z} carry the unit vector from the anchor back out to where the walker
+	 * starts and {@code phantomApproachDistance} how far out that is. Together they are the line;
+	 * the position along it is a function of {@code elapsed}, which is also what makes a non-zero
+	 * distance the flag for "an approach is running".
+	 *
+	 * <p>Returns false when the anchor is not somewhere a direction can be taken from, leaving the
+	 * wandering fallback to place the burst.
+	 */
+	private static boolean armPhantomApproach(Minecraft client) {
+		Vec3 anchor = Vec3.atCenterOf(fracturePos);
+		double dx = anchor.x - client.player.getX();
+		double dz = anchor.z - client.player.getZ();
+		double length = Math.sqrt(dx * dx + dz * dz);
+		if (length < 0.05D) return false;
+		phantomWalkX = dx / length;
+		phantomWalkZ = dz / length;
+		phantomApproachDistance = 5.0D;
+		phantomSoundY = client.player.getY();
+		phantomSoundX = anchor.x + phantomWalkX * phantomApproachDistance;
+		phantomSoundZ = anchor.z + phantomWalkZ * phantomApproachDistance;
+		return true;
+	}
+
+	/** What the walker is standing on, sampled where the step is heard rather than at the anchor. */
+	private static BlockState phantomStepMaterial(Minecraft client) {
+		BlockState state = client.level.getBlockState(
+				BlockPos.containing(phantomSoundX, phantomSoundY - 1.0D, phantomSoundZ));
+		// Steps taken over a hole are silent, and silence in the middle of an approach reads as the
+		// walker having stopped. Borrow the player's own floor instead.
+		return state.isAir() ? client.level.getBlockState(BlockPos.containing(
+				client.player.getX(), client.player.getY() - 1.0D, client.player.getZ())) : state;
+	}
+
+	/**
+	 * The first blow, which is also what puts the crack in the wall.
+	 *
+	 * <p>Opened from here rather than from a second timer that happens to agree with this one. The
+	 * crack is caused by the digging; two clocks that both claim to know when the digging starts is
+	 * how they end up disagreeing by the one tick a player can see.
+	 */
+	private static void openPhantomFracture(Minecraft client, int elapsed, RandomSource random) {
+		if (fractureStage >= 0 || activeLevel == null) return;
+		phantomDigStartTick = elapsed;
+		fractureStage = 0;
+		activeLevel.destroyBlockProgress(fractureBreakerId(), fracturePos, 0);
+		Vec3 anchor = Vec3.atCenterOf(fracturePos);
+		client.level.playLocalSound(anchor.x, anchor.y, anchor.z,
+				activeLevel.getBlockState(fracturePos).getSoundType().getHitSound(),
+				SoundSource.BLOCKS, 0.95F, 0.70F + random.nextFloat() * 0.06F, false);
+		ambientSoundCount++;
 	}
 
 	private static void beginFixedCamera(Minecraft client) {
@@ -483,7 +670,7 @@ public final class AnomalyPresentationController {
 		// The separated view follows the player's forward heading at the instant of
 		// separation. Looking up or down must not leave the fixed camera aimed away
 		// from the path the still-controllable body takes.
-		var forward = ViewpointOrientationPolicy.facePlayerForward(client.player.getYRot());
+		var forward = ViewpointOrientationPolicy.facePlayerForward(client.player.getYRot(), client.player.getXRot());
 		lockedPlayerYaw = forward.yaw();
 		lockedPlayerPitch = forward.pitch();
 		GameProfile bodyProfile = new GameProfile(UUID.randomUUID(), "\u200B");
@@ -920,6 +1107,11 @@ public final class AnomalyPresentationController {
 				client.setCameraEntity(previousCameraEntity != null ? previousCameraEntity : client.player);
 			if (previousCameraType != null) client.options.setCameraType(previousCameraType);
 			if (client.screen instanceof ChannelOverrideScreen) client.setScreen(null);
+			// Unconditional and idempotent: this is the timeout backstop for the unsolved lighting
+			// in local_rule_collapse, and it is also the path a disconnect, a death and a dimension
+			// change all arrive on. The missing textures in the same volume are deliberately not
+			// cleared here - they outlive the anomaly.
+			LuminanceFaultClient.end(client);
 			if (anomalyId.equals("window_pulse") || anomalyId.equals("desktop_presence"))
 				MetaController.finishAnomaly(status != AnomalyCompletionStatus.COMPLETED);
 			fracturePos = null; echoCrack = null; actionEcho = null; cameraAnchor = null; secondPersonBody = null;
@@ -929,6 +1121,7 @@ public final class AnomalyPresentationController {
 			instanceId = null; anomalyId = "none"; seed = 0L; totalTicks = 0; remainingTicks = 0;
 			lastPhaseSequence = 0; currentPhase = "idle"; phaseBlackout = false; nearBlindness = false;
 			dedicatedSoundCount = 0; ambientSoundCount = 0; fractureStage = -1;
+			phantomApproachDistance = 0.0D; phantomMiningBurst = false; phantomDigStartTick = -1;
 			glitchImpactTicks = 0; glitchTriggered = false; attackWasDown = false;
 			phantomBurstRemaining = 0; phantomSoundMaterial = null;
 			simulatedWindow = false; simulatedNotepad = false; activeLevel = null;
@@ -966,13 +1159,12 @@ public final class AnomalyPresentationController {
 	/**
 	 * The anomalies long enough that a closing cue reads as an ending rather than as a stutter.
 	 *
-	 * <p>Three of these run for minutes; red_horizon runs for one. All four earn the tail for the
+	 * <p>Two of these run for minutes; red_horizon runs for one. All three earn the tail for the
 	 * same reason: they are transmissions the player has been living inside long enough to notice
 	 * the moment one stops.</p>
 	 */
 	private static boolean isSustainedAnomaly(String id) {
-		return id.equals("silent_world") || id.equals("temporal_drift") || id.equals("metric_drift")
-				|| id.equals("red_horizon");
+		return id.equals("silent_world") || id.equals("metric_drift") || id.equals("red_horizon");
 	}
 	/** How far out an anchorless anomaly's opening cue is placed, in blocks. */
 	private static final double ANCHORLESS_CUE_DISTANCE = 9.0D;
@@ -1040,19 +1232,24 @@ public final class AnomalyPresentationController {
 		};
 	}
 	/**
-	 * temporal_drift desynchronises the sky from the actual world time. Lighting, mob spawning and
-	 * every game rule keep obeying the real clock; only the celestial bodies move to the wrong
-	 * place. The result is a sky that contradicts everything else the player can verify - stars
-	 * out at noon, the sun below the horizon while the ground stays lit - which is far stranger
-	 * than simply forcing night.
+	 * The sky half of metric_drift: the celestial bodies desynchronise from the actual world time.
+	 * Lighting, mob spawning and every game rule keep obeying the real clock; only the sun, moon and
+	 * stars move to the wrong place. The result is a sky that contradicts everything else the player
+	 * can verify - stars out at noon, the sun below the horizon while the ground stays lit - which is
+	 * far stranger than simply forcing night.
+	 *
+	 * <p>Merged into the same anomaly as the terminal's bent distances rather than kept as its own,
+	 * because they are one statement: the frame everything is measured against has drifted, and both
+	 * the instrument and the sky are reading off it. Two separate sustained anomalies each bending
+	 * one dial said it twice, more weakly, and never at the same time.
 	 */
 	public static boolean isTemporalDriftActive() {
-		return instanceId != null && anomalyId.equals("temporal_drift");
+		return isMetricDriftActive();
 	}
 	/**
 	 * How far the sky has been rotated away from the local clock, as a fraction of a full turn.
 	 *
-	 * <p>Zero unless temporal_drift is running. Exposed because the weather tool's phase channel
+	 * <p>Zero unless metric_drift is running. Exposed because the weather tool's phase channel
 	 * reports exactly this quantity: the terminal reads the real server clock while the sky above
 	 * it does not, and that disagreement is the whole point of the anomaly. Derived here rather
 	 * than re-computed by the instrument so the number the tool prints and the rotation the sky
@@ -1074,9 +1271,11 @@ public final class AnomalyPresentationController {
 		return isTemporalDriftActive() ? Math.max(original, 0.55F) : original;
 	}
 	/**
-	 * metric_drift bends what the terminal reports rather than what the world does. Distances and
-	 * coordinates read slightly wrong for minutes at a time, so the instrument the player has been
-	 * taught to rely on becomes the thing they cannot verify.
+	 * metric_drift bends what is measured rather than what the world does. Distances and coordinates
+	 * read slightly wrong for minutes at a time - and the sky is off its own clock for the same
+	 * minutes, see {@link #isTemporalDriftActive} - so the instrument the player has been taught to
+	 * rely on becomes the thing they cannot verify, while navigation and arrival keep using the real
+	 * position underneath.
 	 */
 	public static boolean isMetricDriftActive() {
 		return instanceId != null && anomalyId.equals("metric_drift");
@@ -1130,7 +1329,20 @@ public final class AnomalyPresentationController {
 		int blue = mix(original & 255, 22, strength);
 		return alpha << 24 | red << 16 | green << 8 | blue;
 	}
+	/**
+	 * Whether this particular stack is one of the ones being misread.
+	 *
+	 * <p>The empty check is not a shortcut, it is the correctness of the whole predicate. Slots are
+	 * matched by identity against the live inventory, and <b>every</b> empty slot in the game holds
+	 * the same {@code ItemStack.EMPTY} singleton. The moment a player picks up a misread item -
+	 * dragging it, or any click that moves it to the cursor - that slot becomes EMPTY, and from
+	 * then on every empty stack in existence matched it. The mixin injects at the head of
+	 * {@code renderItem}, ahead of vanilla's own empty check, and {@code renderSlot} calls that
+	 * method for empty slots too, so the result was an inventory screen where every vacant square
+	 * was an eye.
+	 */
 	public static boolean isMisread(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) return false;
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null) return false;
 		for (int slot : MISREAD_SLOTS)
@@ -1147,9 +1359,9 @@ public final class AnomalyPresentationController {
 		BlockState endingReplacement = WorldInterfacePresentationController.failureBlockReplacement(pos, original);
 		if (endingReplacement != original) return endingReplacement;
 		// This runs on chunk-build worker threads for every queried block (10^5-10^6 calls per
-		// section rebuild), but PURPLE_TRACES is only ever non-empty while local_rule_collapse is
-		// actually active. Short-circuiting here skips the per-call TracePosition allocation and
-		// set lookup for the overwhelming majority of calls instead of paying for both every time.
+		// section rebuild), and PURPLE_TRACES is empty until the session's first local_rule_collapse.
+		// Short-circuiting here skips the per-call TracePosition allocation and set lookup for the
+		// overwhelming majority of calls instead of paying for both every time.
 		if (PURPLE_TRACES.isEmpty()) return original;
 		var level = Minecraft.getInstance().level;
 		if (level == null) return original;
@@ -1215,6 +1427,9 @@ public final class AnomalyPresentationController {
 		if (instanceId != null && anomalyId.equals("silent_world")) overlays.add("ambient_silenced");
 		if (isTemporalDriftActive()) overlays.add("sky_desynchronised");
 		if (isMetricDriftActive()) overlays.add("readout_skewed");
+		// Same reason as the sustained markers above: the fault lives in baked chunk meshes, so there
+		// is no screen layer for a test to look at. It publishes whether the region is still held.
+		if (LuminanceFaultClient.active()) overlays.add("lighting_unsolved");
 		if (glitchImpactTicks > 0) overlays.add("glitch_impact");
 		if (fractureStage >= 0) overlays.add("surface_fracture");
 		if (simulatedWindow) overlays.add("window_fallback");

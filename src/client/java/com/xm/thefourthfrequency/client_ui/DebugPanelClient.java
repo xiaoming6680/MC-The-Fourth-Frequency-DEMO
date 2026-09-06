@@ -11,6 +11,7 @@ import org.lwjgl.glfw.GLFW;
 
 public final class DebugPanelClient {
 	private static KeyMapping openKey;
+	private static KeyMapping hudKey;
 	private static String pendingAnomalyId;
 	private static boolean pendingPursuitResponse;
 	private static boolean pendingBossResponse;
@@ -22,9 +23,15 @@ public final class DebugPanelClient {
 		initialized = true;
 		openKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
 				"key.thefourthfrequency.debug_panel", GLFW.GLFW_KEY_M, KeyMapping.Category.MISC));
+		// A key of its own rather than a panel toggle: hiding the readout for a screenshot is
+		// something done mid-play, and having to open a screen to do it defeats the point.
+		hudKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+				"key.thefourthfrequency.debug_hud", GLFW.GLFW_KEY_N, KeyMapping.Category.MISC));
+		DebugHud.initialize();
 		ClientPlayNetworking.registerGlobalReceiver(DebugStatusPayload.TYPE, (payload, context) ->
 				context.client().execute(() -> accept(payload)));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			while (hudKey.consumeClick()) DebugHudState.toggleVisible();
 			while (openKey.consumeClick()) {
 				if (client.player != null && ClientPlayNetworking.canSend(DebugOpenPayload.TYPE))
 					ClientPlayNetworking.send(new DebugOpenPayload());
@@ -38,6 +45,7 @@ public final class DebugPanelClient {
 			if (client.player != null) client.player.displayClientMessage(Component.literal("调试协议版本不匹配"), false);
 			return;
 		}
+		DebugHud.accept(payload);
 		if (!payload.allowed()) {
 			boolean anomalyResponse = pendingAnomalyId != null;
 			boolean pursuitResponse = pendingPursuitResponse;

@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Re-draws a background track that would follow itself.
+ * Re-draws a background track the current pass has already used.
  *
  * <p>This is the only place the choice is made. {@code AbstractSoundInstance#resolve} is where an
  * event id becomes a concrete file - {@code this.sound = events.getSound(this.random)} - and it is
@@ -32,6 +32,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>Re-drawing rather than picking an index keeps vanilla's weighting intact. The pool entries may
  * carry weights; choosing "some other entry" by hand would quietly flatten them, whereas drawing
  * again and rejecting a repeat leaves the relative odds of everything else untouched.
+ *
+ * <p>What ends a pass is a count, not a run of failed draws. The pool's size is read through
+ * {@link WeighedSoundEventsPoolAccessor} and compared against what the pass has used, so "every
+ * track has played" is known rather than inferred. The earlier version inferred it - it gave up
+ * after a fixed number of re-draws and treated that as the pool being spent - which quietly dropped
+ * the last unplayed track of about one pass in thirty once the gameplay playlist reached ten
+ * tracks. Losing a track the player has not heard is the one outcome this whole mechanism exists to
+ * prevent, so the guess is gone.
  */
 @Mixin(AbstractSoundInstance.class)
 public abstract class AbstractSoundInstanceRotationMixin {
@@ -40,7 +48,7 @@ public abstract class AbstractSoundInstanceRotationMixin {
 	@Shadow protected RandomSource random;
 
 	@Inject(method = "resolve", at = @At("RETURN"))
-	private void thefourthfrequency$avoidBackToBackTrack(SoundManager manager,
+	private void thefourthfrequency$rotateScoreTrack(SoundManager manager,
 			CallbackInfoReturnable<WeighedSoundEvents> callback) {
 		if (!TheFourthFrequency.MOD_ID.equals(identifier.getNamespace())
 				|| !MusicRotationPolicy.rotates(identifier.getPath())) {
@@ -49,14 +57,39 @@ public abstract class AbstractSoundInstanceRotationMixin {
 		WeighedSoundEvents events = callback.getReturnValue();
 		if (events == null || sound == null || random == null) return;
 		String event = identifier.getPath();
-		for (int attempt = 0; attempt < MusicRotationPolicy.MAX_REROLLS
-				&& MusicRotationPolicy.repeats(event, sound.getLocation().toString()); attempt++) {
+		int poolSize = ((WeighedSoundEventsPoolAccessor) events).thefourthfrequency$pool().size();
+		if (MusicRotationPolicy.passComplete(event, poolSize)) {
+			thefourthfrequency$startNewPass(event, events);
+			return;
+		}
+		// The pass still has something unplayed in it, and the count above is what says so - so this
+		// loop is looking for something that is definitely there rather than deciding whether it
+		// exists. Running out of attempts therefore costs one repeated track and nothing else: the
+		// pass stays open and whatever it had not reached yet is still owed to the player.
+		for (int attempt = 0; attempt < MusicRotationPolicy.rerollCeiling(poolSize)
+				&& MusicRotationPolicy.playedThisPass(event, sound.getLocation().toString()); attempt++) {
 			Sound redrawn = events.getSound(random);
 			if (redrawn == null) break;
 			sound = redrawn;
 		}
 		// Recorded after the loop settles, so the memory is what the player actually hears rather
-		// than the first draw - including the case where the ceiling was reached and a repeat stands.
+		// than the first draw. A track already in the pass is not recorded twice - the set absorbs
+		// it - so a re-draw that ran out of attempts cannot advance the pass on a repeat.
 		MusicRotationPolicy.remember(event, sound.getLocation().toString());
+	}
+
+	/**
+	 * Opens the next pass. The pool is fully eligible again - except for the track that just ended,
+	 * because a pass boundary is not a licence to play the same piece twice running. That is the old
+	 * adjacency rule, kept as the seam of the new one.
+	 */
+	private void thefourthfrequency$startNewPass(String event, WeighedSoundEvents events) {
+		for (int attempt = 0; attempt < MusicRotationPolicy.SEAM_REROLLS
+				&& MusicRotationPolicy.followsItself(event, sound.getLocation().toString()); attempt++) {
+			Sound redrawn = events.getSound(random);
+			if (redrawn == null) break;
+			sound = redrawn;
+		}
+		MusicRotationPolicy.startNewPass(event, sound.getLocation().toString());
 	}
 }

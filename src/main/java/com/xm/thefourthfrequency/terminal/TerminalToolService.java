@@ -67,9 +67,85 @@ public final class TerminalToolService {
 					Math.clamp(tag.getIntOr(TerminalData.EYE_SAMPLE_COUNT, 0) + 1, 0, 64));
 			tag.putLong(TerminalData.STRONGHOLD_POSITION, stronghold.asLong());
 			tag.putString(TerminalData.STRONGHOLD_DIMENSION, dimension);
+			tag.putLongArray(TerminalData.STRONGHOLD_SAMPLE_POSITIONS,
+					appendVantage(tag.getLongArray(TerminalData.STRONGHOLD_SAMPLE_POSITIONS).orElse(new long[0]),
+							sample.asLong()));
 		});
 		SurvivalProgressService.mark(player, SurvivalMilestone.THREW_EYE);
+		// A terminal that has a bearing has stopped needing to pretend it never recorded anything, so
+		// this is where the quarantined anomaly log is handed to the records page. One-way, and it
+		// checks its own latch, so calling it on every throw is correct rather than merely harmless.
+		TerminalAnomalyLogService.releaseBackfillIfDue(player);
 		TerminalRuntimeService.refresh(player);
+		shareStrongholdFix(player, data);
+	}
+
+	/**
+	 * Hands a completed stronghold fix to everyone else who is bound and online.
+	 *
+	 * <p>There is one stronghold. Triangulating it is a thing the party does once, and the eyes it
+	 * costs come out of the same pile as the twelve the portal frame needs - so requiring each player
+	 * to throw their own three meant a table of four spent twelve extra pearls establishing a fact
+	 * they were all standing next to each other for. The throw-count objective was retired for
+	 * exactly this reason; this closes the other half, where the objective was gone but the tool
+	 * still would not open.
+	 *
+	 * <p>Only ever raises. A player who has thrown more than the sharer keeps their own sharper fix,
+	 * and a player who has already been given one is not overwritten by a later, coarser share.
+	 *
+	 * <p>The vantage points come with it, because {@code strongholdPrecision} reads their spread: a
+	 * shared fix without them would claim the accuracy of a single throw and the tool would draw a
+	 * wider cone than the party has actually earned.
+	 */
+	private static void shareStrongholdFix(ServerPlayer discoverer, FrequencyWorldData data) {
+		CompoundTag source = data.terminalRecord(discoverer.getUUID()).orElse(null);
+		if (source == null) return;
+		int samples = source.getIntOr(TerminalData.EYE_SAMPLE_COUNT, 0);
+		if (samples < SurvivalProgressService.REQUIRED_EYE_SAMPLES) return;
+		long position = source.getLongOr(TerminalData.STRONGHOLD_POSITION, 0L);
+		String dimension = source.getStringOr(TerminalData.STRONGHOLD_DIMENSION, "");
+		long[] vantages = source.getLongArray(TerminalData.STRONGHOLD_SAMPLE_POSITIONS).orElse(new long[0]);
+		if (dimension.isBlank()) return;
+		for (ServerPlayer other : discoverer.level().getServer().getPlayerList().getPlayers()) {
+			if (other.getUUID().equals(discoverer.getUUID())) continue;
+			CompoundTag record = data.terminalRecord(other.getUUID()).orElse(null);
+			if (record == null || !record.getBooleanOr(TerminalData.BOUND, false)) continue;
+			if (record.getIntOr(TerminalData.EYE_SAMPLE_COUNT, 0) >= samples) continue;
+			data.updateTerminalRecord(other.getUUID(), tag -> {
+				tag.putInt(TerminalData.EYE_SAMPLE_COUNT, samples);
+				tag.putLong(TerminalData.STRONGHOLD_POSITION, position);
+				tag.putString(TerminalData.STRONGHOLD_DIMENSION, dimension);
+				tag.putLongArray(TerminalData.STRONGHOLD_SAMPLE_POSITIONS, vantages.clone());
+			});
+			SurvivalProgressService.mark(other, SurvivalMilestone.THREW_EYE);
+			// Same statement as the thrower's: this terminal has a bearing now. Which of them paid for
+			// the pearls is not what the release is about.
+			TerminalAnomalyLogService.releaseBackfillIfDue(other);
+			TerminalRuntimeService.refresh(other);
+		}
+	}
+
+	/** How sharp the stronghold fix currently is, from the throws and where they were taken. */
+	public static NavigationConvergencePolicy.Precision strongholdPrecision(CompoundTag tag, int samples) {
+		return NavigationConvergencePolicy.precision(samples, NavigationConvergencePolicy.spreadBlocks(
+				tag.getLongArray(TerminalData.STRONGHOLD_SAMPLE_POSITIONS).orElse(new long[0])));
+	}
+
+	/**
+	 * Keeps the vantage points a fix is triangulated from, newest last and bounded.
+	 *
+	 * <p>Bounded because only the widest gap between any two of them is ever read, and a player who
+	 * throws forty eyes does not widen that by keeping all forty. Sixteen is far more than the two
+	 * that matter and small enough to be free to scan.
+	 */
+	private static long[] appendVantage(long[] existing, long sample) {
+		long[] source = existing == null ? new long[0] : existing;
+		for (long held : source) if (held == sample) return source;
+		int size = Math.min(source.length + 1, 16);
+		long[] next = new long[size];
+		System.arraycopy(source, Math.max(0, source.length - (size - 1)), next, 0, size - 1);
+		next[size - 1] = sample;
+		return next;
 	}
 
 	public static TerminalToolSnapshotPayload snapshot(ServerPlayer player, int selectedTool) {
@@ -327,10 +403,19 @@ public final class TerminalToolService {
 		int exactDx = target.getX() - origin.getX();
 		int exactDz = target.getZ() - origin.getZ();
 		double exactDistance = Math.sqrt((double) exactDx * exactDx + (double) exactDz * exactDz);
-		int uncertainty = samples >= 3 ? 128 : 512;
+		// The fix narrows instead of switching.
+		//
+		// This used to be two states: under three throws you got 512 blocks of slop and 45-degree
+		// bearings, at three you got 128 and 22.5, and nothing in between. Both halves were wrong in
+		// the same direction - the coarse state was too coarse to walk on, the sharp state arrived as
+		// a jump, and neither cared *where* the throws were taken from. A player could stand in one
+		// doorway and throw three eyes, which in this game's own fiction is one observation recorded
+		// three times, and be handed the tighter answer for it.
+		NavigationConvergencePolicy.Precision precision = strongholdPrecision(tag, samples);
+		int uncertainty = precision.uncertaintyBlocks();
 		int minimum = Math.max(0, (int) Math.floor(exactDistance) - uncertainty);
 		int maximum = Math.min(30_000_000, (int) Math.ceil(exactDistance) + uncertainty);
-		double step = Math.toRadians(samples >= 3 ? 22.5D : 45.0D);
+		double step = Math.toRadians(precision.angleStepDegrees());
 		double angle = Math.atan2(exactDz, exactDx);
 		double estimatedAngle = Math.round(angle / step) * step;
 		int dx = (int) Math.round(Math.cos(estimatedAngle) * 100.0D);
@@ -356,13 +441,16 @@ public final class TerminalToolService {
 		return TerminalGuidancePolicy.resourceAvailable(availableResourcesMask(tag), resource);
 	}
 
+	/**
+	 * Whether the navigation page draws the unstable-signal option.
+	 *
+	 * <p>Delegates rather than deciding. This had its own copy of the rule and the click handler had
+	 * another, and the two drifted far enough apart that the page could draw an option the click
+	 * refused - see {@code FragmentInvestigationService.investigationOffered}, which is now the only
+	 * place the question is answered.
+	 */
 	public static boolean unstableSignalAvailable(ServerPlayer player, CompoundTag tag) {
-		NavigationState navigation = NavigationState.read(tag);
-		boolean alreadySelected = navigation.kind().equals("structure_fragment") && navigation.located();
-		int milestones = tag.getIntOr(TerminalData.SURVIVAL_MILESTONE_MASK, 0);
-		boolean midgame = SurvivalMilestone.ENTERED_NETHER.present(milestones);
-		return alreadySelected || midgame && StoryProgressService.guidanceHintTier(tag) >= 2
-				&& FragmentInvestigationService.hasUndiscoveredCandidate(player);
+		return FragmentInvestigationService.investigationOffered(player);
 	}
 
 	private static boolean hasGuidanceTarget(ServerPlayer player, CompoundTag tag, TerminalTool tool) {

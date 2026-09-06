@@ -27,10 +27,10 @@ Release steps and sync rules are in [Repository maintenance](maintenance.md).
 # Minecraft types can no longer be silently skipped. XML goes to build/test-results/unit
 .\gradlew.bat unitTest --no-daemon
 
-# check and build both depend on unitTest above, so it works as an all-green gate
+# check depends on unitTest and the server runGameTest, so it works as an all-green gate; the client suites still run separately
 .\gradlew.bat check --no-daemon
 
-# Clean build; the task graph runs unitTest and then the server GameTests
+# Clean build; `check` depends on both unitTest and runGameTest, and the JAR is produced and deployed only after both pass
 .\gradlew.bat clean build --no-daemon
 
 # Server GameTests
@@ -46,9 +46,11 @@ Release steps and sync rules are in [Repository maintenance](maintenance.md).
 .\gradlew.bat runClientGameTest -PtffClientTestSuite=world-interface --no-daemon
 ```
 
-`build`'s last step runs only after every preceding compile and test succeeds: it copies the runnable JAR produced by `remapJar` into a local instance's `mods` folder. The default path is in `build.gradle`; override it with `-PtffDeployDir=<path>` or disable it with `-PtffDeployDir=`, and a missing drive skips the step instead of failing the build. It does not copy the sources JAR and does not delete other mods; running `remapJar` alone only produces `build/libs/` artefacts and triggers no deployment.
+`build`'s last step runs only after every preceding compile and test succeeds: it copies the runnable JAR produced by `remapJar` into a local instance's `mods` folder. **It is off by default** - the destination belongs to one machine and is not committed. Set `tffDeployDir=<path>` in the user-wide `~/.gradle/gradle.properties` to enable it for good, or use `-PtffDeployDir=<path>` for one invocation and `-PtffDeployDir=` to turn it off. With nothing configured it prints a notice, and a missing drive is skipped; neither fails the build (see [Repository maintenance](maintenance.md#local-deployment)). It does not copy the sources JAR and does not delete other mods; running `remapJar` alone only produces `build/libs/` artefacts and triggers no deployment.
 
-Permitted client suite IDs: `all`, `default`, `mainline`, `tools-ui`, `notice-entry`, `alpha-relaunch`, `anomalies`, `anomaly-meta-smoke`, `rework-forms`, `watcher-model`, `world-interface`, `terminal-3d`, `screen-filters`. `all` covers the mainline, tools UI, anomalies, the Corrector, the Watcher model, the World Interface and the handheld terminal; the notice/relaunch suites still run separately. Only the `anomalies` suite accepts an additional `-PtffAnomaly=<id>`.
+Permitted client suite IDs: `all`, `default`, `mainline`, `tools-ui`, `notice-entry`, `alpha-relaunch`, `anomalies`, `anomaly-meta-smoke`, `rework-forms`, `watcher-model`, `world-interface`, `terminal-3d`, `screen-filters`. `all` covers the whole mainline, tools UI, anomalies, the Corrector, the Watcher model, the World Interface (including the End's weather), the handheld terminal and the screen filters; the notice/relaunch suites still run separately. Only the `anomalies` suite accepts an additional `-PtffAnomaly=<id>`.
+
+**`all` must be a true superset of `mainline`.** For a while it was not: the early `return` in the mainline test was guarded by `runsToolsUi()`, and that predicate is true for both `all` and `tools-ui` — so the full suite returned as soon as the tools-UI checks were done, silently dropping the second half of the mainline (band progression, the four damaged files, the diary unlock, Nether round-trip continuity, the terminal capability model, the Alpha main-menu stamp) **and still reporting green**. `ClientGameTestSelection.stopsAfterToolsUi()` now stops only `tools-ui` there, and `AnomalyClientAutomationContractTest` asserts the predicate in both directions across three suites. A coverage gap that reports green is worse than not having the suite.
 
 ### `terminal-3d`: the handheld terminal
 
@@ -61,6 +63,7 @@ It builds a small platform under open sky (indoor walls and ceilings are exactly
 | Idle two-handed carry, hand and device at their own depths | Assertion + screenshot |
 | **Turning does not move the device** | Assertion (pose z / scale / handSpread must be bit-identical across four view angles) + four screenshots |
 | Lift, FOV narrowing, squaring up, settling back, field of view restored | Assertion + screenshot |
+| **The swing shove**: a real `swing()` moves the device forward and down and it recovers on its own; the same progress is refused while the open/close performance is running | Assertion + screenshot |
 | Off-hand occupied falls back to one hand, off-hand item still drawn | Screenshot |
 | The six forms one by one | Screenshot |
 
@@ -76,24 +79,79 @@ The device must be **the one Station Zero actually issued**: the server validate
 | --- | --- |
 | Filtered pure-logic tests | Anomaly pool/pacing, five-form policy, terminal appearance, dynamic chunk window, no-form-skipping |
 | Aggregate JUnit / resource contracts | Schema, payload versions, resource keys, data tables, migration, policy formulas, recovery rules |
-| Server GameTests | World events, objective advancement, multiplayer authoritative state, block/entity interaction, mirror topology, persistence |
+| Server GameTests | World events, objective advancement, multiplayer authoritative state, block/entity interaction, mirror topology, persistence (including the single server-wide pursuit slot, roster-filtered attack targeting, and doors being forced open rather than destroyed) |
 | Client GameTests | Terminal UI, notice/relaunch, anomaly presentation, models, the World Interface, the poem and view distance |
 | Manual acceptance | Audiovisual safety, multiplayer feedback, window/desktop sequences, the LAN host experience, the replay flow |
 
 ## Current evidence
 
-The following actually completed on **2026-08-08** in the current workspace at `mod_version=1.0.0-rc.1`.
+**Only results that actually finished this round are listed.** Anything not run, timed out or disturbed by a concurrent build must be stated explicitly. The per-change re-run tallies are no longer kept here; they live in the local archive `archive/superseded-docs/testing-history.md`, because each of those numbers is only true of the round that wrote it and in the body it just argues with the current workspace.
 
-| Verification | Result | Boundary |
+The following actually completed on **2026-08-30** in the current workspace at `mod_version=1.0.0-rc.1`.
+
+> **These numbers have a cut-off.** Re-run them after every change and replace them here. The previous version of this table recorded the full client GameTest suite as passing, and that run predated the locked-render-distance assertion added to `M0ClientGameTest` - so the assertion had never passed once while the table said green. A stale number is not only a stale number.
+
+| Check | Result | Boundary |
 | --- | --- | --- |
-| `compileJava` / `compileClientJava` / `processResources` | Pass | All four source sets compile |
-| Aggregate `unitTest` | **519/519 pass**, 99 containers, 0 failed, 0 skipped | Every compiled test class enumerated explicitly via `--select-class` |
-| Server GameTests | **64/64 pass** (batch 0: 50, batch 1: 14) | `All 64 required tests passed` |
-| Chinese/English language JSON | **773** keys each, parses, key sets fully symmetric | Current resource tree |
-| Full (`all`) client GameTests | **Not run this round** | A targeted smoke test cannot replace the unfiltered client suite |
-| Release remapped JAR | **Not built this round** | The RC artefact must be regenerated and recorded per the section below |
+| `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | Pass | All four source sets compile |
+| Aggregate `unitTest` | **794/794 pass** (137 containers), 0 failed, 0 skipped | Every compiled test class enumerated explicitly via `--select-class` |
+| Server GameTests | **91/91 pass** | `All 91 required tests passed`. It was 87 before, and 80 before that: `TerminalBackfillAndProfileGameTests` had never been listed in `src/gametest/resources/fabric.mod.json`, so those 6 tests had never run once. `ResourceContractTest` now watches the registration in both directions. The four new ones are `PursuitRuntimeGameTests`: the chase had ten pure-policy unit tests and one game test that only checked the dimension files were packaged, so neither of the two chains a player can feel - the refund ledger and the mirror's placement rule - was covered at all |
+| Full (`all`) client GameTests | **Pass** (7 m 36 s, exit code 0), 166 screenshots | 18 in the catalogue, 17 covered: the unrendered layer is exempted by name in `AnomalyClientScenario.UNCOVERED`. The log shows `unrendered_layer` and all six mirror dimensions loading and saving normally, which is **direct** evidence that the three datapack files and the generator codec work at real runtime. This round it caught two things: the terminal opening evicting a screen the player had opened, and `terminal-3d`'s "a terminal nobody opened is at rest" assertion, which stopped being true when the greeting shipped. **Note**: running this alongside another Gradle/Minecraft process contends for `build/run/clientGameTest` and shows up as an unfinished save plus a native crash, which looks like a mainline assertion failure |
+| Targeted `notice-entry` client GameTests | **Not re-run this round** (last pass 45 s) | It is not part of `all` - `ClientGameTestSelection.runsNoticeEntry()` is true for this suite only, so a green full run does not cover it. The last run was on its own after `thefourthfrequency.mixins.json` was sorted and re-indented, confirming all 7 common and 50 client mixins still resolve - the manifest is `defaultRequire: 1`, so one name broken by formatting is a bootstrap crash, not a silent downgrade |
+| Chinese/English language JSON | **902** keys each, parses, key sets fully symmetric, `%s` placeholder counts identical key by key | Current resource tree |
+| Audio encoding | All **211** OGGs in the repository (140 the mod's own, 21 of those music; 71 in the bundled Golden Days pack) measured individually for `codec_name == vorbis` | The extension fools every assertion; with the wrong codec Minecraft simply plays nothing |
+| Clean `clean build` | **Not re-run this round** | Last passed 2026-08-29 (53 s). This round changed GameTest registration, the client opening and the docs; all four source sets were compiled separately and `unitTest`, `runGameTest` and the full client suite all ran. Still owed before release |
+| Local deployment (`build`, path from the user-wide `~/.gradle/gradle.properties`) | **Pass** (34 s) | Re-run after the `build.gradle` default became empty: the log says `Deployed remapped mod JAR to ...` and the target matches the source JAR in size (54,262,874) and SHA-256. With `tffDeployDir` unset the same path prints one notice and skips |
 
-The per-change re-run log has been moved out of this document and kept only in the local archive at `archive/superseded-docs/testing-history.md`.
+## How the sharp tests are shaped
+
+This section records **why a handful of tests look the way they do**. Every one of them was forced by a real defect; rewriting them the intuitive way reopens the same hole.
+
+### `all` must be a true superset of `mainline`
+
+It once was not (see "Common commands" above). A coverage gap that reports green is worse than not having the suite at all, so `ClientGameTestSelection.stopsAfterToolsUi()` now lets only `tools-ui` return early, and `AnomalyClientAutomationContractTest` asserts that predicate in both directions across three suites.
+
+### Gate the end state, not the peak
+
+The `experience_gap` displacement gate used to fail intermittently, and both failures read exactly the same distance (4.0498077...). The cause was not unsteady walking but **measuring at the wrong moment**: `AnomalyServerEffects.MovementTask` advances the player on **server ticks** while the scenario counted **client ticks** to the peak before measuring. Under a loaded `all` run the integrated server falls behind the client, so displacement became a clean function of the server tick count - losing the race stopped it at the same spot every time.
+
+The peak now only asserts that the movement lease is still driving the player (`activeLeaseCount() == 1`), and the >=8.0-block gate moved verbatim into the cleanup assertion, whose first check is already `activeLeaseCount() == 0` - i.e. all 36 server ticks provably ran. **The threshold was not lowered**: its purpose is to prove this was real pathfound movement rather than a nudge.
+
+### Discontinuity is the defect; speed is not
+
+The first version of the rig assertion read "no bone may move more than N blocks per tick" and produced 425 violations - most of them **deliberate fast motion** (a grab drags the skull across half a second at 2.5 blocks per tick). Rewritten as "a frame whose displacement exceeds 4x the mean of the 4 frames on either side and is over 1 block in absolute terms", it dropped to 56, every one pointing at a real cause; fixing them one by one took it to 0.
+
+The test then found two previously unknown defects: `action 0` (pure idle) also jumped on fixed ticks, traced to `idleHeads()` using a wrapped timestamp as phase and producing an out-of-order keyframe table; and the grab-throw recovery lasted only 1 tick. Neither is a position player feedback could have located.
+
+### Auto-opening the terminal: the test is on the client, so the assertions are too
+
+The hard part of "the join that hands the terminal over opens it" is not whether but **when**. The server cannot see whether the player is looking at the world or at a loading screen, and a screen put up under one of those is closed again by vanilla when the load finishes - the player sees nothing and the log says nothing.
+
+So the whole test lives in `TerminalAutoOpenPolicy` (main, pure), and `TerminalAutoOpenPolicyTest` asserts the decision table: a world not yet shown **neither opens nor expires** (a first world generation can outlast the entire budget); a terminal that never reaches the hand **expires** rather than popping up minutes later; the player's own right-click wins; and the 20-tick settle beat is shorter than the 600-tick budget.
+
+The same class pins three pieces of wiring it cannot see from inside: the offer is sent only from the branch where `issueTerminalIfNeeded` returned true (otherwise every rejoin would re-open the terminal), the payload type is registered on `playS2C` (an unregistered type disconnects the client that receives it), and the client **never calls `setScreen` itself** but sends the right-click request instead (otherwise the server's validation is bypassed).
+
+**The decision was right and the landing was not - and only the client suite could catch that.** The decision table governs when the request goes out; after it does there is still a server round trip plus half a second of opening animation, and `TerminalHandheldAnimator.presentScreen` used to call `setScreen` unconditionally. Anything the player opened inside that window - the inventory, the pause menu, video settings - was evicted when the animation finished. The auto-open widens the window by a whole round trip and removes the one thing that excused it: a right-click is at least something the player pressed half a second ago, while nobody asked for the greeting.
+
+What caught it was M0's locked-render-distance assertion: it opens video settings to read the option list and got a `TerminalScreen` with `children=[]` instead. The animator now takes the screen only when it found it empty; covered, it abandons the opening outright and sends a `CLOSE`, because otherwise the server goes on holding a view nobody is looking at. That assertion is therefore the regression barrier for this rule - it is the one place in the suite that deliberately opens another screen inside the opening window.
+
+### With no framebuffer to read, pin the pure function
+
+The guidance readout is composed per frame on the client; the server sends a twenty-byte payload. So the two things worth pinning are that the fade window must be substantially longer than the send interval (or one dropped packet makes it flicker), and that the HUD and the terminal home page must call **the same method** (or two renderers of the same bearing will eventually disagree). Both are pure functions and were written as unit tests; how it looks is a manual check.
+
+For the same reason the only real regression barrier in `terminal-3d` is the "turning must not move the device" assertion (z / scale / handSpread must be bit-identical across four view angles). Most of the other screenshots are evidence for a human: with no framebuffer to read, "the device is centred" cannot be written as an assertion.
+
+### The unrendered layer: four layers and one explicit exemption
+
+- **Unit**: `UnrenderedMazePolicyTest` asserts product endpoints rather than the hash formula - every entrance is a four-way junction, an exit is **reachable** from any entrance (chunk-level flood fill that treats false walls as passable, because in game they are), an exit is a "false-wall shell around a false-floor core", false and solid walls are mutually exclusive everywhere, there is exactly one exit per 32x32 cells fully inside its own partition square, and the trunk corridors run 4000 blocks unobstructed. `UnrenderedBearingPolicyTest` guards the terminal readout: the eight bearings are sectors centred on themselves (a half-sector-off version passes every due-north/due-south assertion and is wrong over most of the circle), -Z is north and +X is east in Minecraft (inverting it consistently sends every player the opposite way), and no bearing is given when too close. `UnrenderedPlacementTest` asserts that 16 slots x 64 visit variants are all at least 100,000 blocks apart, inside the world border and standable, plus **the pairing between view distance and generation distance** (generation must exceed visibility; the two constants live in different files with nothing else watching them).
+- **GameTest**: `UnrenderedLayerGameTests` asserts only what runtime can answer - the three datapack files agree with each other and their `min_y`/`height` match `UnrenderedLayerLayout`, the generator codec really is registered in `BuiltInRegistries.CHUNK_GENERATOR` under the id the dimension file names, the entity type is registered and its default attributes really are attached (`FabricDefaultAttributeRegistry` is a separate call; missing it compiles fine and throws on first spawn), and both sound events and their files exist.
+- **Contract**: `MultiplayerIsolationContractTest` asserts from the source that all twelve environment systems ask `PrivateDimensions.isPrivate` rather than recognising only the mirror.
+- **Deliberately absent**: a client automation scenario. `AnomalyClientScenario.UNCOVERED` exempts this one by name with the reason written down - that suite drives `AnomalyPresentationController`, while this anomaly's presentation belongs to `UnrenderedLayerClient`, with no fixture, no overlay and no assertable "restored" state. The exemption is listed explicitly, so a new anomaly still cannot quietly ship without client coverage.
+- **Speed is measured, not derived**: `theBacteriaSpeedLandsBetweenSprintingAndSprintJumping` lays out flat ground under real physics, runs it, and converts peak displacement over the steady stretch into blocks per second. It caught a real error once - a derived 0.335 measured only 4.94 blocks/s, **slower than sprinting**, which would have shipped the Bacteria as scenery.
+
+### What the contract tests have actually caught
+
+Their value is not in re-running things known to be correct but in that each one corresponds to a failure that only shows up at real runtime. Recent examples: `unrendered_heartbeat` is a fixed-radius event yet was written in `sounds.json` as a bare string (which cannot carry `attenuation_distance`); a sentence in a comment was read as a `@Shadow` field by the regex in `ShadowFieldOwnershipTest`; one terminal string tripped the "Chinese copy must use 异象" check (added to the allowlist as an instrument readout rather than an anomaly system, with the reason recorded); and a source `.ogg` was really FLAC-in-Ogg, which passes every container check while the game silently plays nothing.
 
 ## Key personal-pursuit invariants
 
@@ -102,7 +160,7 @@ The per-change re-run log has been moved out of this document and kept only in t
 - Every form must first complete a safe demonstration. Once safety conditions pass, a fixed 200-tick lead-in runs: 80 ticks of terminal reading, 80 ticks of progressive frame-rate decay only, 40 ticks of input lock and hang audio. The lead-in draws no filter or interference overlay.
 - The hang audio is a random variant pool rather than a single file: `alpha_corruption_collapse` and `alpha_corruption_warning` have at least 3 each, and `ResourceContractTest` asserts the minimum count, no duplicate entries, that all are real Ogg files and that each is over 16 KB. How the variants *sound* is manual acceptance only; a test cannot stop "it sounds wrong".
 - The black screen is switched only by server timing. Entry waits for 7×7 chunks around the player in the destination dimension to be ready and stable for 8 consecutive ticks, up to 200 ticks. From mirror copying through the return to the source world and the loading screen disappearing, loading screens must remain covered.
-- At most two concurrent pursuits server-wide; two players use different mirror slots and a third is safely deferred.
+- One pursuit at a time server-wide; a second player is safely deferred and receives an ordered, readable explanation of the wait rather than a silent refusal. All six mirror dimensions stay registered, because recovery has to be able to find a player left in any of them by an older save.
 - The initial snapshot is 5×5 chunks, ±48 blocks vertically, 8192 blocks per session per tick; it streams horizontally with the player's chunk, with no fixed 30-block turnback.
 - Copied chunks are never overwritten; when copying falls behind, the player only pauses at the nearest safe position with the pursuit timer paused.
 - The initial spawn probe covers the full ring 25–42 blocks around the player, including directly ahead. 42 blocks for 5 seconds, breaking line of sight beyond 18 blocks for 8 seconds, and the player killing it personally are all authoritative successes.
@@ -116,10 +174,10 @@ The per-change re-run log has been moved out of this document and kept only in t
 
 ## Key World Interface invariants
 
-- The roster is 1–8 online non-spectators, withdrawal is possible before submission, and a failed submission must return terminals.
+- The roster is built from players who hand a terminal over (1–8); other people connecting or leaving is irrelevant to it. Withdrawal works inside the window, a lapsed window or a failed submission must return terminals, and starting the fight takes an explicit summon.
 - Health is `600 × (1 + 0.5 × (roster - 1))` — 600 for one, 2700 for eight; the three forms only advance.
 - Collapse is 12000 ticks (10 minutes); it pauses when everyone is offline; a same-tick timeout outranks lethal damage.
-- The ten stability anchors affect healing, damage taken, cooldown and the radius-8 stability zone by the current formulas, but affect neither boss movement nor collapse progress; the zone protects player damage and terrain together. The first positive-damage player attack breaks an anchor immediately, and each break plays about 60 ticks of golden wash on the HUD with "reconstruction↓ / activity↑".
+- The ten stability anchors affect healing, damage taken, cooldown and the radius-8 stability zone by the current formulas, but affect neither boss movement nor collapse progress; the zone protects player damage and terrain together. The first positive-damage player attack breaks an anchor immediately, and each break plays about 60 ticks of golden wash on the HUD and swaps the anchor label to "TAKES MORE · HITS FASTER".
 - Anchors are carried by `StabilityAnchorEntity`. `StabilityAnchorGeometryTest` locks the pure geometry and timing rules (model height 44 units = 2.75-block collision height, width 28 units = 1.75 blocks and never over 2, the relay core uniformly 2 blocks above the origin, four seamless irreversible collapse phases, per-tick and whole-fight particle caps); `StabilityAnchorContractTest` locks the cross-layer contract (entity/model layer/renderer registration, four five-stage claw chains with an open emitter end, texture size and sparse emissive mask, bilingual keys, beam endpoints from shared constants that follow the boss's 3D position, migratable legacy tagged crystals, and a collapse effect free of explosions, block writes and drops). `ResourceContractTest` additionally confirms `EndCrystalMixin` is gone from both the manifest and the source, so ordinary end crystals are back to vanilla behaviour.
 - Server runtime is covered by `WorldInterfaceGameTests`: the arena creates exactly 10 anchors with unique indices and deterministic UUIDs, a missing live anchor is recoverable, a destroyed anchor never revives, zero-damage / non-player / spectator / non-combat-phase sources cannot break one, and breaking one updates damage taken and the stability zone on the same tick without changing the fixed collapse timer.
 - The eight actions' telegraphs, exact damage, caps and exclusive control stay stable. Only the laser, breath bolt, sky lance, grab-and-throw and tendril lash are targeting locks; weapon impound and the hotbar sweep use unavoidable deprivation notices. Only impounded weapons enter the recovery ledger; hotbar items stay ordinary world drops.
@@ -133,7 +191,9 @@ The per-change re-run log has been moved out of this document and kept only in t
 - The three neck chains must not intersect in any form or action sequence: `WorldInterfaceRigTest` asserts a strict form for the rest shape (the sum of the two skull radii) and a loose form across the whole animation (never inside each other), with yaw and roll always signed "outward is positive" by `WorldInterfaceAnatomy`.
 - Arrows and tridents resolve at 2.5×, with the multiplier applied before the anchor damage coefficient; the two-argument `adjustedIncomingDamage` remains melee semantics and must not quietly gain the bonus.
 - A fixed-range sound's registered radius and its `attenuation_distance` in `sounds.json` must match; variable-range events must not declare `attenuation_distance`.
-- Multi-track music events (`music_game`, `music_menu`) must not play the same track twice in a row; `MusicRotationPolicy.rotatingEvents()` and the `music_*` events with a pool size over 1 in `sounds.json` must agree in both directions, and single-track events must not rotate.
+- Multi-track music events (`music_game`, `music_menu`) must play a whole pass of their pool before repeating, and must not repeat across the seam between passes; `MusicRotationPolicy.rotatingEvents()` and the `music_*` events with a pool size over 1 in `sounds.json` must agree in both directions, and single-track events must not rotate.
+- A pass must end on `passComplete(event, poolSize)` counting the pool, never on the re-draws running out: 400 passes from a genuinely random source at the shipped pool sizes (4 and 9) must each use the entire pool. Exhausting the re-draws may cost one repeated track and must not reset the pass or discard anything it has not played yet.
+- The score's four inventories must describe the same set of tracks: the files under `sounds/music`, the `music_*` events in `sounds.json`, the "now playing" keys in both lang files, and the per-context track blocks in the End Poem credits. `ResourceContractTest` lines them up (every file present, none claimed by two events, every file named in both languages, no key left pointing at a deleted track) and matches the credits by **count** rather than by name — the roll is written for a reader, not as a manifest. It went on crediting two tracks that had already been replaced, because nothing was watching.
 - The permanent scar budget is 8192 blocks total and 32 per tick, and must not destroy protected structures or block entities.
 - Success timing is fixed at: body 0–180 ticks, empty field 180–220, summon 220–340, dragon appears at 340, exit opening 340–500; the first line at 410, the second line and the exit both at 500.
 - Resolution opens a 3×3 exit and returns through the vanilla WinScreen/respawn path; only the World Interface branch replaces the poem, credits and `postcredits_*.txt`.
@@ -145,30 +205,28 @@ The per-change re-run log has been moved out of this document and kept only in t
 
 ## Documentation and resource static checks
 
-- Both language JSONs parse, with 773 keys each and fully symmetric key sets.
+- Both language JSONs parse, with 902 keys each and fully symmetric key sets.
 - All relative links in the READMEs (both languages) and `docs/**` resolve.
 - Scans for stale test numbers, the old health formula and retired finale semantics find no residue.
+- `sounds.json` holds 81 events and 160 references; the 211 OGGs in the repository match its references one for one, the difference is empty in both directions, and every one of them measures as Ogg Vorbis.
 
 The manual flow for a candidate build is in the [Manual acceptance checklist](acceptance.md).
 
 ## Release artefacts
 
-The RC 1.0.0 artefacts **have not been produced yet**. Rebuild them at release time and fill the actual results back into this table:
-
-```powershell
-.\gradlew.bat clean build --no-daemon
-```
+From the clean `clean build` of **2026-08-29**. **These artefacts predate the changes recorded above** (the GameTest registration, the terminal opening rule and the CLOSE split), so they are not evidence for the current tree - a fresh `clean build` is owed before release:
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | TBD | TBD |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | TBD | TBD |
+| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 54,262,874 | `AEF844BDDD4760486611CAC3A6D8259A202494BD88F242983160540C2A272097` |
+| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 53,728,263 | `DBBDEC69584B89FA6A7DBCE9304F60F465F772438253BABDCEE96CC89217C739` |
+
+The runnable JAR holds 6,247 entries. A later `build` with `tffDeployDir` set deployed it to the local instance, and the target matches the source JAR byte for byte and by SHA-256.
 
 Only record a clean build completed **after the last production source/resource change**; an older JAR is not release evidence.
 
 ## Still outstanding before release
 
-- Re-run the unfiltered (`all`) client GameTests.
-- Verify concurrent different forms, disconnect/reconnect, full-inventory refunds and dynamic chunk catch-up with two real clients.
+- Verify pursuit queueing (the second player is deferred and can tell why), disconnect/reconnect, full-inventory refunds and dynamic chunk catch-up with two real clients.
 - Check mixing, strong flicker, multi-monitor/DPI, the LAN host branch and long-session TPS on the target hardware.
 - Complete every manual item in the [Manual acceptance checklist](acceptance.md), especially one full multiplayer World Interface fight each at 2 and 4 players.

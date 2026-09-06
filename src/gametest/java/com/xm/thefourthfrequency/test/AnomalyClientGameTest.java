@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.xm.thefourthfrequency.client_ui.AnomalyPresentationController;
+import com.xm.thefourthfrequency.correction.ViewpointOrientationPolicy;
 import com.xm.thefourthfrequency.client_ui.AnomalyTestSnapshot;
 import com.xm.thefourthfrequency.client_ui.ChannelOverrideScreen;
 import com.xm.thefourthfrequency.client_ui.FirstRunNoticeController;
@@ -180,6 +181,14 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 	}
 
 	private static void acknowledgeFirstRunNoticeIfNeeded(ClientGameTestContext context) {
+		// Two pages now: the audio calibration, then the disclosure. This suite is not auditing
+		// either of them - it only has to get past both to reach the title screen its fixtures need.
+		context.waitFor(client -> FirstRunNoticeController.acknowledgedForTesting()
+				|| client.screen instanceof FirstRunNoticeScreen notice
+				&& notice.advanceAvailableForTesting(), 160);
+		context.runOnClient(client -> {
+			if (client.screen instanceof FirstRunNoticeScreen notice) notice.advanceForTesting();
+		});
 		context.waitFor(client -> FirstRunNoticeController.acknowledgedForTesting()
 				|| client.screen instanceof FirstRunNoticeScreen notice
 				&& notice.acknowledgementAvailableForTesting(), 160);
@@ -212,8 +221,13 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 				// of the station, and the test player stands on it - a light four blocks away was
 				// inside that shield, so the precondition correctly found nothing to extinguish and
 				// the scenario could never start. Still well inside the sixteen-block scan radius.
+				// A torch rather than glowstone. The dropout leaves solid lights with no unlit relative
+				// exactly where they are - punching a hole in a wall is not a light going out - so a
+				// glowstone-only room now has nothing extinguishable in it and the precondition
+				// correctly refuses to start. A fitting is what the effect is actually about.
 				state.light = player.blockPosition().offset(12, 1, 0);
-				level.setBlockAndUpdate(state.light, Blocks.GLOWSTONE.defaultBlockState());
+				level.setBlockAndUpdate(state.light.below(), Blocks.STONE.defaultBlockState());
+				level.setBlockAndUpdate(state.light, Blocks.TORCH.defaultBlockState());
 				state.rememberBlock(level, state.light);
 			}
 			case WALL -> {
@@ -238,6 +252,12 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 
 	private static void prepareCave(ServerLevel level, ServerPlayer player, FixtureState state) {
 		BlockPos origin = player.blockPosition();
+		// The face that fractures, at eye height so a real attack ray can reach it. The cave shell
+		// below stands two blocks out, which is one further than the anomaly's preflight scan looks,
+		// so without this the merged phantom_echo has no surface to open and never starts.
+		state.wall = origin.relative(player.getDirection()).above();
+		level.setBlockAndUpdate(state.wall, Blocks.STONE.defaultBlockState());
+		state.rememberBlock(level, state.wall);
 		for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
 			level.setBlockAndUpdate(origin.offset(x, -1, z), Blocks.STONE.defaultBlockState());
 			level.setBlockAndUpdate(origin.offset(x, 2, z), Blocks.STONE.defaultBlockState());
@@ -250,12 +270,20 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 
 	private static void prepareMobs(ServerLevel level, ServerPlayer player, FixtureState state) {
 		Mob near = EntityType.COW.create(level, EntitySpawnReason.EVENT);
+		// A second one in range, because the anomaly's precondition now asks for two. One animal
+		// facing the player is what animals do; the effect is a group turning at once, and the
+		// preflight refuses anything that could not read as one. The far sheep still guards the
+		// other end of the rule - out of range means untouched - so the fixture states both halves.
+		Mob second = EntityType.PIG.create(level, EntitySpawnReason.EVENT);
 		Mob far = EntityType.SHEEP.create(level, EntitySpawnReason.EVENT);
-		if (near == null || far == null) throw new AssertionError("Mob fixture creation failed");
+		if (near == null || second == null || far == null) throw new AssertionError("Mob fixture creation failed");
 		near.snapTo(player.getX() + 6, player.getY(), player.getZ(), 37.0F, 0.0F);
+		second.snapTo(player.getX() - 6, player.getY(), player.getZ(), 37.0F, 0.0F);
 		far.snapTo(player.getX() + 36, player.getY(), player.getZ(), 37.0F, 0.0F);
-		near.setNoAi(true); far.setNoAi(true); near.setYHeadRot(37.0F); far.setYHeadRot(37.0F);
-		if (!level.addFreshEntity(near) || !level.addFreshEntity(far)) throw new AssertionError("Mob fixture spawn failed");
+		near.setNoAi(true); second.setNoAi(true); far.setNoAi(true);
+		near.setYHeadRot(37.0F); second.setYHeadRot(37.0F); far.setYHeadRot(37.0F);
+		if (!level.addFreshEntity(near) || !level.addFreshEntity(second) || !level.addFreshEntity(far))
+			throw new AssertionError("Mob fixture spawn failed");
 		state.nearMob = near.getUUID(); state.farMob = far.getUUID(); state.farHeadRotation = far.getYHeadRot();
 	}
 
@@ -300,8 +328,11 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 			for (int y = 0; y <= 4; y++) level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(), 2);
 		}
 		state.separationForwardYaw = 73.0F;
+		// Well inside ViewpointOrientationPolicy.MAX_PITCH_DEGREES, so the separated view is expected
+		// to inherit this angle untouched rather than have it clamped.
+		state.separationForwardPitch = -31.0F;
 		player.teleportTo(level, origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D,
-				Set.of(), state.separationForwardYaw, -31.0F, true);
+				Set.of(), state.separationForwardYaw, state.separationForwardPitch, true);
 	}
 
 	private static void prepareHorizonStage(ServerLevel level, ServerPlayer player) {
@@ -409,7 +440,7 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 
 	private static void prepareVisualEvidence(ClientGameTestContext context, AnomalyClientScenario scenario,
 			FixtureState fixture) {
-		if (scenario.id().equals("surface_fracture")) {
+		if (scenario.id().equals("phantom_echo")) {
 			context.runOnClient(client -> {
 				if (client.player == null || fixture.wall == null)
 					throw new AssertionError("Surface fracture evidence requires its affected wall");
@@ -499,12 +530,38 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 						throw new AssertionError("Misread slot " + slot + " retained item name " + name);
 				}
 			});
+			// Picking a misread item up empties its slot, and every empty slot in the game holds the
+			// same ItemStack.EMPTY singleton - so an identity match against the live inventory used
+			// to answer "yes" for every vacant square on the screen the moment one item was dragged.
+			// Emptied here on the client only, and put straight back: the real-inventory assertions
+			// further down compare against the server's copy.
+			context.runOnClient(client -> {
+				int probe = selected.iterator().next();
+				ItemStack original = client.player.getInventory().getItem(probe);
+				client.player.getInventory().setItem(probe, ItemStack.EMPTY);
+				try {
+					if (AnomalyPresentationController.isMisread(ItemStack.EMPTY))
+						throw new AssertionError("An emptied misread slot made every empty stack misread");
+					if (ItemStack.EMPTY.getHoverName().getString().equals("I SEE YOU...."))
+						throw new AssertionError("An emptied misread slot renamed every empty stack");
+				} finally {
+					client.player.getInventory().setItem(probe, original);
+				}
+			});
 		}
 		if (scenario.id().equals("viewpoint_separation")) {
 			float fixedYaw = AnomalyPresentationController.fixedCameraYawForTesting();
 			float fixedPitch = AnomalyPresentationController.fixedCameraPitchForTesting();
+			// The separated view inherits the player's pitch instead of levelling it. That was a
+			// deliberate reversal - see ViewpointOrientationPolicy: a flat horizon is a cut, and the
+			// one moment a player is certain to notice a cut is the moment their view leaves their
+			// body. The original worry about losing sight of the body is answered by the policy's
+			// clamp rather than by discarding the angle, so what is asserted here is the clamp.
+			float expectedPitch = net.minecraft.util.Mth.clamp(fixture.separationForwardPitch,
+					-ViewpointOrientationPolicy.MAX_PITCH_DEGREES,
+					ViewpointOrientationPolicy.MAX_PITCH_DEGREES);
 			if (Math.abs(net.minecraft.util.Mth.wrapDegrees(fixedYaw - fixture.separationForwardYaw)) > 0.01F
-					|| Math.abs(fixedPitch) > 0.01F)
+					|| Math.abs(fixedPitch - expectedPitch) > 0.01F)
 				throw new AssertionError("Separated camera did not face the trigger-time forward heading: yaw="
 						+ fixedYaw + ", pitch=" + fixedPitch);
 			double moved = context.computeOnClient(client -> client.player.position()
@@ -564,7 +621,7 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 					if (!level.getBlockState(fixture.light).isAir())
 						throw new AssertionError("Nearby light source was not extinguished on the server");
 				}
-				case "surface_fracture" -> assertBlock(level, fixture.wall, fixture.blocksBefore.get(fixture.wall), "real wall changed");
+				case "phantom_echo" -> assertBlock(level, fixture.wall, fixture.blocksBefore.get(fixture.wall), "real wall changed");
 				case "watcher_alignment" -> {
 					Mob near = (Mob) level.getEntity(fixture.nearMob); Mob far = (Mob) level.getEntity(fixture.farMob);
 					if (near == null || Math.abs(near.getYHeadRot() - 37.0F) < 1.0F)
@@ -577,9 +634,14 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 						throw new AssertionError("Real watcher did not spawn in the visible cone");
 				}
 				case "door_cascade" -> {
-					if (fixture.ordinaryDoors.stream().anyMatch(pos -> !level.getBlockState(pos).isAir()
-							|| !level.getBlockState(pos.above()).isAir()))
-						throw new AssertionError("Ordinary door halves were not permanently removed");
+					// Forced open, not removed. The cascade used to delete both halves and discard the
+					// drop, which is a swallow rather than a haunting - and on a shared server it did
+					// that to doors the target had never touched.
+					if (fixture.ordinaryDoors.stream().anyMatch(pos ->
+							!(level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.DoorBlock)
+									|| !level.getBlockState(pos).getValue(BlockStateProperties.OPEN)
+									|| !level.getBlockState(pos.above()).getValue(BlockStateProperties.OPEN)))
+						throw new AssertionError("Ordinary door halves were not forced open in place");
 					if (!(level.getBlockState(fixture.protectedDoor).getBlock() instanceof net.minecraft.world.level.block.DoorBlock))
 						throw new AssertionError("Protected door was changed");
 					if (!level.getEntitiesOfClass(ItemEntity.class, new AABB(player.blockPosition()).inflate(16),
@@ -587,10 +649,13 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 						throw new AssertionError("Door cascade produced a forbidden drop");
 				}
 				case "experience_gap" -> {
-					double distance = player.position().distanceTo(fixture.playerPosition);
-					if (distance < 8.0D)
-						throw new AssertionError("Experience gap did not perform real safe movement (distance="
-								+ distance + ")");
+					// Only liveness here, never a distance. The walk is driven one waypoint per SERVER
+					// tick, while the scenario counts CLIENT ticks, and under a loaded full suite the
+					// integrated server falls behind the client - at the same client tick the walk had
+					// covered anywhere from a third to all of its ground. How far the player got is
+					// asserted at cleanup instead, where the lease is provably finished.
+					if (AnomalyGameTestBridge.activeLeaseCount() != 1)
+						throw new AssertionError("Safe movement lease was not driving the player at peak");
 				}
 				case "local_rule_collapse" -> assertWorldInvariants(level, player, fixture);
 				default -> { }
@@ -626,16 +691,30 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 				throw new AssertionError("Completed anomaly unexpectedly wrote a terminal log entry");
 			switch (scenario.id()) {
 				case "light_dropout" -> assertBlock(level, fixture.light, fixture.blocksBefore.get(fixture.light), "light source did not restore");
-				case "surface_fracture" -> assertBlock(level, fixture.wall, fixture.blocksBefore.get(fixture.wall), "wall did not remain real");
+				case "phantom_echo" -> assertBlock(level, fixture.wall, fixture.blocksBefore.get(fixture.wall), "wall did not remain real");
 				case "dark_watcher" -> {
 					if (watcherCount(level, player) != fixture.serverWatcherCountBefore)
 						throw new AssertionError("Real anomaly watcher remained after completion");
 				}
 				case "door_cascade" -> {
-					if (fixture.ordinaryDoors.stream().anyMatch(pos -> !level.getBlockState(pos).isAir()))
-						throw new AssertionError("Permanent ordinary-door damage was incorrectly restored");
+					// Still open after cleanup. The cascade is permanent in the sense that matters -
+					// nobody closes your doors for you afterwards - without anything having been taken.
+					if (fixture.ordinaryDoors.stream().anyMatch(pos ->
+							!(level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.DoorBlock)
+									|| !level.getBlockState(pos).getValue(BlockStateProperties.OPEN)))
+						throw new AssertionError("Forced doors were closed again by cleanup");
 					if (!(level.getBlockState(fixture.protectedDoor).getBlock() instanceof net.minecraft.world.level.block.DoorBlock))
 						throw new AssertionError("Protected door changed during cleanup");
+				}
+				case "experience_gap" -> {
+					// The lease is asserted gone above, so the walk has run every one of its ticks and
+					// this displacement is whatever the anomaly actually achieved - not a sample taken
+					// mid-stride. The gap is that the player wakes up somewhere else, so nothing
+					// carries them back; a nudge would still read well under 8 blocks here.
+					double distance = player.position().distanceTo(fixture.playerPosition);
+					if (distance < 8.0D)
+						throw new AssertionError("Experience gap did not perform real safe movement (distance="
+								+ distance + ")");
 				}
 				case "organ_misread" -> {
 					for (int slot = 0; slot < fixture.inventoryBefore.size(); slot++)
@@ -792,6 +871,7 @@ public final class AnomalyClientGameTest implements FabricClientGameTest {
 		private List<ItemStack> inventoryBefore = List.of(); private int serverWatcherCountBefore;
 		private float watcherViewYaw; private float watcherViewPitch;
 		private float separationForwardYaw;
+		private float separationForwardPitch;
 		private Vec3 cameraMovementStart;
 		private final List<BlockPos> facilityAnchors = new ArrayList<>(); private List<BlockPos> invariantPositions = List.of();
 		private Map<BlockPos, BlockState> invariantBlocks = Map.of();

@@ -1,6 +1,8 @@
 # Art and asset pipeline
 
-The single description of **how every runtime texture and sound is produced**: generators, UV contracts, emissive contracts and frozen assets. The terminal's appearance layer — layout and palette — is in [Terminal interface and handheld form](terminal-ui.md).
+The single description of **how every runtime texture and sound is produced**: generators, UV contracts, emissive contracts and frozen assets.
+
+The terminal's appearance layer — layout and palette — is in [Terminal interface](terminal-ui.md), music scheduling in [Background music](audio.md), and trade-offs in [Design notes](design-notes.md).
 
 ## Three hard rules
 
@@ -41,7 +43,8 @@ Paths under `docs/art/**` are referenced directly by tests and scripts (`Resourc
 | `generate_terminal_audio.py` · `generate_entity_audio.py` | Terminal and entity sound sets |
 | `generate_signal_bed_audio.py` | The signal bed: carrier, static, hiss, dead air and cues |
 | `generate_alpha_corruption_audio.py` | Analogue-horror cues for the first load and for hangs (at least 3 variants each) |
-| `import_music.py` | Imports BGM from lossless masters, baking gain at 40% into Ogg Vorbis |
+| `generate_unrendered_textures.py` · `generate_unrendered_audio.py` | The unrendered layer's four surfaces (solid and false from one recipe, `LIGHTNESS_SHIFT` apart) and the bacteria's one-second heartbeat loop |
+| `import_music.py` | Imports BGM from lossless masters: measures and matches to -24 LUFS, then attenuates, baking the result into Ogg Vorbis |
 
 ## World Interface
 
@@ -162,6 +165,6 @@ Manifest files under `docs/art/` are contract inputs in the same way:
 
 ## Audio
 
-Audio ships as 44.1 kHz stereo Ogg Vorbis (q4). BGM master gain is baked into the files at 40% by `tools/import_music.py` at import time rather than written into `sounds.json` — the ratio is always relative to the lossless master, so re-importing does not compound it. Scheduling and mixing rules are in [Background music](audio.md).
+Audio ships as 44.1 kHz stereo Ogg Vorbis (q4). BGM playback level is baked into the files by `tools/import_music.py` at import time rather than written into `sounds.json`: every master is measured with `loudnorm` and shifted by a pure linear gain onto -24 LUFS, then scaled by an attenuation ratio (0.8 by default). Both halves are overridable per source folder: the three encounter tracks take -17 LUFS at a ratio of 1.0, and the unrendered layer's single track takes -23 LUFS at 1.0. Both are relative to the lossless master's measured value, so re-importing does not compound them. Scheduling, the reasoning behind each tier, and mixing rules are in [Background music](audio.md).
 
 Hang cues are variant pools, not single files: `alpha_corruption_collapse` and `alpha_corruption_warning` have at least 3 each, and variants of one event are level-matched by RMS rather than by peak. `ResourceContractTest` asserts the minimum count, the absence of duplicate entries, that every entry is a real Ogg, and that each is over 16 KB. **A technical contract cannot stop "it sounds wrong"** — audition before adding a variant.

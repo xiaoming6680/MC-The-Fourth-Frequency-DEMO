@@ -1,0 +1,117 @@
+{
+  "targets": {
+    "treated": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "thefourthfrequency:post/chromatic_dispersion",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main"
+        }
+      ],
+      "output": "treated",
+      "uniforms": {
+        "DispersionConfig": [
+          {
+            "name": "Strength",
+            "type": "float",
+            "value": 1.0
+          },
+          {
+            "name": "Dispersion",
+            "type": "float",
+            "value": 18.0
+          },
+          {
+            "name": "Spectrum",
+            "type": "float",
+            "value": 0.85
+          },
+          {
+            "name": "CenterClear",
+            "type": "float",
+            "value": 0.2
+          },
+          {
+            "name": "EdgeRadius",
+            "type": "float",
+            "value": 1.15
+          },
+          {
+            "name": "Barrel",
+            "type": "float",
+            "value": 0.022
+          },
+          {
+            "name": "Bloom",
+            "type": "float",
+            "value": 0.55
+          },
+          {
+            "name": "BloomThreshold",
+            "type": "float",
+            "value": 0.5
+          },
+          {
+            "name": "HoldTicks",
+            "type": "float",
+            "value": 7.0
+          },
+          {
+            "name": "Jitter",
+            "type": "float",
+            "value": 0.32
+          },
+          {
+            "name": "Vignette",
+            "type": "float",
+            "value": 0.18
+          },
+          {
+            "name": "Saturate",
+            "type": "float",
+            "value": 0.4
+          },
+          {
+            "name": "Tint",
+            "type": "vec4",
+            "value": [
+              0.82,
+              0.46,
+              1.0,
+              0.16
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "treated"
+        }
+      ],
+      "output": "minecraft:main",
+      "uniforms": {
+        "BlitConfig": [
+          {
+            "name": "ColorModulate",
+            "type": "vec4",
+            "value": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

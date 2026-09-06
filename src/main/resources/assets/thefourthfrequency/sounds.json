@@ -2,44 +2,106 @@
   "empty_viewpoint": {
     "subtitle": "subtitles.thefourthfrequency.empty_viewpoint",
     "sounds": [
-      { "name": "minecraft:block.wooden_door.close", "type": "event", "volume": 0.65, "pitch": 0.72 }
+      {
+        "name": "minecraft:block.wooden_door.close",
+        "type": "event",
+        "volume": 0.65,
+        "pitch": 0.72
+      }
     ]
   },
   "empty_base": {
     "subtitle": "subtitles.thefourthfrequency.empty_base",
     "sounds": [
-      { "name": "minecraft:block.chest.close", "type": "event", "volume": 0.7, "pitch": 0.76 }
+      {
+        "name": "minecraft:block.chest.close",
+        "type": "event",
+        "volume": 0.7,
+        "pitch": 0.76
+      }
     ]
   },
   "empty_experience": {
     "subtitle": "subtitles.thefourthfrequency.empty_experience",
     "sounds": [
-      { "name": "minecraft:block.stone.place", "type": "event", "volume": 0.55, "pitch": 0.56 }
+      {
+        "name": "minecraft:block.stone.place",
+        "type": "event",
+        "volume": 0.55,
+        "pitch": 0.56
+      }
     ]
   },
   "fourth_band": {
     "subtitle": "subtitles.thefourthfrequency.fourth_band",
     "sounds": [
-      { "name": "minecraft:block.amethyst_block.chime", "type": "event", "volume": 0.65, "pitch": 0.52 }
+      {
+        "name": "minecraft:block.amethyst_block.chime",
+        "type": "event",
+        "volume": 0.65,
+        "pitch": 0.52
+      }
     ]
   },
   "layer_stone_step": {
-    "sounds": [{ "name": "minecraft:block.stone.step", "type": "event", "volume": 0.35, "pitch": 0.55 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.stone.step",
+        "type": "event",
+        "volume": 0.35,
+        "pitch": 0.55
+      }
+    ]
   },
   "layer_wooden_door_close": {
-    "sounds": [{ "name": "minecraft:block.wooden_door.close", "type": "event", "volume": 0.4, "pitch": 0.62 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.wooden_door.close",
+        "type": "event",
+        "volume": 0.4,
+        "pitch": 0.62
+      }
+    ]
   },
   "layer_chest_close": {
-    "sounds": [{ "name": "minecraft:block.chest.close", "type": "event", "volume": 0.35, "pitch": 0.48 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.chest.close",
+        "type": "event",
+        "volume": 0.35,
+        "pitch": 0.48
+      }
+    ]
   },
   "layer_beacon_deactivate": {
-    "sounds": [{ "name": "minecraft:block.beacon.deactivate", "type": "event", "volume": 0.32, "pitch": 0.64 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.deactivate",
+        "type": "event",
+        "volume": 0.32,
+        "pitch": 0.64
+      }
+    ]
   },
   "layer_deepslate_break": {
-    "sounds": [{ "name": "minecraft:block.deepslate.break", "type": "event", "volume": 0.38, "pitch": 0.58 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate.break",
+        "type": "event",
+        "volume": 0.38,
+        "pitch": 0.58
+      }
+    ]
   },
   "layer_comparator_click": {
-    "sounds": [{ "name": "minecraft:block.comparator.click", "type": "event", "volume": 0.3, "pitch": 0.7 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.comparator.click",
+        "type": "event",
+        "volume": 0.3,
+        "pitch": 0.7
+      }
+    ]
   },
   "rework_joint": {
     "subtitle": "subtitles.thefourthfrequency.rework_joint",
@@ -50,19 +112,47 @@
   },
   "anomaly_echo": {
     "subtitle": "subtitles.thefourthfrequency.anomaly_echo",
-    "sounds": [{ "name": "minecraft:block.iron_door.close", "type": "event", "volume": 0.46, "pitch": 0.68 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.iron_door.close",
+        "type": "event",
+        "volume": 0.46,
+        "pitch": 0.68
+      }
+    ]
   },
   "window_glitch": {
     "subtitle": "subtitles.thefourthfrequency.window_glitch",
-    "sounds": [{ "name": "minecraft:block.beacon.deactivate", "type": "event", "volume": 0.38, "pitch": 0.92 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.deactivate",
+        "type": "event",
+        "volume": 0.38,
+        "pitch": 0.92
+      }
+    ]
   },
   "door_cascade": {
     "subtitle": "subtitles.thefourthfrequency.door_cascade",
-    "sounds": [{ "name": "minecraft:block.iron_door.close", "type": "event", "volume": 0.72, "pitch": 0.61 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.iron_door.close",
+        "type": "event",
+        "volume": 0.72,
+        "pitch": 0.61
+      }
+    ]
   },
   "rule_collapse": {
     "subtitle": "subtitles.thefourthfrequency.rule_collapse",
-    "sounds": [{ "name": "minecraft:block.respawn_anchor.deplete", "type": "event", "volume": 0.82, "pitch": 0.48 }]
+    "sounds": [
+      {
+        "name": "minecraft:block.respawn_anchor.deplete",
+        "type": "event",
+        "volume": 0.82,
+        "pitch": 0.48
+      }
+    ]
   },
   "terminal_boot_line": {
     "subtitle": "subtitles.thefourthfrequency.terminal_boot_line",
@@ -87,6 +177,12 @@
       "thefourthfrequency:device/terminal/click/02",
       "thefourthfrequency:device/terminal/click/03",
       "thefourthfrequency:device/terminal/click/04"
+    ]
+  },
+  "terminal_carrier": {
+    "subtitle": "subtitles.thefourthfrequency.terminal_carrier",
+    "sounds": [
+      "thefourthfrequency:device/terminal/carrier/loop"
     ]
   },
   "terminal_tune": {
@@ -146,24 +242,42 @@
       "thefourthfrequency:client/alpha_corruption/collapse/03"
     ]
   },
+  "pursuit_capture_scream": {
+    "subtitle": "subtitles.thefourthfrequency.pursuit_capture_scream",
+    "sounds": [
+      "thefourthfrequency:client/pursuit/capture_scream"
+    ]
+  },
   "signal_carrier": {
     "sounds": [
-      { "name": "thefourthfrequency:signal/carrier_loop", "stream": false }
+      {
+        "name": "thefourthfrequency:signal/carrier_loop",
+        "stream": false
+      }
     ]
   },
   "signal_static": {
     "sounds": [
-      { "name": "thefourthfrequency:signal/static_loop", "stream": false }
+      {
+        "name": "thefourthfrequency:signal/static_loop",
+        "stream": false
+      }
     ]
   },
   "signal_tape_hiss": {
     "sounds": [
-      { "name": "thefourthfrequency:signal/tape_hiss_loop", "stream": false }
+      {
+        "name": "thefourthfrequency:signal/tape_hiss_loop",
+        "stream": false
+      }
     ]
   },
   "signal_dead_air": {
     "sounds": [
-      { "name": "thefourthfrequency:signal/dead_air_loop", "stream": false }
+      {
+        "name": "thefourthfrequency:signal/dead_air_loop",
+        "stream": false
+      }
     ]
   },
   "signal_alert": {
@@ -187,288 +301,666 @@
   "world_interface_altar": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.altar",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/altar/01", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/altar/02", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/altar/03", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/altar/04", "attenuation_distance": 64 }
+      {
+        "name": "thefourthfrequency:world_interface/altar/01",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/altar/02",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/altar/03",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/altar/04",
+        "attenuation_distance": 64
+      }
     ]
   },
   "world_interface_terminal": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.terminal",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/terminal/01", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/terminal/02", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/terminal/03", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/terminal/04", "attenuation_distance": 64 }
+      {
+        "name": "thefourthfrequency:world_interface/terminal/01",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/terminal/02",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/terminal/03",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/terminal/04",
+        "attenuation_distance": 64
+      }
     ]
   },
   "world_interface_anchor": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.anchor",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/anchor/01", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/anchor/02", "attenuation_distance": 64 },
-      { "name": "thefourthfrequency:world_interface/anchor/03", "attenuation_distance": 64 }
+      {
+        "name": "thefourthfrequency:world_interface/anchor/01",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/anchor/02",
+        "attenuation_distance": 64
+      },
+      {
+        "name": "thefourthfrequency:world_interface/anchor/03",
+        "attenuation_distance": 64
+      }
     ]
   },
   "world_interface_gateway_purple": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.gateway_purple",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/gateway_purple/01", "stream": false, "volume": 0.6, "attenuation_distance": 48 }
+      {
+        "name": "thefourthfrequency:world_interface/gateway_purple/01",
+        "stream": false,
+        "volume": 0.6,
+        "attenuation_distance": 48
+      }
     ]
   },
   "world_interface_gateway_gold": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.gateway_gold",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/gateway_gold/01", "stream": false, "volume": 0.6, "attenuation_distance": 48 }
+      {
+        "name": "thefourthfrequency:world_interface/gateway_gold/01",
+        "stream": false,
+        "volume": 0.6,
+        "attenuation_distance": 48
+      }
     ]
   },
   "world_interface_gateway_red": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.gateway_red",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/gateway_red/01", "stream": false, "volume": 0.6, "attenuation_distance": 48 }
+      {
+        "name": "thefourthfrequency:world_interface/gateway_red/01",
+        "stream": false,
+        "volume": 0.6,
+        "attenuation_distance": 48
+      }
     ]
   },
   "world_interface_summon": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.summon",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/summon/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/summon/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/summon/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/summon/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/summon/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/summon/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_combat_start": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.combat_start",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/combat_start/01", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/combat_start/01",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_ambient_1": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.ambient_1",
-    "sounds": [{"name":"thefourthfrequency:world_interface/ambient_form_1/01","stream":false,"volume":0.42}]
+    "sounds": [
+      {
+        "name": "thefourthfrequency:world_interface/ambient_form_1/01",
+        "stream": false,
+        "volume": 0.42
+      }
+    ]
   },
   "world_interface_ambient_2": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.ambient_2",
-    "sounds": [{"name":"thefourthfrequency:world_interface/ambient_form_2/01","stream":false,"volume":0.46}]
+    "sounds": [
+      {
+        "name": "thefourthfrequency:world_interface/ambient_form_2/01",
+        "stream": false,
+        "volume": 0.46
+      }
+    ]
   },
   "world_interface_ambient_3": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.ambient_3",
-    "sounds": [{"name":"thefourthfrequency:world_interface/ambient_form_3/01","stream":false,"volume":0.5}]
+    "sounds": [
+      {
+        "name": "thefourthfrequency:world_interface/ambient_form_3/01",
+        "stream": false,
+        "volume": 0.5
+      }
+    ]
   },
   "world_interface_hurt": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.hurt",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/hurt/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/hurt/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/hurt/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/hurt/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/hurt/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/hurt/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_death": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.death",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/death/01", "attenuation_distance": 128 }
+      {
+        "name": "thefourthfrequency:world_interface/death/01",
+        "attenuation_distance": 128
+      }
     ]
   },
   "world_interface_laser_fire": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.laser_fire",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/laser_fire/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/laser_fire/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/laser_fire/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/laser_fire/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/laser_fire/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/laser_fire/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_lance": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.lance",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/lance/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/lance/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/lance/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/lance/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/lance/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/lance/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_lance_impact": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.lance_impact",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/lance_impact/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/lance_impact/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/lance_impact/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/lance_impact/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/lance_impact/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/lance_impact/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_impact": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.impact",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/impact/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/impact/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/impact/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/impact/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/impact/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/impact/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_form_shift": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.form_shift",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/form_shift/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/form_shift/02", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/form_shift/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/form_shift/02",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_flight": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.flight",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/flight/01", "volume": 0.62, "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/flight/02", "volume": 0.62, "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/flight/01",
+        "volume": 0.62,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/flight/02",
+        "volume": 0.62,
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_morph": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.morph",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/morph/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/morph/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/morph/03", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/morph/04", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/morph/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/morph/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/morph/03",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/morph/04",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_shockwave": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.shockwave",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/shockwave/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/shockwave/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/shockwave/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/shockwave/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/shockwave/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/shockwave/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_laser": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.laser",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/laser/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/laser/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/laser/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/laser/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/laser/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/laser/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_orb": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.orb",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/orb/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/orb/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/orb/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/orb/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/orb/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/orb/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_grab": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.grab",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/grab/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/grab/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/grab/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/grab/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/grab/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/grab/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_mental": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.mental",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/mental/01", "volume": 0.52, "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/mental/02", "volume": 0.52, "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/mental/03", "volume": 0.52, "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/mental/01",
+        "volume": 0.52,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/mental/02",
+        "volume": 0.52,
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/mental/03",
+        "volume": 0.52,
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_weapon": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.weapon",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/weapon/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/weapon/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/weapon/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/weapon/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/weapon/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/weapon/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_throw": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.throw",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/throw/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/throw/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/throw/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/throw/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/throw/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/throw/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_hotbar": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.hotbar",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/hotbar/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/hotbar/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/hotbar/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/hotbar/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/hotbar/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/hotbar/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_arrow": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.arrow",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/arrow/01", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/arrow/02", "attenuation_distance": 96 },
-      { "name": "thefourthfrequency:world_interface/arrow/03", "attenuation_distance": 96 }
+      {
+        "name": "thefourthfrequency:world_interface/arrow/01",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/arrow/02",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "thefourthfrequency:world_interface/arrow/03",
+        "attenuation_distance": 96
+      }
     ]
   },
   "world_interface_expulsion": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.expulsion",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/expulsion/01", "volume": 0.48, "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/expulsion/02", "volume": 0.48, "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/expulsion/03", "volume": 0.48, "attenuation_distance": 128 }
+      {
+        "name": "thefourthfrequency:world_interface/expulsion/01",
+        "volume": 0.48,
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/expulsion/02",
+        "volume": 0.48,
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/expulsion/03",
+        "volume": 0.48,
+        "attenuation_distance": 128
+      }
     ]
   },
   "world_interface_eviction": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.eviction",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/eviction/01", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/eviction/02", "attenuation_distance": 128 }
+      {
+        "name": "thefourthfrequency:world_interface/eviction/01",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/eviction/02",
+        "attenuation_distance": 128
+      }
     ]
   },
   "world_interface_success": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.success",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/success/01", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/success/02", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/success/03", "attenuation_distance": 128 }
+      {
+        "name": "thefourthfrequency:world_interface/success/01",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/success/02",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/success/03",
+        "attenuation_distance": 128
+      }
     ]
   },
   "world_interface_failure": {
     "subtitle": "subtitles.thefourthfrequency.world_interface.failure",
     "sounds": [
-      { "name": "thefourthfrequency:world_interface/failure/01", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/failure/02", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/failure/03", "attenuation_distance": 128 },
-      { "name": "thefourthfrequency:world_interface/failure/04", "attenuation_distance": 128 }
+      {
+        "name": "thefourthfrequency:world_interface/failure/01",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/failure/02",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/failure/03",
+        "attenuation_distance": 128
+      },
+      {
+        "name": "thefourthfrequency:world_interface/failure/04",
+        "attenuation_distance": 128
+      }
     ]
   },
   "music_menu": {
     "sounds": [
-      {"name":"thefourthfrequency:music/menu/green_to_blue","stream":true},
-      {"name":"thefourthfrequency:music/menu/frutiger_aero","stream":true},
-      {"name":"thefourthfrequency:music/menu/hi_piano","stream":true},
-      {"name":"thefourthfrequency:music/menu/nop","stream":true}
+      {
+        "name": "thefourthfrequency:music/menu/green_to_blue",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/menu/hi_piano",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/menu/nop",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/menu/comfort_chain",
+        "stream": true
+      }
     ]
   },
   "music_game": {
     "sounds": [
-      {"name":"thefourthfrequency:music/game/millennium_dream","stream":true},
-      {"name":"thefourthfrequency:music/game/are_you_lost","stream":true},
-      {"name":"thefourthfrequency:music/game/hi","stream":true},
-      {"name":"thefourthfrequency:music/game/tenshi","stream":true},
-      {"name":"thefourthfrequency:music/game/school_rooftop","stream":true},
-      {"name":"thefourthfrequency:music/game/comfort_chain","stream":true},
-      {"name":"thefourthfrequency:music/game/snowfall","stream":true}
+      {
+        "name": "thefourthfrequency:music/game/millennium_dream",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/are_you_lost",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/hi",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/tenshi",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/school_rooftop",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/comfort_chain",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/snowfall",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/six_forty_seven",
+        "stream": true
+      },
+      {
+        "name": "thefourthfrequency:music/game/on_top",
+        "stream": true
+      }
     ]
   },
   "music_pursuit": {
     "sounds": [
-      {"name":"thefourthfrequency:music/pursuit/level","stream":true}
+      {
+        "name": "thefourthfrequency:music/pursuit/level",
+        "stream": true
+      }
     ]
   },
-  "music_encounter": {
+  "music_unrendered": {
     "sounds": [
-      {"name":"thefourthfrequency:music/encounter/ncpd_prowl","stream":true}
+      {
+        "name": "thefourthfrequency:music/unrendered/nice_boys",
+        "stream": true
+      }
+    ]
+  },
+  "music_end": {
+    "sounds": [
+      {
+        "name": "thefourthfrequency:music/end/except_you",
+        "stream": true
+      }
+    ]
+  },
+  "music_encounter_phase_1": {
+    "sounds": [
+      {
+        "name": "thefourthfrequency:music/encounter/especially_you",
+        "stream": true
+      }
+    ]
+  },
+  "music_encounter_phase_2": {
+    "sounds": [
+      {
+        "name": "thefourthfrequency:music/encounter/lovve",
+        "stream": true
+      }
     ]
   },
   "music_encounter_final": {
     "sounds": [
-      {"name":"thefourthfrequency:music/encounter/wake_up","stream":true}
+      {
+        "name": "thefourthfrequency:music/encounter/wake_up",
+        "stream": true
+      }
     ]
   },
   "music_ending": {
     "sounds": [
-      {"name":"thefourthfrequency:music/ending/reverie","stream":true}
+      {
+        "name": "thefourthfrequency:music/ending/me_and_you",
+        "stream": true
+      }
     ]
   },
   "music_ending_failure": {
     "sounds": [
-      {"name":"thefourthfrequency:music/ending/fallen_down","stream":true}
+      {
+        "name": "thefourthfrequency:music/ending/fallen_down",
+        "stream": true
+      }
+    ]
+  },
+  "unrendered_layer_ambience": {
+    "sounds": [
+      {
+        "name": "thefourthfrequency:unrendered/layer_ambience",
+        "stream": true
+      }
+    ]
+  },
+  "unrendered_capture_scream": {
+    "subtitle": "subtitles.thefourthfrequency.unrendered_capture_scream",
+    "sounds": [
+      "thefourthfrequency:unrendered/capture_scream"
+    ]
+  },
+  "unrendered_heartbeat": {
+    "subtitle": "subtitles.thefourthfrequency.unrendered_heartbeat",
+    "sounds": [
+      {
+        "name": "thefourthfrequency:unrendered/heartbeat",
+        "attenuation_distance": 64
+      }
     ]
   }
 }

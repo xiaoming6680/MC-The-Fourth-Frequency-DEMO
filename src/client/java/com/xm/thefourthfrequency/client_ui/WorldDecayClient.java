@@ -19,7 +19,26 @@ public final class WorldDecayClient {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
 	}
 
-	public static int stage() { return Math.max(serverStage, transientTicks > 0 ? transientStage : 0); }
+	/**
+	 * Decay stage as it applies where the player currently is - which is zero inside the unrendered
+	 * layer.
+	 *
+	 * <p>Decay is a statement about <em>the player's own world</em> coming apart, sent per player and
+	 * painted onto the blocks around them. The layer is not their world; it is the thing behind it,
+	 * and it was never solved correctly to begin with. Letting stage-five corruption eat its walls
+	 * would say the layer is rotting along with everything else - which files it inside the same
+	 * story rather than outside it, and costs the one property the place actually runs on, that every
+	 * room down there looks exactly like every other room.
+	 *
+	 * <p>Safe to gate here rather than at each consumer because {@code TextureDecayMixin} hooks
+	 * {@code TextureManager.getTexture}, which resolves per draw rather than at resource load: the
+	 * walls stop being corrupted on the tick the player arrives and start again on the tick they
+	 * leave, with no reload.
+	 */
+	public static int stage() {
+		if (UnrenderedLayerClient.inLayer()) return 0;
+		return Math.max(serverStage, transientTicks > 0 ? transientStage : 0);
+	}
 	public static void pulse(int requestedStage, int durationTicks) {
 		transientStage = Math.clamp(requestedStage, 1, 5);
 		transientTicks = Math.max(transientTicks, Math.max(1, durationTicks));

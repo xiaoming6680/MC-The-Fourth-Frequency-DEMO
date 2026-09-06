@@ -8,7 +8,7 @@ import com.xm.thefourthfrequency.client_ui.RedHorizonTimeline;
  *
  * <p>The weather tool was the one instrument in the terminal that never reacted to anything. Two
  * anomalies already repaint the sky - {@code red_horizon} tints the dome, the horizon band and the
- * fog, {@code temporal_drift} rotates the sun, moon and stars away from the local clock - and a
+ * fog, {@code metric_drift} rotates the sun, moon and stars away from the local clock - and a
  * player could stand under either of them, open the tool, and be told "clear, daytime" by a device
  * whose entire premise is that it reports the world honestly. This file is what closes that gap.</p>
  *
@@ -72,7 +72,7 @@ public final class SkyInstrumentPolicy {
 	/**
 	 * Where a sustained anomaly sits, deliberately below {@link #STAGE_TWO}.
 	 *
-	 * <p>{@code temporal_drift} runs for three to five minutes and its whole design is to stay low
+	 * <p>{@code metric_drift} runs for three to five minutes and its whole design is to stay low
 	 * enough to be doubted. Five unbroken minutes of tearing and flooding would convert it from
 	 * "you are not sure anything happened" into "the screen is broken", which is a different and
 	 * much cheaper feeling. Capping the envelope below the stage-2 threshold makes that structural
@@ -115,14 +115,14 @@ public final class SkyInstrumentPolicy {
 		return switch (anomalyId) {
 			case "red_horizon" ->
 					RedHorizonTimeline.horizonStrength(elapsedTicks, remainingTicks, durationTicks);
-			case "temporal_drift" -> sustained(elapsedTicks, remainingTicks, durationTicks);
+			case "metric_drift" -> sustained(elapsedTicks, remainingTicks, durationTicks);
 			default -> 0.0F;
 		};
 	}
 
 	/** True when this anomaly id is one the weather tool reacts to at all. */
 	public static boolean isSkyAnomaly(String anomalyId) {
-		return "red_horizon".equals(anomalyId) || "temporal_drift".equals(anomalyId);
+		return "red_horizon".equals(anomalyId) || "metric_drift".equals(anomalyId);
 	}
 
 	/**

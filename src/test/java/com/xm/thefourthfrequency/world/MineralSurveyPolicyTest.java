@@ -79,11 +79,51 @@ final class MineralSurveyPolicyTest {
 	}
 
 	@Test
-	void readingIsExactOnlyInsideTwelveBlocks() {
-		assertTrue(MineralSurveyPolicy.exactReading(12, 0, 0));
-		assertTrue(MineralSurveyPolicy.exactReading(6, 6, 6));
-		assertFalse(MineralSurveyPolicy.exactReading(12, 1, 0));
-		assertFalse(MineralSurveyPolicy.exactReading(0, 0, 13));
+	void exactReadingRadiusScalesWithEachOresHearingRange() {
+		assertEquals(19, MineralSurveyPolicy.exactReadingRadius(TerminalResource.COAL));
+		assertEquals(16, MineralSurveyPolicy.exactReadingRadius(TerminalResource.IRON));
+		assertEquals(12, MineralSurveyPolicy.exactReadingRadius(TerminalResource.GOLD));
+		assertEquals(12, MineralSurveyPolicy.exactReadingRadius(TerminalResource.DIAMOND));
+		assertEquals(12, MineralSurveyPolicy.exactReadingRadius(TerminalResource.EMERALD));
+		assertEquals(0, MineralSurveyPolicy.exactReadingRadius(TerminalResource.NONE));
+	}
+
+	/**
+	 * The floor is the whole reason this is a max() rather than a plain percentage: sixty percent of
+	 * diamond's sixteen-block range is under twelve, so scaling alone would have made the rarest
+	 * readings worse than the flat radius they replaced.
+	 */
+	@Test
+	void noOreLosesGroundAgainstTheFlatRadiusItReplaced() {
+		for (TerminalResource resource : TerminalResource.values()) {
+			if (resource == TerminalResource.NONE) continue;
+			assertTrue(MineralSurveyPolicy.exactReadingRadius(resource)
+							>= MineralSurveyPolicy.MINIMUM_EXACT_READING_RADIUS,
+					resource + " fell below the radius every ore used to get");
+		}
+	}
+
+	/** An exact reading may never be promised past the distance the ore can be heard at all. */
+	@Test
+	void exactRadiusNeverExceedsTheProbeRadius() {
+		for (TerminalResource resource : TerminalResource.values()) {
+			assertTrue(MineralSurveyPolicy.exactReadingRadius(resource)
+							<= MineralSurveyPolicy.probeRadius(resource),
+					resource + " could report an exact hit it cannot hear");
+		}
+	}
+
+	@Test
+	void readingIsExactOnlyInsideThatOresRadius() {
+		assertTrue(MineralSurveyPolicy.exactReading(TerminalResource.DIAMOND, 12, 0, 0));
+		assertTrue(MineralSurveyPolicy.exactReading(TerminalResource.DIAMOND, 6, 6, 6));
+		assertFalse(MineralSurveyPolicy.exactReading(TerminalResource.DIAMOND, 12, 1, 0));
+		assertFalse(MineralSurveyPolicy.exactReading(TerminalResource.DIAMOND, 0, 0, 13));
+		// The same offset that is only a bearing for diamond is an exact hit for coal.
+		assertTrue(MineralSurveyPolicy.exactReading(TerminalResource.COAL, 0, 0, 13));
+		assertTrue(MineralSurveyPolicy.exactReading(TerminalResource.COAL, 19, 0, 0));
+		assertFalse(MineralSurveyPolicy.exactReading(TerminalResource.COAL, 20, 0, 0));
+		assertFalse(MineralSurveyPolicy.exactReading(TerminalResource.NONE, 0, 0, 0));
 	}
 
 	@Test

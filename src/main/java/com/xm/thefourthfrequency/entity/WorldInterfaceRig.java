@@ -434,10 +434,40 @@ public final class WorldInterfaceRig {
 		return pose;
 	}
 
-	/** 0..1 through the telegraph window of the current action, or -1 when the interface is idle. */
+	/**
+	 * How long the charge takes to come back off once the telegraph window has passed.
+	 *
+	 * <p>Without this the term fell off a cliff. It ramped zero to one across
+	 * {@link #ACTION_CHARGE_MILLIS} and then, on the very next tick, returned the idle sentinel -
+	 * which every consumer reads as zero. {@link #headTracking} turns it into how far the three heads
+	 * lean toward what the storm is about to do, so at two seconds into <em>every single action</em>
+	 * the entire lean was undone between one frame and the next: at third form that is the skulls
+	 * crossing several blocks in fifty milliseconds, on every attack the fight throws. It is the
+	 * single largest reason the boss reads as blinking rather than moving, and it is not in any clip
+	 * - which is why it survived every pass over the authored animation.
+	 *
+	 * <p>Nine hundred milliseconds is a little under half the build-up. The heads lean in over two
+	 * seconds while the attack is announced and settle back over the following second as it lands,
+	 * which is the shape the term was always describing.
+	 */
+	public static final long ACTION_CHARGE_RELEASE_MILLIS = 900L;
+
+	/**
+	 * 0..1 through the telegraph window of the current action, easing back to the -1 idle sentinel
+	 * across {@link #ACTION_CHARGE_RELEASE_MILLIS} once that window has passed.
+	 *
+	 * <p>The sentinel is kept rather than replaced with a plain zero because several consumers
+	 * distinguish "no action" from "an action at zero charge", and because the value is published to
+	 * the render state. What changed is only that the fall to it is travelled rather than jumped.
+	 */
 	public static float actionCharge(int actionId, long actionAgeMillis) {
-		return actionId > 0 && actionAgeMillis <= ACTION_CHARGE_MILLIS
-				? Mth.clamp(actionAgeMillis / (float) ACTION_CHARGE_MILLIS, 0.0F, 1.0F) : -1.0F;
+		if (actionId <= 0 || actionAgeMillis < 0L) return -1.0F;
+		if (actionAgeMillis <= ACTION_CHARGE_MILLIS) {
+			return Mth.clamp(actionAgeMillis / (float) ACTION_CHARGE_MILLIS, 0.0F, 1.0F);
+		}
+		long since = actionAgeMillis - ACTION_CHARGE_MILLIS;
+		if (since >= ACTION_CHARGE_RELEASE_MILLIS) return -1.0F;
+		return 1.0F - since / (float) ACTION_CHARGE_RELEASE_MILLIS;
 	}
 
 	/**

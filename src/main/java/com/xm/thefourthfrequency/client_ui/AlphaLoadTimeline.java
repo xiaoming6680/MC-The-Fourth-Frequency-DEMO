@@ -207,14 +207,23 @@ public final class AlphaLoadTimeline {
 	/** How long a layer takes to reach full strength once its event fires. */
 	public static final int LAYER_FADE_TICKS = 10;
 	/**
-	 * How long the noise floor takes to come up under the wall.
+	 * How long the noise floor takes to come up under the wall. Zero: it arrives with it.
 	 *
-	 * <p>Audio only. The wall itself used to wipe outward from the middle of the screen over these
-	 * same six ticks, and it does not any more: it is simply there, on one frame, whole. A wipe is a
-	 * transition, and a transition is something a piece of software chose to play - the wall lands
-	 * harder as a cut because a cut is what a signal actually does.
+	 * <p>This was six ticks, matched to a wipe that used to open the wall outward from the middle of
+	 * the screen over exactly that long. The wall became a cut - it is simply there, on one frame,
+	 * whole, because a wipe is a transition and a transition is something a piece of software chose
+	 * to play - and this ramp was left behind pointing at an event that no longer happens.
+	 *
+	 * <p>The audible gap was much wider than six ticks, because the bed also eases toward whatever
+	 * this asks for: on the frame the picture cut, the static was at zero, and it needed about a
+	 * second to arrive. A picture that fails a second before its own noise floor does not read as one
+	 * signal failing, it reads as a slideshow with a sound cue after it. So the ramp goes, and the
+	 * bed is snapped rather than eased on this one transition - see {@code AlphaCorruptionAudio}.
+	 *
+	 * <p>Every other layer still ramps. This is the one beat in the sequence that is a cut, and it is
+	 * a cut in both channels or in neither.
 	 */
-	public static final int FLOOD_STATIC_RISE_TICKS = 6;
+	public static final int FLOOD_STATIC_RISE_TICKS = 0;
 	/** Old sets collapsed the picture to a bright line before losing it altogether. */
 	public static final int BLACKOUT_COLLAPSE_TICKS = 5;
 	/** After dead air the picture does not simply exist again; it has to find its lock. */

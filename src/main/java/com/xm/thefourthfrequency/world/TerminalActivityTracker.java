@@ -14,7 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.BuiltInRegistries;
-import com.xm.thefourthfrequency.pursuit.PursuitDimensions;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -29,7 +28,7 @@ public final class TerminalActivityTracker {
 
 	public static void initialize() {
 		PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
-			if (player instanceof ServerPlayer serverPlayer && !PursuitDimensions.isMirror(level)) {
+			if (player instanceof ServerPlayer serverPlayer && !PrivateDimensions.isPrivate(level)) {
 				record(serverPlayer, TerminalData.MINED_BLOCKS, "mined");
 			}
 		});
@@ -38,7 +37,7 @@ public final class TerminalActivityTracker {
 			if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
 				return InteractionResult.PASS;
 			}
-			if (PursuitDimensions.isMirror(level)) return InteractionResult.PASS;
+			if (PrivateDimensions.isPrivate(level)) return InteractionResult.PASS;
 			if (level.getBlockEntity(hit.getBlockPos()) != null) {
 				record(serverPlayer, TerminalData.DEVICE_INTERACTIONS, "device");
 			}
@@ -63,7 +62,7 @@ public final class TerminalActivityTracker {
 			return;
 		}
 		for (PendingPlacement placement : pending) {
-			if (PursuitDimensions.isMirror(placement.player.level())) continue;
+			if (PrivateDimensions.isPrivate(placement.player.level())) continue;
 			BlockState hitNow = placement.player.level().getBlockState(placement.hitPos);
 			BlockState adjacentNow = placement.player.level().getBlockState(placement.adjacentPos);
 			boolean hitChanged = !hitNow.equals(placement.hitBefore) && hitNow.is(placement.block);

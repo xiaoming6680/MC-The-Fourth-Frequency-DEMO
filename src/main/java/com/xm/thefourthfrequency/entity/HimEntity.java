@@ -94,6 +94,19 @@ public final class HimEntity extends Monster {
 	}
 
 	/**
+	 * Sent to the player it is haunting, and to nobody else.
+	 *
+	 * <p>Same reasoning as {@code WatcherEntity#broadcastToPlayer}, and one tell of its own: this one
+	 * vanishes on any damage at all, so on a shared server a teammate's stray arrow or a skeleton
+	 * shooting past could delete a sighting the target was in the middle of having. A client that
+	 * never receives the entity cannot do that, and neither can anything it owns.
+	 */
+	@Override
+	public boolean broadcastToPlayer(ServerPlayer player) {
+		return watchedPlayer == null || haunts(player.getUUID());
+	}
+
+	/**
 	 * Keeps the figure square on to the player, every tick, for as long as it stands there.
 	 *
 	 * <p>It used to be aimed once at spawn and then left. That is fine while the player holds still,

@@ -13,7 +13,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
@@ -57,6 +56,7 @@ public final class AnomalyServerEffects {
 			case "light_dropout" -> lightDropout(player, durationTicks);
 			case "door_cascade" -> doors(player, seed);
 			case "experience_gap" -> movement(player, durationTicks);
+			case "unrendered_layer" -> unrenderedLayer(player, durationTicks);
 			default -> new EffectLease(() -> { });
 		};
 	}
@@ -90,6 +90,24 @@ public final class AnomalyServerEffects {
 			DoorCascadeTask removed = DOORS.remove(player);
 			if (removed != null) removed.clearProgress();
 		});
+	}
+
+	/**
+	 * The one effect that owns its own clock.
+	 *
+	 * <p>Everything else here is torn down by the lease when the anomaly's duration elapses, and the
+	 * lease is enough because the effect is something layered over the world the player is standing
+	 * in. This one moved them out of that world, so its end condition is a place rather than a time -
+	 * and {@code UnrenderedSessionService} has to keep watching for a disconnect, a death and a
+	 * shutdown that the anomaly runtime knows nothing about. The lease is still the timeout: it fires
+	 * at the duration and returns anybody still down there.
+	 */
+	private static EffectLease unrenderedLayer(ServerPlayer player, int durationTicks) {
+		if (!com.xm.thefourthfrequency.unrendered.UnrenderedSessionService.begin(player, durationTicks)) {
+			return null;
+		}
+		return new EffectLease(() -> com.xm.thefourthfrequency.unrendered.UnrenderedSessionService
+				.returnToSource(player, "anomaly_cleanup"));
 	}
 
 	private static EffectLease movement(ServerPlayer player, int durationTicks) {
@@ -256,6 +274,27 @@ public final class AnomalyServerEffects {
 		}
 	}
 
+	/**
+	 * A block whose light is off, or {@code null} to leave this one alone.
+	 *
+	 * <p>The order is deliberate, and the last two branches are the point. Anything with a {@code LIT}
+	 * property or a light level just turns it off and is perfectly reversible. Everything else has to
+	 * be replaced, and the two kinds of light source want opposite answers:
+	 *
+	 * <ul>
+	 * <li><b>Thin fittings</b> - torches, lanterns, end rods, glow lichen - are things hung on a
+	 *     surface. Removing one leaves the surface intact, which is exactly what a light going out
+	 *     looks like, so these are cleared.</li>
+	 * <li><b>Solid blocks</b> - glowstone, sea lanterns, shroomlight - are structure. Clearing one
+	 *     punches a hole through somebody's wall, which is not a light going out, it is a block being
+	 *     stolen. These are swapped for a dead relative of the same family where one exists
+	 *     ({@link #DARK_TWIN}), and left completely alone where none does.</li>
+	 * </ul>
+	 *
+	 * <p>Leaving one alone is a real answer rather than a failure: the effect is "the dark arrives",
+	 * and it survives one glowstone block in the ceiling staying lit far better than it survives the
+	 * ceiling gaining a hole.
+	 */
 	private static BlockState extinguishedState(ServerLevel level, BlockPos pos, BlockState state) {
 		if (state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT)) {
 			return state.setValue(BlockStateProperties.LIT, false);
@@ -265,8 +304,27 @@ public final class AnomalyServerEffects {
 		}
 		// Never erase inventories, portal controllers, or fluids merely because they emit light.
 		if (level.getBlockEntity(pos) != null || !state.getFluidState().isEmpty()) return null;
-		return Blocks.AIR.defaultBlockState();
+		Block twin = DARK_TWIN.get(state.getBlock());
+		if (twin != null) return twin.defaultBlockState();
+		return state.isCollisionShapeFullBlock(level, pos) ? null : Blocks.AIR.defaultBlockState();
 	}
+
+	/**
+	 * Solid light sources that have an honest unlit relative, and what it is.
+	 *
+	 * <p>Curated rather than derived: there is no registry relation between a jack o'lantern and a
+	 * carved pumpkin, and a heuristic that guessed at one would eventually swap somebody's build for
+	 * a block that merely happens to be the same colour. Anything not on this list is left standing.
+	 *
+	 * <p>Glowstone is deliberately absent. It has no unlit relative, and the nearest thing by colour
+	 * is sand - which falls. Swapping a ceiling light for a gravity block would rearrange the build
+	 * permanently and leave nothing to read it by. It stays lit.
+	 */
+	private static final Map<Block, Block> DARK_TWIN = Map.of(
+			Blocks.JACK_O_LANTERN, Blocks.CARVED_PUMPKIN,
+			Blocks.SEA_LANTERN, Blocks.PRISMARINE_BRICKS,
+			Blocks.SHROOMLIGHT, Blocks.NETHER_WART_BLOCK,
+			Blocks.CRYING_OBSIDIAN, Blocks.OBSIDIAN);
 
 	private static final class DoorCascadeTask {
 		private static final int SEARCH_RADIUS = 20;
@@ -290,6 +348,11 @@ public final class AnomalyServerEffects {
 				BlockState state = level.getBlockState(pos);
 				if (!(state.getBlock() instanceof DoorBlock) || !state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
 						|| state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != DoubleBlockHalf.LOWER) continue;
+				// A door that is already open has nothing to be forced. Filtered here rather than at the
+				// tick so the count the sequence is built from is the number of doors that will actually
+				// move - otherwise a house left open would spend half the cascade on nothing visible.
+				if (!state.hasProperty(BlockStateProperties.OPEN)
+						|| state.getValue(BlockStateProperties.OPEN)) continue;
 				BlockPos upper = pos.above();
 				if (!(level.getBlockState(upper).getBlock() instanceof DoorBlock) || protectedPosition(level, data, upper)) continue;
 				candidates.add(pos.immutable());
@@ -311,15 +374,18 @@ public final class AnomalyServerEffects {
 					level.destroyBlockProgress(breaker, lower, stageAge);
 					if (stageAge == BREAK_TICKS - 1) {
 						level.destroyBlockProgress(breaker, lower, -1);
+						// Everything about this beat is kept except the deletion. The cracks, the
+						// particle burst, the zombie's break sound and the material's own break sound
+						// all still say a door was forced - but what is left afterwards is a door
+						// standing open rather than a doorway with nothing in it and no dropped item to
+						// pick up. The old version replaced both halves with air and then discarded the
+						// drops, which is the silent swallowing the world bible rules out; on a shared
+						// server it was doing it to doors the target had never touched.
 						level.levelEvent(2001, lower, Block.getId(state));
 						level.playSound(null, lower, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR,
 								SoundSource.BLOCKS, 1.15F, 0.82F);
 						level.playSound(null, lower, state.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F, 0.8F);
-						// Suppress paired-door neighbor drops; particles and material audio were sent above.
-						level.setBlock(lower.above(), Blocks.AIR.defaultBlockState(), 2);
-						level.setBlock(lower, Blocks.AIR.defaultBlockState(), 2);
-						level.getEntitiesOfClass(ItemEntity.class, new AABB(lower).inflate(2.0D),
-								item -> item.getItem().is(state.getBlock().asItem())).forEach(ItemEntity::discard);
+						forceOpen(level, lower, state);
 					}
 				}
 			}
@@ -330,6 +396,26 @@ public final class AnomalyServerEffects {
 		private void clearProgress() {
 			for (int index = 0; index < doors.size(); index++)
 				level.destroyBlockProgress(breakerId(player, index), doors.get(index), -1);
+		}
+
+		/**
+		 * Swings the door and leaves it swung. Both halves, because a door is two blocks and setting
+		 * only the lower one produces a pair whose halves disagree about being open.
+		 *
+		 * <p>{@code UPDATE_ALL} rather than the client-only flag the deletion used: this is a real
+		 * state change that redstone, pathfinding and anything else watching the block is entitled to
+		 * see. An already-open door is left alone rather than being toggled shut, since the effect is
+		 * "your doors are open", not "your doors moved".
+		 */
+		private static void forceOpen(ServerLevel level, BlockPos lower, BlockState state) {
+			if (!state.hasProperty(BlockStateProperties.OPEN)
+					|| state.getValue(BlockStateProperties.OPEN)) return;
+			level.setBlock(lower, state.setValue(BlockStateProperties.OPEN, true), Block.UPDATE_ALL);
+			BlockState upper = level.getBlockState(lower.above());
+			if (upper.getBlock() instanceof DoorBlock && upper.hasProperty(BlockStateProperties.OPEN)) {
+				level.setBlock(lower.above(), upper.setValue(BlockStateProperties.OPEN, true),
+						Block.UPDATE_ALL);
+			}
 		}
 	}
 

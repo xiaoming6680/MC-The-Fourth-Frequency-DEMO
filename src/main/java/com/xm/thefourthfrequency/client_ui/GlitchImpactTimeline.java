@@ -2,7 +2,7 @@ package com.xm.thefourthfrequency.client_ui;
 
 /**
  * The shape of a corruption impact: the burst that ends peripheral_residue, and the one that
- * answers a strike on a surface_fracture.
+ * answers a strike on the fracture opened by phantom_echo.
  *
  * <p>The burst this replaces was a single envelope - one flat white fill, fourteen randomly
  * coloured bars and seven rows of obfuscated glyphs, every layer fading on the same linear ramp.

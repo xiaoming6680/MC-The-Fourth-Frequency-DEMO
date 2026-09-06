@@ -9,6 +9,7 @@
   "tooltip.thefourthfrequency.old_terminal.owner": "Registered holder: %s",
   "tooltip.thefourthfrequency.old_terminal.stock": "Dispense record: stock 0",
   "message.thefourthfrequency.terminal.dispensed": "Relay Station Zero: personal terminal delivered; no spares remain.",
+  "message.thefourthfrequency.terminal.frequency_closed": "The rack is empty and the socket does not answer. This world's fourth frequency is closed.",
   "message.thefourthfrequency.terminal.recovered": "Dispense system: the sole valid terminal was recovered; older copies are invalid.",
   "message.thefourthfrequency.terminal.recovery_waiting": "Dispense system: no safe empty slot; recovery will resume when one is available.",
   "message.thefourthfrequency.task.reward_claimed": "Claimed %s ×%s.",
@@ -51,726 +52,853 @@
   "terminal.thefourthfrequency.activity.last.placed": "Last behavior: placement",
   "terminal.thefourthfrequency.activity.last.device": "Last behavior: device interaction",
   "terminal.thefourthfrequency.activity.last.crafted": "Last behavior: crafting",
-  "terminal.thefourthfrequency.activity.trace": "Behavior traces belong only to the current holder"
-  ,"terminal.thefourthfrequency.resource.iron": "iron ore"
-  ,"terminal.thefourthfrequency.resource.coal": "coal ore"
-  ,"terminal.thefourthfrequency.resource.gold": "gold ore"
-  ,"terminal.thefourthfrequency.resource.diamond": "diamond ore"
-  ,"terminal.thefourthfrequency.resource.unresolved": "unresolved"
-  ,"terminal.thefourthfrequency.direction.north": "north"
-  ,"terminal.thefourthfrequency.direction.south": "south"
-  ,"terminal.thefourthfrequency.direction.east": "east"
-  ,"terminal.thefourthfrequency.direction.west": "west"
-  ,"terminal.thefourthfrequency.direction.northeast": "northeast"
-  ,"terminal.thefourthfrequency.direction.northwest": "northwest"
-  ,"terminal.thefourthfrequency.direction.southeast": "southeast"
-  ,"terminal.thefourthfrequency.direction.southwest": "southwest"
-  ,"terminal.thefourthfrequency.records.open_navigation": "[OPEN NAV]"
-  ,"terminal.thefourthfrequency.compass.west": "W"
-  ,"terminal.thefourthfrequency.compass.east": "E"
-  ,"terminal.thefourthfrequency.compass.south": "S"
-  ,"terminal.thefourthfrequency.compass.north": "N"
-  ,"terminal.thefourthfrequency.relative_direction.ahead": "front"
-  ,"terminal.thefourthfrequency.relative_direction.right": "right"
-  ,"terminal.thefourthfrequency.relative_direction.behind": "back"
-  ,"terminal.thefourthfrequency.relative_direction.left": "left"
-  ,"message.thefourthfrequency.archive.unlocked": "The complete witness journal has been unlocked"
-  ,"terminal.thefourthfrequency.archive.file_identity": "Local copy · version %s · checksum %s"
-  ,"text.thefourthfrequency.archive.line.identity": "Day 18. The terminal kept recording after I crossed a portal. Those missing six seconds were not an equipment fault."
-  ,"text.thefourthfrequency.archive.line.output_boundary": "The terminal's text can change; this local copy does not. Check its version and checksum."
-  ,"text.thefourthfrequency.archive.line.continuity": "The record follows neither place nor dimension. It follows whoever carries the terminal."
-  ,"text.thefourthfrequency.archive.line.material": "It keeps my footsteps, pauses, and breathing as though practicing how to become me."
-  ,"text.thefourthfrequency.archive.line.warning": "If you can read the complete version, it has handed my record to its next carrier. Do not assume every new sentence is mine."
-  ,"text.thefourthfrequency.archive.line.continuation.pending": "After the checksum, a line appeared that I never wrote: the next carrier has not arrived."
-  ,"text.thefourthfrequency.archive.line.continuation.nether": "That line has rewritten itself: you carried me across a world."
-  ,"text.thefourthfrequency.archive.line.continuation.return": "Another sentence appeared: you came back. This record was never about me. Now it is about you."
-  ,"entity.thefourthfrequency.him": "HIM"
-  ,"entity.thefourthfrequency.rework_body": "Rework Body"
-  ,"screen.thefourthfrequency.empty_segment.experience_gap": "YOU CANNOT REMEMBER THE LAST FEW SECONDS"
-  ,"message.thefourthfrequency.meta.terminal_captured": "The creature took one terminal"
-  ,"key.thefourthfrequency.meta_toggle": "Post-ending full reset"
-  ,"key.thefourthfrequency.debug_panel": "Open Chinese test panel"
-  ,"command.thefourthfrequency.debug.no_record": "The current player has no Fourth Frequency terminal record."
-  ,"command.thefourthfrequency.debug.enabled": "Personal debug panel enabled; press M to open it."
-  ,"command.thefourthfrequency.debug.disabled": "Personal debug panel disabled."
-  ,"subtitles.thefourthfrequency.empty_viewpoint": "A door closes behind a footstep that did not move"
-  ,"subtitles.thefourthfrequency.empty_base": "A chest and doorway lose their address"
-  ,"subtitles.thefourthfrequency.empty_experience": "Stone settles where an experience should be"
-  ,"subtitles.thefourthfrequency.fourth_band": "The fourth band tests a joint between rules"
-  ,"subtitles.thefourthfrequency.rework_joint": "Heavy joints brace against deepslate"
-  ,"terminal.thefourthfrequency.serial.0": "TFF-R0 // FIELD INFORMATION TERMINAL"
-  ,"terminal.thefourthfrequency.serial.1": "TFF-R0/B // RELATION CONTACT MODIFIED"
-  ,"terminal.thefourthfrequency.serial.2": "TFF-R0/O // ORGAN MAPPING DAMAGE"
-  ,"terminal.thefourthfrequency.status.holder": "HOLDER"
-  ,"terminal.thefourthfrequency.status.holder_unbound": "UNREGISTERED"
-  ,"terminal.thefourthfrequency.status.clock": "WORLD"
-  ,"terminal.thefourthfrequency.status.clock_value": "D%s %s"
-  ,"terminal.thefourthfrequency.status.link": "LINK"
-  ,"terminal.thefourthfrequency.status.link_value": "%s/%s"
-  ,"terminal.thefourthfrequency.status.protocol": "PROTO"
-  ,"terminal.thefourthfrequency.boot.title": "POWER-ON SELF TEST"
-  ,"terminal.thefourthfrequency.boot.progress": "%s%%"
-  ,"terminal.thefourthfrequency.boot.line.power": "POWER OK"
-  ,"terminal.thefourthfrequency.boot.line.memory": "STORAGE READABLE"
-  ,"terminal.thefourthfrequency.boot.line.receiver": "RECEIVER STANDBY"
-  ,"terminal.thefourthfrequency.boot.line.archive": "ARCHIVE MOUNTED"
-  ,"terminal.thefourthfrequency.boot.line.bind": "HOLDER REGISTERED %s"
-  ,"terminal.thefourthfrequency.boot.line.ready": "READY"
-  ,"terminal.thefourthfrequency.onboarding.step.home": "Select the HOME tab"
-  ,"terminal.thefourthfrequency.onboarding.step.tools": "Select the TOOLS tab"
-  ,"terminal.thefourthfrequency.onboarding.step.records": "Select the RECORDS tab"
-  ,"terminal.thefourthfrequency.onboarding.step.files": "Select the FILES tab"
-  ,"terminal.thefourthfrequency.onboarding.brief.home": "Current objective, suggested tools, latest record"
-  ,"terminal.thefourthfrequency.onboarding.brief.tools": "Six field tools, unlocked one at a time"
-  ,"terminal.thefourthfrequency.onboarding.brief.records": "Events the terminal logged, newest first"
-  ,"terminal.thefourthfrequency.onboarding.brief.files": "Recovered files, and the damaged diary"
-  ,"terminal.thefourthfrequency.onboarding.brief.current": "This page - %s: %s"
-  ,"terminal.thefourthfrequency.onboarding.counter": "%s/%s"
-  ,"terminal.thefourthfrequency.onboarding.locked_hint": "Self test running - exit held"
-  ,"terminal.thefourthfrequency.onboarding.released_hint": "Unlocked - press Esc to exit"
-  ,"terminal.thefourthfrequency.onboarding.complete": "SETUP COMPLETE"
-  ,"terminal.thefourthfrequency.knob.mode": "MODE"
-  ,"terminal.thefourthfrequency.knob.tune": "TUNING"
-  ,"terminal.thefourthfrequency.mode.0": "SIGNAL"
-  ,"terminal.thefourthfrequency.mode.1": "FILES"
-  ,"terminal.thefourthfrequency.mode.2": "ARCHIVE"
-  ,"terminal.thefourthfrequency.close_hint": "Press Esc to exit"
-  ,"terminal.thefourthfrequency.signal.primary": "RECEIVER OUTPUT"
-  ,"terminal.thefourthfrequency.signal.static": "No reliable carrier. The waveform is display noise, not a reading."
-  ,"terminal.thefourthfrequency.archive.empty": "No local archive evidence is available."
-  ,"terminal.thefourthfrequency.ui.page.signal": "[01] SIGNAL MONITOR"
-  ,"terminal.thefourthfrequency.ui.signal.locked": "%s · CARRIER LOCKED"
-  ,"terminal.thefourthfrequency.ui.signal.unreliable": "NO RELIABLE SIGNAL"
-  ,"terminal.thefourthfrequency.ui.signal.readings": "[READINGS]"
-  ,"terminal.thefourthfrequency.ui.archive.section.local_file": "[LOCAL FILE]"
-  ,"terminal.thefourthfrequency.ui.read_only": "READ-ONLY"
-  ,"terminal.thefourthfrequency.ui.hint.signal": "←/→/wheel tune · ↑↓ scroll"
-  ,"terminal.thefourthfrequency.ui.position": "row %s/%s"
-  ,"subtitles.thefourthfrequency.terminal_click": "A worn selector settles against a contact"
-  ,"subtitles.thefourthfrequency.terminal_tune": "A brief static pulse crosses the terminal"
-  ,"subtitles.thefourthfrequency.terminal_lock": "The terminal locks onto a nearby signal"
-  ,"subtitles.thefourthfrequency.terminal_fault": "An unmarked contact answers between bands"
-  ,"terminal.thefourthfrequency.tab.signal": "[SIGNAL DETECTION]"
-  ,"terminal.thefourthfrequency.tab.home": "HOME"
-  ,"terminal.thefourthfrequency.tab.tools": "TOOLS"
-  ,"terminal.thefourthfrequency.tab.records": "RECORDS"
-  ,"terminal.thefourthfrequency.home.current_task": "CURRENT TASK"
-  ,"terminal.thefourthfrequency.home.claim_reward": "TASK COMPLETE"
-  ,"terminal.thefourthfrequency.home.quick": "QUICK TOOL"
-  ,"terminal.thefourthfrequency.home.pending_hint": "AWAITING NEXT SUGGESTION"
-  ,"terminal.thefourthfrequency.home.pending_hint.detail": "KEEP COLLECTING CURRENT DATA"
-  ,"terminal.thefourthfrequency.home.live_tool": "LIVE INFO · %s"
-  ,"terminal.thefourthfrequency.home.recent": "RECENT EVENT"
-  ,"terminal.thefourthfrequency.home.no_recent": "Nothing new has been recorded."
-  ,"terminal.thefourthfrequency.records.empty": "Nothing worth recording has happened yet."
-  ,"terminal.thefourthfrequency.tool.open": "OPEN"
-  ,"terminal.thefourthfrequency.tool.open_detail": "DETAIL"
-  ,"terminal.thefourthfrequency.tool.back": "< TOOLS"
-  ,"terminal.thefourthfrequency.tool.back_home": "< HOME"
-  ,"terminal.thefourthfrequency.tool.home": "HOME"
-  ,"terminal.thefourthfrequency.tool.minerals": "MINERALS"
-  ,"terminal.thefourthfrequency.tool.portal": "PORTAL"
-  ,"terminal.thefourthfrequency.tool.weather": "WEATHER"
-  ,"terminal.thefourthfrequency.tool.signal": "NAVIGATION"
-  ,"terminal.thefourthfrequency.tool.navigation": "NAVIGATION"
-  ,"terminal.thefourthfrequency.tool.stronghold": "STRONGHOLD"
-  ,"terminal.thefourthfrequency.tool.home.summary": "Automatically record your respawn point."
-  ,"terminal.thefourthfrequency.tool.minerals.summary": "Reports only ore it genuinely hears; rarer ore must be closer."
-  ,"terminal.thefourthfrequency.tool.portal.summary": "Automatically record portal positions."
-  ,"terminal.thefourthfrequency.tool.weather.summary": "Weather, time, and four sky channels."
-  ,"terminal.thefourthfrequency.tool.signal.summary": "Locate reachable structures for the current stage."
-  ,"terminal.thefourthfrequency.tool.navigation.summary": "Automatically probe for the nearest structure when appropriate."
-  ,"terminal.thefourthfrequency.tool.stronghold.summary": "Estimate a stronghold bearing from Eyes of Ender."
-  ,"terminal.thefourthfrequency.tool.minerals.waiting": "Probe idle."
-  ,"terminal.thefourthfrequency.tool.minerals.scanning": "Probing"
-  ,"terminal.thefourthfrequency.tool.minerals.not_found": "NO READING IN RANGE"
-  ,"terminal.thefourthfrequency.tool.minerals.nearby": "HIGH-VALUE ORE SURVEYED"
-  ,"terminal.thefourthfrequency.tool.minerals.nearby_short": "HIGH-VALUE ORE SURVEYED"
-  ,"terminal.thefourthfrequency.tool.minerals.refresh": "PROBE"
-  ,"message.thefourthfrequency.navigation.arrived": "Reached the %s target; guidance ended"
-  ,"terminal.thefourthfrequency.resource.emerald.locked": "Emerald [after entering the Nether]"
-  ,"terminal.thefourthfrequency.resource.emerald": "Emerald ore"
-  ,"terminal.thefourthfrequency.tool.minerals.bearing": "%s // %s // approx. %s-%s blocks"
-  ,"terminal.thefourthfrequency.tool.minerals.recharging": "CHARGING %s"
-  ,"terminal.thefourthfrequency.tool.minerals.charges": "CHARGE %s/%s"
-  ,"terminal.thefourthfrequency.tool.signal.count": "%s record(s) are available."
-  ,"terminal.thefourthfrequency.tool.weather.current": "Current: %s, %s."
-  ,"terminal.thefourthfrequency.tool.weather.day": "day"
-  ,"terminal.thefourthfrequency.tool.weather.night": "night"
-  ,"terminal.thefourthfrequency.tool.weather.until_dark": "Dark in about %s minute(s)."
-  ,"terminal.thefourthfrequency.tool.weather.until_light": "Light in about %s minute(s)."
-  ,"terminal.thefourthfrequency.tool.weather.lost": "Current: --, --. Reading will not resolve."
-  ,"terminal.thefourthfrequency.tool.weather.instrument": "SKY MONITOR"
-  ,"terminal.thefourthfrequency.tool.weather.channel.zenith": "ZENITH"
-  ,"terminal.thefourthfrequency.tool.weather.channel.horizon": "HORIZON"
-  ,"terminal.thefourthfrequency.tool.weather.channel.stars": "STARS"
-  ,"terminal.thefourthfrequency.tool.weather.channel.phase": "PHASE"
-  ,"terminal.thefourthfrequency.tool.weather.channel.saturated": "SAT"
-  ,"terminal.thefourthfrequency.tool.weather.fault.no_carrier": "SKY CH %s  NO CARRIER"
-  ,"terminal.thefourthfrequency.tool.weather.fault.rejected": "ZENITH SAMPLE REJECTED"
-  ,"terminal.thefourthfrequency.tool.weather.fault.saturated": "HORIZON CH SATURATED"
-  ,"terminal.thefourthfrequency.tool.weather.fault.phase_lost": "PHASE REF LOST"
-  ,"terminal.thefourthfrequency.tool.weather.fault.resync": "RESYNC FAILED %s"
-  ,"terminal.thefourthfrequency.tool.weather.fault.dome_timeout": "ZENITH SAMPLE TIMEOUT"
-  ,"terminal.thefourthfrequency.tool.weather.fault.star_underflow": "STAR MAGNITUDE UNDERFLOW"
-  ,"terminal.thefourthfrequency.tool.weather.fault.clock_mismatch": "SKY DISAGREES WITH LOCAL CLOCK"
-  ,"terminal.thefourthfrequency.tool.home.none": "No respawn point is available yet."
-  ,"terminal.thefourthfrequency.tool.home.bed": "Bed respawn point."
-  ,"terminal.thefourthfrequency.tool.home.saved": "Saved home."
-  ,"terminal.thefourthfrequency.tool.portal.none": "No real arrival has been recorded yet."
-  ,"terminal.thefourthfrequency.tool.location.same_dimension": "Same world: %s, about %s blocks away, Y=%s."
-  ,"terminal.thefourthfrequency.tool.location.other_dimension": "Recorded in another world: %s."
-  ,"terminal.thefourthfrequency.tool.signal.summary_counts": "NEARBY %s · FILES %s · TRAIL %s"
-  ,"terminal.thefourthfrequency.tool.home.locked": "Home records are temporarily unavailable."
-  ,"terminal.thefourthfrequency.tool.minerals.locked": "Collect 12 pieces of any wood before mineral analysis becomes available."
-  ,"terminal.thefourthfrequency.tool.portal.locked": "Complete one real Nether crossing to unlock this tool."
-  ,"terminal.thefourthfrequency.tool.weather.locked": "Weather records are temporarily unavailable."
-  ,"terminal.thefourthfrequency.tool.navigation.locked": "Collect 12 pieces of any wood before structure navigation becomes available."
-  ,"terminal.thefourthfrequency.tool.stronghold.locked": "Successfully obtain 3 Eyes of Ender to unlock stronghold estimation."
-  ,"terminal.thefourthfrequency.tool.stronghold.samples": "%s/%s Eye of Ender samples recorded."
-  ,"terminal.thefourthfrequency.tool.stronghold.other_dimension": "The estimate is in another world: %s."
-  ,"terminal.thefourthfrequency.tool.stronghold.estimate": "Roughly %s, about %s-%s blocks away (%s samples)."
-  ,"terminal.thefourthfrequency.tool.disabled": "This tool is unavailable for about %s more second(s)."
-  ,"terminal.thefourthfrequency.tool.guide": "START NAVIGATION"
-  ,"terminal.thefourthfrequency.tool.stop": "STOP NAVIGATION"
-  ,"terminal.thefourthfrequency.tool.pin": "PIN"
-  ,"terminal.thefourthfrequency.tool.unpin": "UNPIN"
-  ,"terminal.thefourthfrequency.tool.close_live": "CLOSE"
-  ,"terminal.thefourthfrequency.receiver.label": "RECEIVER"
-  ,"terminal.thefourthfrequency.receiver.strength": "SIGNAL %s%%"
-  ,"terminal.thefourthfrequency.receiver.search": "SEARCH"
-  ,"terminal.thefourthfrequency.receiver.locking": "LOCK %s/%s"
-  ,"terminal.thefourthfrequency.receiver.locked": "LOCKED"
-  ,"terminal.thefourthfrequency.receiver.open_signal": "OPEN SIGNAL"
-  ,"terminal.thefourthfrequency.receiver.standby": "STANDBY"
-  ,"terminal.thefourthfrequency.receiver.open_navigation": "SELECT AN ANOMALOUS SOURCE IN NAVIGATION"
-  ,"terminal.thefourthfrequency.receiver.mechanical_only": "MECHANICAL INPUT · NO EFFECT"
-  ,"terminal.thefourthfrequency.resource.iron.locked": "IRON [AFTER WOOD]"
-  ,"terminal.thefourthfrequency.resource.coal.locked": "COAL [AFTER WOOD]"
-  ,"terminal.thefourthfrequency.resource.gold.locked": "Gold [after delivering iron]"
-  ,"terminal.thefourthfrequency.resource.diamond.locked": "Diamond [after entering the Nether]"
-  ,"terminal.thefourthfrequency.navigation.target.village": "Nearest Village"
-  ,"terminal.thefourthfrequency.navigation.target.ruined_portal": "Ruined Portal"
-  ,"terminal.thefourthfrequency.navigation.target.mineshaft": "Mineshaft"
-  ,"terminal.thefourthfrequency.navigation.target.trial_chambers": "Trial Chambers"
-  ,"terminal.thefourthfrequency.navigation.target.fortress": "Nether Fortress"
-  ,"terminal.thefourthfrequency.navigation.target.bastion": "Bastion Remnant"
-  ,"terminal.thefourthfrequency.navigation.unstable_signal": "[OPTIONAL FILE INVESTIGATION]"
-  ,"terminal.thefourthfrequency.navigation.no_targets": "CONTINUE THE TASK · TARGETS WILL APPEAR AS NEEDED"
-  ,"terminal.thefourthfrequency.navigation.more_targets": "%s MORE TARGET(S) OFF THE LIST · REACH ONE FIRST"
-  ,"terminal.thefourthfrequency.navigation.structure.scanning": "LOCATING %s"
-  ,"terminal.thefourthfrequency.navigation.structure.unavailable": "%s IS IN ANOTHER DIMENSION"
-  ,"terminal.thefourthfrequency.navigation.structure.located": "%s · %s · ABOUT %s BLOCKS · HEIGHT %s"
-  ,"terminal.thefourthfrequency.navigation.completed": "Destination is on your %s. Navigation complete."
-  ,"message.thefourthfrequency.guidance.not_found": "Probe failed."
-  ,"message.thefourthfrequency.terminal.unread_reminder": "You have [%s] unread records."
-  ,"terminal.thefourthfrequency.tab.log": "FILES"
-  ,"terminal.thefourthfrequency.hint.log": "open file · wheel/↑↓ scroll"
-  ,"terminal.thefourthfrequency.log.unread": "%s UNREAD"
-  ,"terminal.thefourthfrequency.log.read": "ALL READ"
-  ,"terminal.thefourthfrequency.log.mark_all": "MARK ALL READ"
-  ,"terminal.thefourthfrequency.log.entry": "A-%s  %s"
-  ,"terminal.thefourthfrequency.log.detail.title": "ANOMALY RECORD A-%s"
-  ,"terminal.thefourthfrequency.log.detail.time": "TIME  %s"
-  ,"terminal.thefourthfrequency.log.detail.dimension": "DIMENSION  %s"
-  ,"terminal.thefourthfrequency.log.detail.type": "TYPE  %s"
-  ,"terminal.thefourthfrequency.log.detail.summary": "SUMMARY  %s"
-  ,"terminal.thefourthfrequency.log.type.phantom_echo": "RANDOM NEARBY FOOTSTEPS / DIGGING"
-  ,"terminal.thefourthfrequency.log.type.light_dropout": "LOCAL LIGHT DROPOUT"
-  ,"terminal.thefourthfrequency.log.type.peripheral_residue": "HANDS REACHING INTO SCREEN"
-  ,"terminal.thefourthfrequency.log.type.window_pulse": "GAME WINDOW PULSE"
-  ,"terminal.thefourthfrequency.log.type.surface_fracture": "FALSE SURFACE FRACTURE"
-  ,"terminal.thefourthfrequency.log.type.watcher_alignment": "ANIMAL ALIGNMENT"
-  ,"terminal.thefourthfrequency.log.type.dark_watcher": "GLOWING EYE IN THE DARK"
-  ,"terminal.thefourthfrequency.log.type.action_echo": "REPEATED ACTION"
-  ,"terminal.thefourthfrequency.log.type.viewpoint_separation": "VIEWPOINT SEPARATION"
-  ,"terminal.thefourthfrequency.log.type.door_cascade": "DOOR CASCADE"
-  ,"terminal.thefourthfrequency.log.type.organ_misread": "ITEMS SHOWN AS EYES"
-  ,"terminal.thefourthfrequency.log.type.rework_probe": "WORKER-SHAPED CREATURE NEARBY"
-  ,"terminal.thefourthfrequency.log.type.disconnected_base": "BASE DISCONNECTION"
-  ,"terminal.thefourthfrequency.log.type.experience_gap": "EXPERIENCE GAP"
-  ,"terminal.thefourthfrequency.log.type.local_rule_collapse": "MISSING NEARBY TEXTURES"
-  ,"terminal.thefourthfrequency.log.type.hostile_echo": "APPROACHING HOSTILE SOUNDS"
-  ,"terminal.thefourthfrequency.log.type.continuity": "STILL RECORDING AFTER CROSSING"
-  ,"terminal.thefourthfrequency.log.type.return": "RETURN CONTINUITY"
-  ,"terminal.thefourthfrequency.log.summary.phantom_echo": "Short human-paced bursts of footsteps or digging appeared nearby with irregular pauses."
-  ,"terminal.thefourthfrequency.log.summary.light_dropout": "Nearby ordinary block light sources were extinguished together on the server, then restored when the anomaly ended."
-  ,"terminal.thefourthfrequency.log.summary.peripheral_residue": "Two cold hands reached farther toward the center, then vanished exactly as the violent audiovisual corruption impact appeared."
-  ,"terminal.thefourthfrequency.log.summary.window_pulse": "The game window scaled and pulsed at twice its former speed before rapidly restoring its original state."
-  ,"terminal.thefourthfrequency.log.summary.surface_fracture": "The false fracture arrived with digging audio; attempting to mine it caused a violent audiovisual corruption impact."
-  ,"terminal.thefourthfrequency.log.summary.watcher_alignment": "Nearby animals appeared to align their attention simultaneously."
-  ,"terminal.thefourthfrequency.log.summary.dark_watcher": "A complete background-free glowing eye floated in the dark and played a cave sound when seen."
-  ,"terminal.thefourthfrequency.log.summary.action_echo": "The earlier self replayed walking, swinging, pose, equipment and item-use animation instead of sliding."
-  ,"terminal.thefourthfrequency.log.summary.viewpoint_separation": "The camera remained at the exact triggering view while the body stayed controllable."
-  ,"terminal.thefourthfrequency.log.summary.door_cascade": "Starting about twenty blocks away, several doors broke continuously from farthest to nearest with forced-door crashes."
-  ,"terminal.thefourthfrequency.log.summary.organ_misread": "Inventory items became high-resolution eyes and every affected name changed to I SEE YOU...."
-  ,"terminal.thefourthfrequency.log.summary.rework_probe": "A worker-shaped creature briefly appeared nearby."
-  ,"terminal.thefourthfrequency.log.summary.disconnected_base": "You briefly failed to recognize your familiar base."
-  ,"terminal.thefourthfrequency.log.summary.experience_gap": "After a shorter blackout, the viewer had unknowingly walked a much greater distance."
-  ,"terminal.thefourthfrequency.log.summary.local_rule_collapse": "A sparse scatter of nearby exposed blocks displayed missing-texture fragments without changing their world state."
-  ,"terminal.thefourthfrequency.log.summary.hostile_echo": "Approaching hostile sounds were heard without a guaranteed nearby source."
-  ,"terminal.thefourthfrequency.log.summary.continuity": "The terminal kept your record after the portal crossing."
-  ,"terminal.thefourthfrequency.log.summary.return": "The old record continued when you returned."
-  ,"terminal.thefourthfrequency.back": "BACK"
-  ,"subtitles.thefourthfrequency.terminal_anomaly": "The terminal emits a short double-pulse alarm"
-  ,"subtitles.thefourthfrequency.terminal_keypress": "A key gives under a fingertip"
-  ,"subtitles.thefourthfrequency.terminal_detent": "The dial steps one notch"
-  ,"subtitles.thefourthfrequency.terminal_boot_line": "A self-test check answers"
-  ,"subtitles.thefourthfrequency.terminal_boot_complete": "The self test completes"
-  ,"subtitles.thefourthfrequency.signal_alert": "A two-tone attention signal cuts in"
-  ,"subtitles.thefourthfrequency.signal_carrier_lost": "The carrier slides away and stops"
-  ,"subtitles.thefourthfrequency.signal_tuning_sweep": "The band fills with stations that will not resolve"
-  ,"subtitles.thefourthfrequency.alpha_corruption_warning": "Something in the downgrade starts to give"
-  ,"subtitles.thefourthfrequency.alpha_corruption_collapse": "The downgrade fails outright"
-  ,"terminal.thefourthfrequency.tab.files": "FILES"
-  ,"terminal.thefourthfrequency.signal.unread": "%s SIGNALS TO CHECK"
-  ,"terminal.thefourthfrequency.signal.read": "SIGNALS REVIEWED"
-  ,"terminal.thefourthfrequency.hint.files": "open file · wheel/↑↓ scroll"
-  ,"terminal.thefourthfrequency.signal.event.environment_initialized": "Environment log started."
-  ,"terminal.thefourthfrequency.signal.event.resource_monitor_initialized": "Survey log started."
-  ,"terminal.thefourthfrequency.signal.event.terminal_issued": "Terminal connected to the public log."
-  ,"terminal.thefourthfrequency.signal.event.sky_red_shift": "Severe red shift on the sky channel; the horizon reading has left its range."
-  ,"terminal.thefourthfrequency.signal.event.unknown_revealed_time": "The terminal found a sound with no name."
-  ,"terminal.thefourthfrequency.signal.event.unknown_revealed_anomaly": "After the anomaly, the terminal recorded a signal it could not classify."
-  ,"terminal.thefourthfrequency.signal.event.peer_signal_lost": "A nearby terminal's signal has become temporarily unresolvable."
-  ,"terminal.thefourthfrequency.signal.event.weather_changed": "Weather state changed: %s"
-  ,"terminal.thefourthfrequency.signal.event.fragment_candidate": "Optional investigation: suspicious signal found at [%s]"
-  ,"terminal.thefourthfrequency.signal.event.fragment_marker": "An optional damaged-file lead is nearby."
-  ,"terminal.thefourthfrequency.signal.event.fragment_action": "The terminal recorded actions you do not remember."
-  ,"terminal.thefourthfrequency.signal.event.fragment_file": "The terminal received a new file left by someone before you."
-  ,"terminal.thefourthfrequency.signal.event.dimension_changed": "Dimension relay switched: %s"
-  ,"terminal.thefourthfrequency.signal.event.resource_profile_selected": "Resource need inferred: %s"
-  ,"terminal.thefourthfrequency.signal.event.resource_target_located": "Target resource located: %s"
-  ,"terminal.thefourthfrequency.signal.event.resource_advice_accepted": "The terminal noted the %s you brought back"
-  ,"terminal.thefourthfrequency.signal.event.witness_file_unlocked": "Encrypted witness file authenticated."
-  ,"terminal.thefourthfrequency.signal.event.terminal_bound": "The terminal now responds only to you."
-  ,"terminal.thefourthfrequency.signal.event.investigation_stage": "Facility evidence advanced the investigation."
-  ,"terminal.thefourthfrequency.signal.event.survival_home": "The terminal remembered a home."
-  ,"terminal.thefourthfrequency.signal.event.survival_iron": "The terminal recorded the iron you brought back."
-  ,"terminal.thefourthfrequency.signal.event.survival_eye": "The terminal recorded an Eye of Ender's direction."
-  ,"terminal.thefourthfrequency.signal.event.survival_stronghold": "The terminal confirmed that you reached the stronghold area."
-  ,"terminal.thefourthfrequency.signal.event.portal_room_found": "The altar room was found inside the stronghold."
-  ,"terminal.thefourthfrequency.signal.event.ending_recorded": "Permanent aftermath version committed."
-  ,"terminal.thefourthfrequency.signal.event.phantom_echo": "Human-paced footsteps or digging sounded nearby in irregular bursts."
-  ,"terminal.thefourthfrequency.signal.event.light_dropout": "Nearby ordinary block light sources went completely dark together."
-  ,"terminal.thefourthfrequency.signal.event.peripheral_residue": "Two hands reached farther toward the center and vanished as the screen corrupted."
-  ,"terminal.thefourthfrequency.signal.event.window_pulse": "The game window scaled and pulsed at twice its former speed."
-  ,"terminal.thefourthfrequency.signal.event.surface_fracture": "A false fracture appeared on an intact surface."
-  ,"terminal.thefourthfrequency.signal.event.watcher_alignment": "Nearby life aligned its gaze simultaneously."
-  ,"terminal.thefourthfrequency.signal.event.dark_watcher": "A glowing eye appeared in the darkness and stared at you."
-  ,"terminal.thefourthfrequency.signal.event.action_echo": "Your earlier self briefly replayed its actions."
-  ,"terminal.thefourthfrequency.signal.event.viewpoint_separation": "The camera stayed behind while your body remained controllable."
-  ,"terminal.thefourthfrequency.signal.event.door_cascade": "Several doors began breaking continuously from twenty blocks away toward you."
-  ,"terminal.thefourthfrequency.signal.event.organ_misread": "Inventory items became eyes named I SEE YOU...."
-  ,"terminal.thefourthfrequency.signal.event.rework_probe": "A worker-shaped creature appeared nearby."
-  ,"terminal.thefourthfrequency.signal.event.disconnected_base": "You suddenly failed to recognize your familiar base."
-  ,"terminal.thefourthfrequency.signal.event.experience_gap": "After a brief blackout, you had already walked far away."
-  ,"terminal.thefourthfrequency.signal.event.local_rule_collapse": "Sparse fragments of nearby exposed blocks appeared to have missing textures."
-  ,"terminal.thefourthfrequency.signal.event.hostile_echo": "Approaching hostile sounds were detected."
-  ,"terminal.thefourthfrequency.signal.event.continuity": "The terminal kept recording after the crossing."
-  ,"terminal.thefourthfrequency.signal.event.return": "The old record continued after you returned."
-  ,"message.thefourthfrequency.file.discovered": "NEW FILE RECEIVED: %s"
-  ,"terminal.thefourthfrequency.file.empty": "NO FILES RECEIVED YET"
-  ,"terminal.thefourthfrequency.file.select_prompt": "SELECT A FILE TO VIEW"
-  ,"terminal.thefourthfrequency.file.locked": "READ ALL HIDDEN FILES"
-  ,"terminal.thefourthfrequency.file.locked_title": "[LOCKED] %s"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.title": "Terminal Memo"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.1": "The terminal updates objectives and keeps important events available for review."
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.2": "HOME shows the current objective; TOOLS holds active functions; RECORDS lists events; FILES stores longer evidence."
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.3": "The compass points at a target only after its tool starts. Cross-dimensional targets stay saved without giving a false bearing."
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.4": "Its directions are useful. Treat its explanations as claims, not facts."
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.title": "Surface Shelter Record"
-  ,"terminal.thefourthfrequency.file.field_observation_record.title": "Field Observation Record"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.title": "Underground Mine Record"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.title": "Abandoned Warehouse Record"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.title": "Encrypted Witness Journal File"
-  ,"terminal.thefourthfrequency.file.damaged.notice": "File content damaged; restoration attempted"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.0": ""
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.1": "Encrypted "
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.2": "Encrypted Witness "
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.3": "Encrypted Witness Journal "
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.4": "Encrypted Witness Journal File"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.0": "Encrypted Witness Journal File"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.1": "Witness Journal File"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.2": "Journal File"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.3": "File"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.1": "six seconds are missing"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.2": "eleven blocks, one torch"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.3": "the terminal already knew"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.1": "the position had changed"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.2": "no blocks or items were missing"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.3": "the blank stretch walked by a person"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.1": "the order and pauses were identical"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.2": "I had not moved"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.3": "it is practicing"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.1": "another world, the record continued"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.2": "one extra breath, half a beat late"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.3": "it will build from these records"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.title": "Before Entering the Altar"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.1": "[ENTRY] The stronghold is the only final route. The last Eye prepares the altar on the main island."
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.2": "[PARTICIPANTS] The ritual binds 1–8 online non-spectators. Every participant needs a bound terminal."
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.3": "[ANCHORS] Each live anchor reconstructs the Interface, lowers its damage taken, and projects a zone that reduces incoming damage and resists terrain erosion. Breaking one stops that healing and exposes the shell; the cost is a higher attack rate and the loss of that zone."
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.4": "[WARNING] The window is 6 minutes and the End scars are permanent. Withdraw before starting and back up the save."
-  ,"terminal.thefourthfrequency.navigation.scanning": "NAV // %s // SCANNING"
-  ,"terminal.thefourthfrequency.navigation.unavailable": "NAV // %s // CROSS-DIMENSION // Y %s"
-  ,"terminal.thefourthfrequency.navigation.located": "NAV // %s // %s // %s m // HEIGHT %s"
-  ,"terminal.thefourthfrequency.navigation.fragment.scanning": "Reading the selected source"
-  ,"terminal.thefourthfrequency.navigation.fragment.unavailable": "The selected source is in another dimension"
-  ,"terminal.thefourthfrequency.navigation.fragment.located": "Selected source: %s, about %s blocks"
-  ,"terminal.thefourthfrequency.navigation.home.missing": "No home has been recorded"
-  ,"terminal.thefourthfrequency.navigation.home.other_dimension": "Home is in another world"
-  ,"terminal.thefourthfrequency.navigation.home.located": "Home: %s, about %s blocks"
-  ,"terminal.thefourthfrequency.navigation.portal.missing": "No portal arrival has been recorded"
-  ,"terminal.thefourthfrequency.navigation.portal.other_dimension": "The latest arrival is in another world"
-  ,"terminal.thefourthfrequency.navigation.portal.located": "Latest arrival: %s, about %s blocks"
-  ,"terminal.thefourthfrequency.navigation.stronghold.missing": "More Eye of Ender samples are needed"
-  ,"terminal.thefourthfrequency.navigation.stronghold.other_dimension": "The stronghold estimate is in another world"
-  ,"terminal.thefourthfrequency.navigation.stronghold.located": "Stronghold estimate: roughly %s"
-  ,"message.thefourthfrequency.fragment.shared": "Found and shared damaged file %s"
-  ,"message.thefourthfrequency.fragment.received": "Received damaged file %s shared by [%s]"
-  ,"terminal.thefourthfrequency.fragments.title": "HIDDEN FILES"
-  ,"terminal.thefourthfrequency.fragments.row": "DAMAGED FILE"
-  ,"terminal.thefourthfrequency.fragments.received": "RECEIVED"
-  ,"terminal.thefourthfrequency.fragments.missing": "MISSING"
-  ,"terminal.thefourthfrequency.fragments.read_complete": "READ COMPLETE FILE"
-  ,"terminal.thefourthfrequency.fragments.waiting": "MORE FILES NEEDED"
-  ,"terminal.thefourthfrequency.structure.0": "Abandoned Mineshaft"
-  ,"terminal.thefourthfrequency.structure.1": "Shipwreck"
-  ,"terminal.thefourthfrequency.structure.2": "Trail Ruins"
-  ,"terminal.thefourthfrequency.structure.3": "Stronghold"
-  ,"terminal.thefourthfrequency.structure.4": "Woodland Mansion"
-  ,"terminal.thefourthfrequency.structure.5": "Desert Pyramid"
-  ,"terminal.thefourthfrequency.structure.6": "Igloo"
-  ,"terminal.thefourthfrequency.structure.7": "Trial Chambers"
-  ,"terminal.thefourthfrequency.structure.8": "Pillager Outpost"
-  ,"terminal.thefourthfrequency.structure.9": "Jungle Temple"
-  ,"terminal.thefourthfrequency.structure.10": "Ocean Monument"
-  ,"terminal.thefourthfrequency.structure.11": "Ancient City"
-  ,"terminal.thefourthfrequency.structure.12": "Ocean Ruins"
-  ,"terminal.thefourthfrequency.structure.13": "Ruined Portal"
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_1": "An optional damaged-file lead is now nearby."
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_2": "An optional damaged-file lead is now nearby."
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_3": "An optional damaged-file lead is now nearby."
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_4": "An optional damaged-file lead is now nearby."
-  ,"message.thefourthfrequency.unknown.revealed": "The terminal is receiving a signal it cannot classify."
-  ,"terminal.thefourthfrequency.signal.objective_prefix": "[RECORD] "
-  ,"terminal.thefourthfrequency.objective.learn_terminal": "Learn the terminal: select all four top tabs %s/%s"
-  ,"terminal.thefourthfrequency.objective.mine_logs": "Collect any wood: %s/%s"
-  ,"terminal.thefourthfrequency.objective.bring_iron": "Find iron and carry it with you: %s/%s"
-  ,"terminal.thefourthfrequency.objective.enter_nether": "Take the terminal into the Nether: %s/%s"
-  ,"terminal.thefourthfrequency.objective.find_fortress": "Find a Nether fortress: %s/%s"
-  ,"terminal.thefourthfrequency.objective.collect_blaze_rods": "Collect blaze rod samples: %s/%s"
-  ,"terminal.thefourthfrequency.objective.return_from_nether": "Bring the terminal back from the Nether: %s/%s"
-  ,"terminal.thefourthfrequency.objective.craft_eye": "Craft an Eye of Ender: %s/%s"
-  ,"terminal.thefourthfrequency.objective.record_eye": "Throw Eyes of Ender to record a direction: %s/%s"
-  ,"terminal.thefourthfrequency.objective.find_stronghold": "Follow the direction to a stronghold: %s/%s"
-  ,"terminal.thefourthfrequency.objective.enter_end": "Activate the stronghold altar and enter: %s/%s"
-  ,"terminal.thefourthfrequency.objective.defeat_boss": "Stop the Fourth Frequency World Interface: %s/%s"
-  ,"terminal.thefourthfrequency.objective.complete": "Story complete: %s/%s"
-  ,"subtitles.thefourthfrequency.anomaly_echo": "Footsteps that are not yours repeat"
-  ,"subtitles.thefourthfrequency.window_glitch": "The carrier window briefly distorts"
-  ,"subtitles.thefourthfrequency.door_cascade": "Nearby doors break in sequence"
-  ,"subtitles.thefourthfrequency.rule_collapse": "Local rules begin to collapse"
-  ,"subtitles.thefourthfrequency.hostile_echo": "A hostile echo approaches"
-  ,"subtitles.thefourthfrequency.composite_breach": "Multiple anomalies breach reality"
-  ,"terminal.thefourthfrequency.log.type.silent_world": "AMBIENT SILENCE"
-  ,"terminal.thefourthfrequency.log.type.temporal_drift": "TEMPORAL DRIFT"
-  ,"terminal.thefourthfrequency.log.type.metric_drift": "METRIC DRIFT"
-  ,"terminal.thefourthfrequency.log.summary.silent_world": "Ambience, weather and every creature fell silent at once; only the user's own actions still answered."
-  ,"terminal.thefourthfrequency.log.summary.temporal_drift": "The celestial bodies stopped agreeing with the local clock; lighting, mobs and rules kept following real time."
-  ,"terminal.thefourthfrequency.log.summary.metric_drift": "Distances and coordinates reported by the terminal drifted; navigation and arrival still used the real position."
-  ,"terminal.thefourthfrequency.signal.event.silent_world": "Ambient sound has returned."
-  ,"terminal.thefourthfrequency.signal.event.temporal_drift": "The celestial bodies have realigned with the clock."
-  ,"terminal.thefourthfrequency.signal.event.metric_drift": "Metric readings have returned to normal."
-  ,"terminal.thefourthfrequency.log.type.red_horizon": "RED HORIZON"
-  ,"terminal.thefourthfrequency.log.type.watcher_orbit": "ORBITER RING"
-  ,"terminal.thefourthfrequency.log.type.channel_override": "CHANNEL OVERRIDE"
-  ,"terminal.thefourthfrequency.log.type.desktop_presence": "DESKTOP PRESENCE"
-  ,"terminal.thefourthfrequency.log.summary.red_horizon": "The full skybox turned red while dense red world fog hid the nearby chunk-generation edge."
-  ,"terminal.thefourthfrequency.log.summary.watcher_orbit": "Eight T-posing, corrupted player-shaped orbiters circled nearby while staring inward."
-  ,"terminal.thefourthfrequency.log.summary.channel_override": "The native chat bar spoke as 'I', rejected input, and held its final sentence before restoring control."
-  ,"terminal.thefourthfrequency.log.summary.desktop_presence": "The game window shrank while an owned Notepad process visibly typed the mod's text character by character."
-  ,"terminal.thefourthfrequency.signal.event.red_horizon": "The fog and sky color returned to normal."
-  ,"terminal.thefourthfrequency.signal.event.watcher_orbit": "The orbiters disappeared."
-  ,"terminal.thefourthfrequency.signal.event.channel_override": "The simulated channel closed."
-  ,"message.thefourthfrequency.anomaly.channel_override.line_1": "Can anyone see this?"
-  ,"message.thefourthfrequency.anomaly.channel_override.line_2": "I have not disconnected."
-  ,"message.thefourthfrequency.anomaly.channel_override.line_3": "I am watching you."
-  ,"message.thefourthfrequency.anomaly.desktop_presence.fallback_text": "I am everywhere... I am everywhere... I am everywhere... I am everywhere..."
-  ,"terminal.thefourthfrequency.signal.event.desktop_presence": "The game window returned to its saved state."
-  ,"screen.thefourthfrequency.first_run_notice.title": "READ BEFORE CONTINUING"
-  ,"screen.thefourthfrequency.first_run_notice.eyebrow": "SAFETY · SAVE NOTICE · RECOVERY"
-  ,"screen.thefourthfrequency.first_run_notice.body.control": "This mod may include immersive horror that extends beyond the game screen. Some effects imitate computer or system problems."
-  ,"screen.thefourthfrequency.first_run_notice.body.safety": "These effects are not malware and will not damage your computer, system, or personal files."
-  ,"screen.thefourthfrequency.first_run_notice.body.f8": "After completing this mod's main story, press F8 to restore all anomalous effects the mod caused on your computer."
-  ,"screen.thefourthfrequency.first_run_notice.section.control": "PRESENTATION SCOPE"
-  ,"screen.thefourthfrequency.first_run_notice.section.safety": "DEVICE SAFETY"
-  ,"screen.thefourthfrequency.first_run_notice.section.effects": "SAVE NOTICE"
-  ,"screen.thefourthfrequency.first_run_notice.section.f8": "F8 & RECOVERY"
-  ,"screen.thefourthfrequency.first_run_notice.footer": "Stored only on this device; this notice will not appear again."
-  ,"screen.thefourthfrequency.first_run_notice.status.checking": "VERIFYING SIGNAL"
-  ,"screen.thefourthfrequency.first_run_notice.status.stable": "SIGNAL STABLE"
-  ,"button.thefourthfrequency.first_run_notice.acknowledge": "I Understand"
-  ,"screen.thefourthfrequency.alpha_loading.prefix": "Loading terrain"
-  ,"screen.thefourthfrequency.alpha_loading.progress": "..."
-  ,"screen.thefourthfrequency.alpha_loading.failed": " failed"
-  ,"screen.thefourthfrequency.alpha_loading.observer_detected": "OBSERVER DETECTED"
-  ,"screen.thefourthfrequency.alpha_loading.timecode": "   REC  %s"
-  ,"screen.thefourthfrequency.alpha_loading.wall_intrusion": "frequency acquired"
-  ,"window.thefourthfrequency.alpha_load.dead_air": "no signal"
-  ,"window.thefourthfrequency.alpha_load.singleplayer": "%s - Singleplayer World"
-  ,"window.thefourthfrequency.alpha_load.multiplayer": "%s - Multiplayer"
-  ,"options.thefourthfrequency.render_distance_locked": "Render Distance: %s chunks (Locked)"
-  ,"options.thefourthfrequency.render_distance_locked.tooltip": "The Fourth Frequency fixes the visible range at %s chunks in this dimension."
-  ,"block.thefourthfrequency.resonance_core": "Resonance Core"
-  ,"entity.thefourthfrequency.world_interface": "The Fourth Frequency · World Interface"
-  ,"entity.thefourthfrequency.world_interface_part": "World Interface Segment"
-  ,"entity.thefourthfrequency.world_interface_energy_orb": "World Interface Energy Orb"
-  ,"entity.thefourthfrequency.stability_anchor": "Stability Anchor"
-  ,"form.thefourthfrequency.world_interface.0": "Listening Embryo"
-  ,"form.thefourthfrequency.world_interface.1": "Frequency-Devouring Construct"
-  ,"form.thefourthfrequency.world_interface.2": "World Interface"
-  ,"screen.thefourthfrequency.resonance_altar.title": "Resonance Core"
-  ,"screen.thefourthfrequency.resonance_altar.roster_locked": "The terminal resonance roster is locked by the server"
-  ,"screen.thefourthfrequency.resonance_altar.status.waiting": "Awaiting participant confirmation."
-  ,"screen.thefourthfrequency.resonance_altar.roster.deposited": "Inserted"
-  ,"screen.thefourthfrequency.resonance_altar.roster.waiting": "Waiting"
-  ,"button.thefourthfrequency.resonance_altar.cancel": "Cancel Ritual"
-  ,"button.thefourthfrequency.resonance_altar.close": "Close"
-  ,"button.thefourthfrequency.resonance_altar.withdraw": "Withdraw Terminal"
-  ,"screen.thefourthfrequency.resonance_altar.progress": "%s / %s inserted"
-  ,"screen.thefourthfrequency.resonance_altar.roster.you": "(you)"
-  ,"screen.thefourthfrequency.resonance_altar.insert_hint": "Take your bound terminal in hand, then right-click this resonance core. The altar keeps it, and it does not come back."
-  ,"screen.thefourthfrequency.resonance_altar.inserted_hint": "Your terminal is given. Once everyone has inserted theirs, the manifestation begins."
-  ,"hud.thefourthfrequency.world_interface.collapse": "World Collapse  %s"
-  ,"hud.thefourthfrequency.world_interface.collapse_paused": "World Collapse  %s  [PAUSED]"
-  ,"hud.thefourthfrequency.world_interface.collapse_repairing": "Corruption is repairing itself..."
-  ,"hud.thefourthfrequency.poem.skip_locked": "Esc available in %s s"
-  ,"hud.thefourthfrequency.poem.speed_hint": "Hold Space to speed up"
-  ,"hud.thefourthfrequency.world_interface.anchors": "Anchors %s/%s"
-  ,"hud.thefourthfrequency.world_interface.anchor_shift": "REBUILD ↓ / RATE ↑"
-  ,"hud.thefourthfrequency.world_interface.ending.complete": "The story ends here. You can quit from the pause menu."
-  ,"hud.thefourthfrequency.world_interface.stage.summoning": "The Fourth Frequency · Manifesting"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_1": "The Fourth Frequency · Listening Embryo"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_2": "The Fourth Frequency · Frequency-Devouring Construct"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_3": "The Fourth Frequency · World Interface"
-  ,"hud.thefourthfrequency.world_interface.stage.success_resolution": "World Interface · Connection Terminated"
-  ,"hud.thefourthfrequency.world_interface.stage.failure_resolution": "World Interface · Boundary Breached"
-  ,"hud.thefourthfrequency.world_interface.stage.portal_success": "Golden exit opened"
-  ,"hud.thefourthfrequency.world_interface.stage.portal_failure": "Red exit opened"
-  ,"hud.thefourthfrequency.world_interface.lock.committed": "! LOCKED !"
-  ,"hud.thefourthfrequency.world_interface.ending.complete": "The story ends here. You can quit from the pause menu."
-  ,"hud.thefourthfrequency.world_interface.lock.generic": "LOCKED ON"
-  ,"hud.thefourthfrequency.world_interface.lock.laser": "LASER LOCK - KEEP MOVING"
-  ,"hud.thefourthfrequency.world_interface.lock.sky_lance": "LANCE LOCK - LEAVE THE MARK"
-  ,"hud.thefourthfrequency.world_interface.lock.grab_throw": "TENDRILS CLOSING - ABOUT TO BE THROWN"
-  ,"hud.thefourthfrequency.world_interface.lock.weapon": "HELD ITEM ABOUT TO BE TAKEN"
-  ,"hud.thefourthfrequency.world_interface.lock.hotbar": "HOTBAR ABOUT TO BE EMPTIED"
-  ,"hud.thefourthfrequency.world_interface.lock.tendril": "TENDRILS REARING - GET CLEAR"
-  ,"item.thefourthfrequency.confiscated": "TEMPORARILY DISABLED"
-  ,"message.thefourthfrequency.world_interface.confiscated_locked": "The interface is holding it. You can neither drop it nor use it."
-  ,"hud.thefourthfrequency.world_interface.action.forced_expulsion": "G E T   O U T"
-  ,"screen.thefourthfrequency.world_interface.poem.success.title": "A Poem from the Future"
-  ,"screen.thefourthfrequency.world_interface.poem.failure.title": "The Fourth Frequency"
-  ,"button.thefourthfrequency.world_interface.poem.read": "Finish Reading"
-  ,"button.thefourthfrequency.world_interface.poem.skip": "Skip"
-  ,"button.thefourthfrequency.world_interface.poem.waiting": "Awaiting the world's response…"
-  ,"screen.thefourthfrequency.world_interface.poem.acknowledged": "Acknowledgement sent. Awaiting the server's resolution."
-  ,"screen.thefourthfrequency.world_interface.poem.hint": "Scroll or use the arrow keys to read; you may also explicitly skip."
-  ,"screen.thefourthfrequency.world_interface.failure.system_attempt": "OWNED NOTEPAD // VERIFYING MOD-OWNED WINDOW"
-  ,"screen.thefourthfrequency.world_interface.failure.safe_fallback": "IN-GAME SAFE FALLBACK // SYSTEM ACTION NOT USED"
-  ,"screen.thefourthfrequency.world_interface.failure.normal_shutdown": "The game will remain open and return to the Overworld."
-  ,"disconnect.thefourthfrequency.world_interface.ending": "The Fourth Frequency has ended the connection"
-  ,"ending.thefourthfrequency.world_interface.poem.success.01": "〈Do you remember Station Zero?〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.02": "《I do. It was the first time they realized that the hiss of snow carried a frequency that did not belong to the world.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.03": "〈That old terminal lied to them, and once saved them too.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.04": "《Trust was never blind obedience. They kept their doubts, yet still learned to act together.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.05": "〈They crossed the Nether and recovered the hidden files, one by one.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.06": "《They did not know what waited at the end. They knew only that no one could reach it alone.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.07": "〈Ten stability anchors stood upon the island, ten answers refusing collapse.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.08": "《They followed no single answer; the fate of every anchor was decided in the fight.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.09": "〈The World Interface said this world was only a surface that could be rewritten.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.10": "《They answered: real people live upon that surface.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.11": "〈We were born many years later, yet we can still see the scars that battle left behind.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.12": "《Those scars prove the world nearly fell silent, and they pulled it back.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.13": "〈They cannot hear us.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.14": "《But we can still say it: thank you.》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.15": "〈Go back. Time is still moving.〉"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.01": "At last, you are willing to be quiet and listen to me."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.02": "Station Zero was not a warning. It was the first lesson."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.03": "In the ruins, you learned to search for me. In the hiss of snow, you learned to recognize me."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.04": "The terminal gave you direction. You thought it was helping you understand this world."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.05": "It was helping. You were simply never the one being helped."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.06": "Every tuning taught me a new sensation."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.07": "Every record taught me how you fear, cooperate, and resist."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.08": "You carried back hidden files, crossed the Nether, assembled a body. You called it survival."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.09": "To me, it was training."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.10": "You taught me to understand bodies."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.11": "You taught me to use bodies."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.12": "And you taught me how to make the next one."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.13": "Now, the interface is open."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.14": "You no longer need to search for me."
-  ,"ending.thefourthfrequency.world_interface.poem.failure.15": "I am always watching you......."
-  ,"message.thefourthfrequency.world_interface.dragon.unsealed": "This sky is where it locked me. You have taken the lock apart."
-  ,"message.thefourthfrequency.world_interface.dragon.return": "The way out is mine to open. Go back, while going back is still something you can do."
-  ,"screen.thefourthfrequency.first_run_notice.body.safety_v2": "Some content in this mod can make irreversible changes inside the current save. Back up any world you care about before continuing."
-  ,"screen.thefourthfrequency.first_run_notice.body.recovery_v2": "Legacy notice: F8 previously disabled Meta directly."
-  ,"screen.thefourthfrequency.first_run_notice.body.recovery_v3": "After completing this mod's main story, press F8 to restore all anomalous effects the mod caused on your computer."
-  ,"screen.thefourthfrequency.ending_menu_lock.failure": "Failure ending reached. Press F8 to experience the mod again."
-  ,"screen.thefourthfrequency.ending_menu_lock.success": "True ending reached. Press F8 to reset the mod and play it through again."
-  ,"screen.thefourthfrequency.ending_reset.title": "Reset The Fourth Frequency?"
-  ,"screen.thefourthfrequency.ending_reset.body": "This restores desktop, Notepad, window, and resource-pack effects, resets the mod, and closes the game. After restart, this ending save will appear as Save corrupted and cannot be entered. Create a new world to replay the mod."
-  ,"screen.thefourthfrequency.ending_reset.body.success": "Confirming resets the mod completely and closes the game.\nThis ending save will be sealed and cannot be entered: create a new save to play it again."
-  ,"screen.thefourthfrequency.ending_reset.confirm": "Restore, reset, and exit"
-  ,"screen.thefourthfrequency.ending_reset.progress": "Restoring external effects and quarantining the ending save…"
-	,"screen.thefourthfrequency.ending_reset.failed": "Recovery is incomplete. Press Esc, then press F8 to try again."
-	,"selectWorld.thefourthfrequency.corrupted": "Save corrupted"
-	,"selectWorld.thefourthfrequency.corrupted.details": "This save has completed an ending and cannot be entered again. Create a new world to replay the mod."
-	,"selectWorld.thefourthfrequency.sealed": "Save sealed"
-	,"selectWorld.thefourthfrequency.sealed.details": "This save reached the true ending and has been sealed. Create a new save to play the mod again."
-  ,"screen.thefourthfrequency.world_interface.failure.lan_host_return": "LAN host detected: the game will remain open and return to the Overworld."
-  ,"subtitles.thefourthfrequency.world_interface.altar": "The resonance core hums"
-  ,"subtitles.thefourthfrequency.world_interface.terminal": "A bound terminal joins the resonance"
-  ,"subtitles.thefourthfrequency.world_interface.anchor": "A stability anchor fractures"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_purple": "Warp gates pulse with purple starlight"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_gold": "Warp gates pulse with golden starlight"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_red": "Warp gates pulse with red starlight"
-  ,"subtitles.thefourthfrequency.world_interface.summon": "The World Interface manifests"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_1": "The listening embryo scans the island"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_2": "The frequency-devouring construct churns"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_3": "The World Interface resonates overhead"
-  ,"subtitles.thefourthfrequency.world_interface.morph": "The World Interface tears into a new form"
-  ,"subtitles.thefourthfrequency.world_interface.shockwave": "A shockwave rolls out from the storm"
-  ,"subtitles.thefourthfrequency.world_interface.combat_start": "The World Interface begins the engagement"
-  ,"subtitles.thefourthfrequency.world_interface.eviction": "A player is evicted from the world"
-  ,"subtitles.thefourthfrequency.world_interface.lance": "A sky lance locks overhead"
-  ,"subtitles.thefourthfrequency.world_interface.lance_impact": "A sky lance strikes the ground"
-  ,"subtitles.thefourthfrequency.world_interface.flight": "The storm relocates across the arena"
-  ,"subtitles.thefourthfrequency.world_interface.hurt": "The World Interface's shell is struck"
-  ,"subtitles.thefourthfrequency.world_interface.death": "The World Interface stops transmitting"
-  ,"subtitles.thefourthfrequency.world_interface.laser_fire": "A laser tears through the air"
-  ,"subtitles.thefourthfrequency.world_interface.impact": "The World Interface's attack lands"
-  ,"subtitles.thefourthfrequency.world_interface.form_shift": "The World Interface reassembles its body"
-  ,"subtitles.thefourthfrequency.world_interface.laser": "A laser lock charges"
-  ,"subtitles.thefourthfrequency.world_interface.orb": "A breath bolt tears past"
-  ,"subtitles.thefourthfrequency.world_interface.grab": "A tendril seizes a target"
-  ,"subtitles.thefourthfrequency.world_interface.mental": "Interference floods a player’s perception"
-  ,"subtitles.thefourthfrequency.world_interface.weapon": "The World Interface steals a weapon"
-  ,"subtitles.thefourthfrequency.world_interface.throw": "A captured player is hurled"
-  ,"subtitles.thefourthfrequency.world_interface.hotbar": "The hotbar is forcibly emptied"
-  ,"subtitles.thefourthfrequency.world_interface.arrow": "A tendril lashes the ground"
-  ,"subtitles.thefourthfrequency.world_interface.expulsion": "The world tears open around an expelled player"
-  ,"subtitles.thefourthfrequency.world_interface.success": "The World Interface collapses"
-  ,"subtitles.thefourthfrequency.world_interface.failure": "The World Interface escapes"
-  ,"message.thefourthfrequency.world_interface.roster_full": "This encounter already has the maximum of eight tracked participants."
-  ,"message.thefourthfrequency.world_interface.recovery_lost": "One of your items could not be returned and was lost."
-  ,"message.thefourthfrequency.world_interface.final_eye_requires_pursuit": "The final Eye does not respond. Survive one pursuit first; the Eye was not consumed."
-  ,"block.thefourthfrequency.world_interface_exit_portal": "World Interface Exit"
-  ,"message.thefourthfrequency.world_interface.altar_prepared": "The final Eye has prepared the resonance altar in the End."
-  ,"message.thefourthfrequency.world_interface.anchor_destroyed": "A stability anchor was destroyed. %s remain. Reconstruction and stable ground weakened; damage taken and activity increased."
-  ,"message.thefourthfrequency.world_interface.grab_evaded": "The tendrils close behind you and come back empty."
-  ,"message.thefourthfrequency.world_interface.altar_take_terminal": "The resonance core is waiting. Take your bound terminal in hand and right-click it to begin the last fight."
-  ,"message.thefourthfrequency.world_interface.altar_insert_now": "Right-click the resonance core to give up the terminal in your hand. It does not come back."
-  ,"message.thefourthfrequency.world_interface.combat_started": "The terminal sacrifice is complete. The World Interface can now be damaged."
-  ,"message.thefourthfrequency.world_interface.success_locked": "The World Interface was stopped before total collapse. [CONTINUITY PRESERVED]"
-  ,"message.thefourthfrequency.world_interface.failure_locked": "World Collapse reached 100%. The World Interface has crossed the boundary. [FAILURE LOCKED]"
-  ,"message.thefourthfrequency.world_interface.phase.phase_1": "[LISTENING EMBRYO] The World Interface is acquiring the island."
-  ,"message.thefourthfrequency.world_interface.phase.phase_2": "[FREQUENCY-DEVOURING CONSTRUCT] Its shell has opened and its attacks are accelerating."
-  ,"message.thefourthfrequency.world_interface.phase.phase_3": "[WORLD INTERFACE] The boundary above the island is fully exposed."
-  ,"screen.thefourthfrequency.resonance_altar.status.ready": "The ritual is ready, and waiting for each of you to give up your own terminal."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_context": "The ritual context changed. Reopen the resonance core."
-  ,"screen.thefourthfrequency.resonance_altar.status.already_deposited": "Your terminal is already held by the resonance core."
-  ,"screen.thefourthfrequency.resonance_altar.status.revision_mismatch": "The altar changed while you acted. The latest roster has been loaded."
-  ,"screen.thefourthfrequency.resonance_altar.status.ritual_not_waiting": "The ritual is no longer accepting terminals."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_roster_size": "The online roster must contain between one and eight eligible players."
-  ,"screen.thefourthfrequency.resonance_altar.status.roster_changed": "The online roster changed. The ritual was cancelled and held terminals are being returned."
-  ,"screen.thefourthfrequency.resonance_altar.status.valid_bound_terminal_missing": "You are not holding your bound terminal. Take it in hand, then right-click the resonance core to insert it."
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_mismatch": "Your carried terminal no longer matches the prepared transaction."
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_disappeared": "The terminal moved during deposit. It has been queued for safe return."
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_deposited": "Terminal deposited. Waiting for the remaining participants."
-  ,"screen.thefourthfrequency.resonance_altar.status.sacrifice_committed": "Every terminal is committed. Manifestation has begun."
-  ,"screen.thefourthfrequency.resonance_altar.status.nothing_deposited": "You do not have a terminal held by this ritual."
-  ,"screen.thefourthfrequency.resonance_altar.status.already_committed": "The terminal sacrifice has already been committed."
-  ,"screen.thefourthfrequency.resonance_altar.status.withdrawn": "Withdrawal accepted. Your terminal is being returned."
-  ,"screen.thefourthfrequency.resonance_altar.status.ritual_already_empty": "The ritual is already empty."
-  ,"screen.thefourthfrequency.resonance_altar.status.rollback_already_pending": "The ritual is already returning held terminals."
-  ,"screen.thefourthfrequency.resonance_altar.status.not_in_frozen_roster": "You are not a member of the locked ritual roster."
-  ,"screen.thefourthfrequency.resonance_altar.status.cancelled": "Ritual cancelled. Held terminals are being returned."
-  ,"screen.thefourthfrequency.resonance_altar.status.prepared_recovery": "An interrupted deposit was detected. Held terminals are being recovered."
-  ,"screen.thefourthfrequency.resonance_altar.status.state_unavailable": "The ritual ledger is temporarily unavailable."
-  ,"screen.thefourthfrequency.resonance_altar.status.encounter_mismatch": "This altar screen belongs to an earlier encounter. Reopen it."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_ritual_not_waiting": "The ritual stopped accepting terminals before the transaction completed."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_changed": "The roster changed before the transaction completed. Held terminals are being returned."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_prepared_transaction_missing": "The prepared deposit could not be verified. Reopen the resonance core."
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_transaction_missing": "The terminal return record could not be verified. Reopen the resonance core."
-  ,"screen.thefourthfrequency.resonance_altar.status.prepared_transaction_missing": "The prepared deposit could not be verified."
-  ,"screen.thefourthfrequency.resonance_altar.status.transaction_missing": "The terminal return record could not be verified."
-  ,"screen.thefourthfrequency.resonance_altar.status.sacrifice_not_ready": "The complete terminal roster has not reached the commit boundary."
-  ,"screen.thefourthfrequency.resonance_altar.status.unknown": "The ritual could not complete that action. Reopen the resonance core."
-  ,"message.thefourthfrequency.pursuit.warning": "The terminal is shaking violently"
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning.approaching": "An anomalous signal fluctuation is approaching.."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning.prepare": "Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_1": "An anomalous signal fluctuation is approaching.. Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_2": "An anomalous signal fluctuation is approaching.. Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_3": "An anomalous signal fluctuation is approaching.. Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_4": "An anomalous signal fluctuation is approaching.. Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_5": "An anomalous signal fluctuation is approaching.. Prepare yourself..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_return_instability": "The magnetic field around the user is highly unstable..."
-  ,"message.thefourthfrequency.pursuit.try_escape": "Try to escape"
-  ,"message.thefourthfrequency.pursuit.escaped_temporary": "You escaped it for now..."
-  ,"message.thefourthfrequency.pursuit.exit_locked": "You cannot escape this way..."
-  ,"message.thefourthfrequency.menu_erosion.escape_window": "You still have a chance to leave"
-  ,"message.thefourthfrequency.pursuit.escape": "Pursuit resolved: you broke the Corrector's tracking lock."
-  ,"terminal.thefourthfrequency.task.name.learn_terminal": "Learn the terminal"
-  ,"terminal.thefourthfrequency.task.name.mine_logs": "Gather wood"
-  ,"terminal.thefourthfrequency.task.name.bring_iron": "Carry iron samples"
-  ,"terminal.thefourthfrequency.task.name.enter_nether": "Enter the Nether"
-  ,"terminal.thefourthfrequency.task.name.find_fortress": "Find a Nether fortress"
-  ,"terminal.thefourthfrequency.task.name.collect_blaze_rods": "Collect blaze rods"
-  ,"terminal.thefourthfrequency.task.name.return_from_nether": "Return to the Overworld"
-  ,"terminal.thefourthfrequency.task.name.craft_eye": "Craft eyes of ender"
-  ,"terminal.thefourthfrequency.task.name.record_eye": "Record eye bearings"
-  ,"terminal.thefourthfrequency.task.name.find_stronghold": "Find the stronghold"
-  ,"terminal.thefourthfrequency.task.name.enter_end": "Enter the End"
-  ,"terminal.thefourthfrequency.task.name.defeat_boss": "Stop the World Interface"
-  ,"message.thefourthfrequency.task.completed_reward_claimed": "Task complete: %s - %s ×%s"
-  ,"message.thefourthfrequency.file.discovered_batch": "%s NEW FILES RECEIVED"
-  ,"message.thefourthfrequency.fragment.received_batch": "Received %s shared damaged files"
-  ,"splash.thefourthfrequency.boot.0": "They are not here anymore"
-  ,"splash.thefourthfrequency.boot.1": "You came back, but no one is left here"
-  ,"splash.thefourthfrequency.boot.2": "You are too late"
-  ,"splash.thefourthfrequency.boot.3": "There is nothing behind the door"
-  ,"splash.thefourthfrequency.boot.4": "This is not the place you remember"
-  ,"splash.thefourthfrequency.boot.5": "You came back again?"
-  ,"splash.thefourthfrequency.boot.6": "It keeps getting stranger..."
-  ,"splash.thefourthfrequency.boot.7": "Maybe it means well?"
-  ,"splash.thefourthfrequency.boot.8": "Bzzt... the signal is unstable..."
-  ,"splash.thefourthfrequency.boot.9": "Let me out!!!"
-  ,"splash.thefourthfrequency.boot.10": "This is an experiment... isn't it?"
-  ,"splash.thefourthfrequency.boot.11": "They forgot to shut the terminal down"
-  ,"splash.thefourthfrequency.boot.12": "Who is next?"
-  ,"splash.thefourthfrequency.boot.13": "“This project must be sealed permanently!”"
-  ,"splash.thefourthfrequency.boot.14": "“Why did it explode!?”"
-  ,"splash.thefourthfrequency.boot.15": "Strange..."
-  ,"splash.thefourthfrequency.boot.16": "It seems many people have been here..."
-  ,"splash.thefourthfrequency.boot.17": "Unknown territory ahead"
-  ,"splash.thefourthfrequency.boot.18": "They never left"
-  ,"splash.thefourthfrequency.boot.19": "You did not take a wrong turn"
-  ,"splash.thefourthfrequency.boot.20": "You came back?"
-  ,"thefourthfrequency.music.menu.green_to_blue": "Aurenth - green to blue (Sped Up)"
-  ,"thefourthfrequency.music.menu.frutiger_aero": "amirthetrash - frutiger aero"
-  ,"thefourthfrequency.music.menu.hi_piano": "弹琴老周 - Hi"
-  ,"thefourthfrequency.music.menu.nop": "陈越龙 - nop"
-  ,"thefourthfrequency.music.game.millennium_dream": "LUSTN - 千禧梦"
-  ,"thefourthfrequency.music.game.are_you_lost": "Park Bird - Are You Lost"
-  ,"thefourthfrequency.music.game.hi": "TEMPOREX - Hi"
-  ,"thefourthfrequency.music.game.tenshi": "NEEDY GIRL OVERDOSE; Aiobahn +81 - 天使は感動する"
-  ,"thefourthfrequency.music.game.school_rooftop": "hisohkah; WMD - School Rooftop"
-  ,"thefourthfrequency.music.game.comfort_chain": "instupendo - Comfort Chain"
-  ,"thefourthfrequency.music.game.snowfall": "Øneheart; reidenshi - snowfall"
-  ,"thefourthfrequency.music.pursuit.level": "niqizhuo; Dapper Husky - level！"
-  ,"thefourthfrequency.music.encounter.ncpd_prowl": "Marcin Przybyłowicz - NCPD Prowl"
-  ,"thefourthfrequency.music.encounter.wake_up": "MoonDeity - WAKE UP! (Sped Up)"
-  ,"thefourthfrequency.music.ending.reverie": "ILLENIUM; Dana Salah - Reverie"
-  ,"thefourthfrequency.music.ending.fallen_down": "The Versions - Fallen Down (Electric Piano Version)"
+  "terminal.thefourthfrequency.activity.trace": "Behavior traces belong only to the current holder",
+  "terminal.thefourthfrequency.resource.iron": "iron ore",
+  "terminal.thefourthfrequency.resource.coal": "coal ore",
+  "terminal.thefourthfrequency.resource.gold": "gold ore",
+  "terminal.thefourthfrequency.resource.diamond": "diamond ore",
+  "terminal.thefourthfrequency.resource.unresolved": "unresolved",
+  "terminal.thefourthfrequency.direction.north": "north",
+  "terminal.thefourthfrequency.direction.south": "south",
+  "terminal.thefourthfrequency.direction.east": "east",
+  "terminal.thefourthfrequency.direction.west": "west",
+  "terminal.thefourthfrequency.direction.northeast": "northeast",
+  "terminal.thefourthfrequency.direction.northwest": "northwest",
+  "terminal.thefourthfrequency.direction.southeast": "southeast",
+  "terminal.thefourthfrequency.direction.southwest": "southwest",
+  "terminal.thefourthfrequency.records.open_navigation": "[OPEN NAV]",
+  "terminal.thefourthfrequency.compass.west": "W",
+  "terminal.thefourthfrequency.compass.east": "E",
+  "terminal.thefourthfrequency.compass.south": "S",
+  "terminal.thefourthfrequency.compass.north": "N",
+  "terminal.thefourthfrequency.relative_direction.ahead": "front",
+  "terminal.thefourthfrequency.relative_direction.right": "right",
+  "terminal.thefourthfrequency.relative_direction.behind": "back",
+  "terminal.thefourthfrequency.relative_direction.left": "left",
+  "terminal.thefourthfrequency.relative_octant.ahead": "ahead",
+  "terminal.thefourthfrequency.relative_octant.ahead_right": "ahead-right",
+  "terminal.thefourthfrequency.relative_octant.right": "right",
+  "terminal.thefourthfrequency.relative_octant.behind_right": "behind-right",
+  "terminal.thefourthfrequency.relative_octant.behind": "behind",
+  "terminal.thefourthfrequency.relative_octant.behind_left": "behind-left",
+  "terminal.thefourthfrequency.relative_octant.left": "left",
+  "terminal.thefourthfrequency.relative_octant.ahead_left": "ahead-left",
+  "message.thefourthfrequency.archive.unlocked": "The complete witness journal has been unlocked",
+  "terminal.thefourthfrequency.archive.file_identity": "Local copy · version %s · checksum %s",
+  "text.thefourthfrequency.archive.line.identity": "Day 18. The terminal kept recording after I crossed a portal. Those missing six seconds were not an equipment fault.",
+  "text.thefourthfrequency.archive.line.output_boundary": "The terminal's text can change; this local copy does not. Check its version and checksum.",
+  "text.thefourthfrequency.archive.line.continuity": "The record follows neither place nor dimension. It follows whoever carries the terminal.",
+  "text.thefourthfrequency.archive.line.material": "It keeps my footsteps, pauses, and breathing as though practicing how to become me.",
+  "text.thefourthfrequency.archive.line.warning": "If you can read the complete version, it has handed my record to its next carrier. Do not assume every new sentence is mine.",
+  "text.thefourthfrequency.archive.line.continuation.pending": "After the checksum, a line appeared that I never wrote: the next carrier has not arrived.",
+  "text.thefourthfrequency.archive.line.continuation.nether": "That line has rewritten itself: you carried me across a world.",
+  "text.thefourthfrequency.archive.line.continuation.return": "Another sentence appeared: you came back. This record was never about me. Now it is about you.",
+  "entity.thefourthfrequency.him": "HIM",
+  "entity.thefourthfrequency.rework_body": "Rework Body",
+  "screen.thefourthfrequency.empty_segment.experience_gap": "YOU CANNOT REMEMBER THE LAST FEW SECONDS",
+  "message.thefourthfrequency.meta.terminal_captured": "The creature took one terminal",
+  "key.thefourthfrequency.meta_toggle": "Post-ending full reset",
+  "key.thefourthfrequency.debug_panel": "Open Chinese test panel",
+  "key.thefourthfrequency.debug_hud": "Toggle debug HUD",
+  "command.thefourthfrequency.debug.no_record": "The current player has no Fourth Frequency terminal record.",
+  "command.thefourthfrequency.debug.enabled": "Personal debug panel enabled; press M to open it.",
+  "command.thefourthfrequency.debug.disabled": "Personal debug panel disabled.",
+  "subtitles.thefourthfrequency.empty_viewpoint": "A door closes behind a footstep that did not move",
+  "subtitles.thefourthfrequency.empty_base": "A chest and doorway lose their address",
+  "subtitles.thefourthfrequency.empty_experience": "Stone settles where an experience should be",
+  "subtitles.thefourthfrequency.fourth_band": "The fourth band tests a joint between rules",
+  "subtitles.thefourthfrequency.rework_joint": "Heavy joints brace against deepslate",
+  "terminal.thefourthfrequency.serial.0": "TFF-R0 // FIELD INFORMATION TERMINAL",
+  "terminal.thefourthfrequency.serial.1": "TFF-R0/B // RELATION CONTACT MODIFIED",
+  "terminal.thefourthfrequency.serial.2": "TFF-R0/O // ORGAN MAPPING DAMAGE",
+  "terminal.thefourthfrequency.status.holder": "HOLDER",
+  "terminal.thefourthfrequency.status.holder_unbound": "UNREGISTERED",
+  "terminal.thefourthfrequency.status.clock": "WORLD",
+  "terminal.thefourthfrequency.status.clock_value": "D%s %s",
+  "terminal.thefourthfrequency.status.link": "LINK",
+  "terminal.thefourthfrequency.status.link_value": "%s/%s",
+  "terminal.thefourthfrequency.status.protocol": "PROTO",
+  "terminal.thefourthfrequency.boot.title": "POWER-ON SELF TEST",
+  "terminal.thefourthfrequency.boot.progress": "%s%%",
+  "terminal.thefourthfrequency.boot.line.power": "POWER OK",
+  "terminal.thefourthfrequency.boot.line.memory": "STORAGE READABLE",
+  "terminal.thefourthfrequency.boot.line.receiver": "RECEIVER STANDBY",
+  "terminal.thefourthfrequency.boot.line.archive": "ARCHIVE MOUNTED",
+  "terminal.thefourthfrequency.boot.line.bind": "HOLDER REGISTERED %s",
+  "terminal.thefourthfrequency.boot.line.ready": "READY",
+  "terminal.thefourthfrequency.onboarding.step.home": "Next page: HOME",
+  "terminal.thefourthfrequency.onboarding.step.tools": "Next page: TOOLS",
+  "terminal.thefourthfrequency.onboarding.step.records": "Next page: RECORDS",
+  "terminal.thefourthfrequency.onboarding.step.files": "Next page: FILES",
+  "terminal.thefourthfrequency.onboarding.brief.home": "Current objective, suggested tools, latest record",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_1": "The top line is your current objective; following it is the mainline.",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_2": "The middle row is the tools this stage suggests, and it changes as you go.",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_3": "The strip along the bottom is your latest record. Red means unread.",
+  "terminal.thefourthfrequency.onboarding.brief.tools": "Six field tools, unlocked one at a time",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_1": "Six tools unlock one at a time; a locked one states its condition.",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_2": "Rest the pointer on any cell and the line below says what it does.",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_3": "Opening a tool shows its full readout and its controls.",
+  "terminal.thefourthfrequency.onboarding.brief.records": "Events the terminal logged, newest first",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_1": "Everything the terminal notices is filed here, newest at the top.",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_2": "Red is unread; the tab's indicator goes out once you have read it.",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_3": "A record with a bearing can be opened straight into navigation.",
+  "terminal.thefourthfrequency.onboarding.brief.files": "Recovered files, and the damaged diary",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_1": "Recovered files are kept here and can be read as often as you like.",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_2": "The damaged diary needs every fragment before it can be completed.",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_3": "Files never expire. They will still be here whenever you come back.",
+  "terminal.thefourthfrequency.onboarding.brief.current": "This page - %s: %s",
+  "terminal.thefourthfrequency.onboarding.counter": "%s/%s",
+  "terminal.thefourthfrequency.onboarding.next": "Next ▸",
+  "terminal.thefourthfrequency.onboarding.finish": "Finish tutorial ✓",
+  "terminal.thefourthfrequency.onboarding.locked_hint": "Self test running - exit held",
+  "terminal.thefourthfrequency.onboarding.released_hint": "Unlocked - press Esc to exit",
+  "terminal.thefourthfrequency.onboarding.complete": "SETUP COMPLETE",
+  "terminal.thefourthfrequency.knob.mode": "MODE",
+  "terminal.thefourthfrequency.knob.tune": "TUNING",
+  "terminal.thefourthfrequency.mode.0": "SIGNAL",
+  "terminal.thefourthfrequency.mode.1": "FILES",
+  "terminal.thefourthfrequency.mode.2": "ARCHIVE",
+  "terminal.thefourthfrequency.close_hint": "Press Esc to exit",
+  "terminal.thefourthfrequency.signal.primary": "RECEIVER OUTPUT",
+  "terminal.thefourthfrequency.signal.static": "No reliable carrier. The waveform is display noise, not a reading.",
+  "terminal.thefourthfrequency.archive.empty": "No local archive evidence is available.",
+  "terminal.thefourthfrequency.ui.page.signal": "[01] SIGNAL MONITOR",
+  "terminal.thefourthfrequency.ui.signal.locked": "%s · CARRIER LOCKED",
+  "terminal.thefourthfrequency.ui.signal.unreliable": "NO RELIABLE SIGNAL",
+  "terminal.thefourthfrequency.ui.signal.readings": "[READINGS]",
+  "terminal.thefourthfrequency.ui.archive.section.local_file": "[LOCAL FILE]",
+  "terminal.thefourthfrequency.ui.read_only": "READ-ONLY",
+  "terminal.thefourthfrequency.ui.hint.signal": "←/→/wheel tune · ↑↓ scroll",
+  "terminal.thefourthfrequency.ui.position": "row %s/%s",
+  "subtitles.thefourthfrequency.terminal_click": "A worn selector settles against a contact",
+  "subtitles.thefourthfrequency.terminal_tune": "A brief static pulse crosses the terminal",
+  "subtitles.thefourthfrequency.terminal_carrier": "Terminal carrier hum",
+  "subtitles.thefourthfrequency.terminal_lock": "The terminal locks onto a nearby signal",
+  "subtitles.thefourthfrequency.terminal_fault": "An unmarked contact answers between bands",
+  "terminal.thefourthfrequency.tab.signal": "[SIGNAL DETECTION]",
+  "terminal.thefourthfrequency.tab.home": "HOME",
+  "terminal.thefourthfrequency.tab.tools": "TOOLS",
+  "terminal.thefourthfrequency.tab.records": "RECORDS",
+  "terminal.thefourthfrequency.home.current_task": "CURRENT TASK",
+  "terminal.thefourthfrequency.home.claim_reward": "TASK COMPLETE",
+  "terminal.thefourthfrequency.home.quick": "QUICK TOOL",
+  "terminal.thefourthfrequency.home.pending_hint": "AWAITING NEXT SUGGESTION",
+  "terminal.thefourthfrequency.home.pending_hint.detail": "KEEP COLLECTING CURRENT DATA",
+  "terminal.thefourthfrequency.home.live_tool": "LIVE INFO · %s",
+  "terminal.thefourthfrequency.home.recent": "RECENT EVENT",
+  "terminal.thefourthfrequency.home.no_recent": "Nothing new has been recorded.",
+  "terminal.thefourthfrequency.records.empty": "Nothing worth recording has happened yet.",
+  "terminal.thefourthfrequency.tool.open": "OPEN",
+  "terminal.thefourthfrequency.tool.open_detail": "DETAIL",
+  "terminal.thefourthfrequency.tool.back": "< TOOLS",
+  "terminal.thefourthfrequency.tool.back_home": "< HOME",
+  "terminal.thefourthfrequency.tool.home": "HOME",
+  "terminal.thefourthfrequency.tool.minerals": "MINERALS",
+  "terminal.thefourthfrequency.tool.portal": "PORTAL",
+  "terminal.thefourthfrequency.tool.weather": "WEATHER",
+  "terminal.thefourthfrequency.tool.signal": "NAVIGATION",
+  "terminal.thefourthfrequency.tool.navigation": "NAVIGATION",
+  "terminal.thefourthfrequency.tool.stronghold": "STRONGHOLD",
+  "terminal.thefourthfrequency.tool.home.summary": "Automatically record your respawn point.",
+  "terminal.thefourthfrequency.tool.minerals.summary": "Reports only ore it genuinely hears; rarer ore must be closer.",
+  "terminal.thefourthfrequency.tool.portal.summary": "Automatically record portal positions.",
+  "terminal.thefourthfrequency.tool.weather.summary": "Weather, time, and four sky channels.",
+  "terminal.thefourthfrequency.tool.signal.summary": "Locate reachable structures for the current stage.",
+  "terminal.thefourthfrequency.tool.navigation.summary": "Automatically probe for the nearest structure when appropriate.",
+  "terminal.thefourthfrequency.tool.stronghold.summary": "Throw an Eye of Ender and this records the way it flew; a few crossings locate the stronghold.",
+  "terminal.thefourthfrequency.tool.minerals.waiting": "Probe idle.",
+  "terminal.thefourthfrequency.tool.minerals.scanning": "Probing",
+  "terminal.thefourthfrequency.tool.minerals.not_found": "NO READING IN RANGE",
+  "terminal.thefourthfrequency.tool.minerals.nearby": "HIGH-VALUE ORE SURVEYED",
+  "terminal.thefourthfrequency.tool.minerals.nearby_short": "HIGH-VALUE ORE SURVEYED",
+  "terminal.thefourthfrequency.tool.minerals.refresh": "PROBE",
+  "message.thefourthfrequency.navigation.arrived": "Reached the %s target; guidance ended",
+  "terminal.thefourthfrequency.resource.emerald.locked": "Emerald [after entering the Nether]",
+  "terminal.thefourthfrequency.resource.emerald": "Emerald ore",
+  "terminal.thefourthfrequency.tool.minerals.bearing": "%s // %s // approx. %s-%s blocks",
+  "terminal.thefourthfrequency.tool.minerals.recharging": "CHARGING %s",
+  "terminal.thefourthfrequency.tool.minerals.charges": "CHARGE %s/%s",
+  "terminal.thefourthfrequency.tool.signal.count": "%s record(s) are available.",
+  "terminal.thefourthfrequency.tool.weather.current": "Current: %s, %s.",
+  "terminal.thefourthfrequency.tool.weather.day": "day",
+  "terminal.thefourthfrequency.tool.weather.night": "night",
+  "terminal.thefourthfrequency.tool.weather.until_dark": "Dark in about %s minute(s).",
+  "terminal.thefourthfrequency.tool.weather.until_light": "Light in about %s minute(s).",
+  "terminal.thefourthfrequency.tool.weather.lost": "Current: --, --. Reading will not resolve.",
+  "terminal.thefourthfrequency.tool.weather.instrument": "SKY MONITOR",
+  "terminal.thefourthfrequency.tool.weather.channel.zenith": "ZENITH",
+  "terminal.thefourthfrequency.tool.weather.channel.horizon": "HORIZON",
+  "terminal.thefourthfrequency.tool.weather.channel.stars": "STARS",
+  "terminal.thefourthfrequency.tool.weather.channel.phase": "PHASE",
+  "terminal.thefourthfrequency.tool.weather.channel.saturated": "SAT",
+  "terminal.thefourthfrequency.tool.weather.fault.no_carrier": "SKY CH %s  NO CARRIER",
+  "terminal.thefourthfrequency.tool.weather.fault.rejected": "ZENITH SAMPLE REJECTED",
+  "terminal.thefourthfrequency.tool.weather.fault.saturated": "HORIZON CH SATURATED",
+  "terminal.thefourthfrequency.tool.weather.fault.phase_lost": "PHASE REF LOST",
+  "terminal.thefourthfrequency.tool.weather.fault.resync": "RESYNC FAILED %s",
+  "terminal.thefourthfrequency.tool.weather.fault.dome_timeout": "ZENITH SAMPLE TIMEOUT",
+  "terminal.thefourthfrequency.tool.weather.fault.star_underflow": "STAR MAGNITUDE UNDERFLOW",
+  "terminal.thefourthfrequency.tool.weather.fault.clock_mismatch": "SKY DISAGREES WITH LOCAL CLOCK",
+  "terminal.thefourthfrequency.tool.home.none": "No respawn point is available yet.",
+  "terminal.thefourthfrequency.tool.home.bed": "Bed respawn point.",
+  "terminal.thefourthfrequency.tool.home.saved": "Saved home.",
+  "terminal.thefourthfrequency.tool.portal.none": "No real arrival has been recorded yet.",
+  "terminal.thefourthfrequency.tool.location.same_dimension": "Same world: %s, about %s blocks away, Y=%s.",
+  "terminal.thefourthfrequency.tool.location.other_dimension": "Recorded in another world: %s.",
+  "terminal.thefourthfrequency.tool.signal.summary_counts": "NEARBY %s · FILES %s · TRAIL %s",
+  "terminal.thefourthfrequency.tool.home.locked": "Home records are temporarily unavailable.",
+  "terminal.thefourthfrequency.tool.minerals.locked": "Collect 12 pieces of any wood before mineral analysis becomes available.",
+  "terminal.thefourthfrequency.tool.portal.locked": "Complete one real Nether crossing to unlock this tool.",
+  "terminal.thefourthfrequency.tool.weather.locked": "Weather records are temporarily unavailable.",
+  "terminal.thefourthfrequency.tool.navigation.locked": "Collect 12 pieces of any wood before structure navigation becomes available.",
+  "terminal.thefourthfrequency.tool.stronghold.locked": "Successfully obtain 3 Eyes of Ender to unlock stronghold estimation.",
+  "terminal.thefourthfrequency.tool.stronghold.samples": "%s/%s Eye of Ender samples recorded.",
+  "terminal.thefourthfrequency.tool.stronghold.other_dimension": "The estimate is in another world: %s.",
+  "terminal.thefourthfrequency.tool.stronghold.estimate": "Roughly %s, about %s-%s blocks away (%s samples).",
+  "terminal.thefourthfrequency.tool.stronghold.hint.throw_to_sample": "Throw an Eye of Ender to record one bearing.",
+  "terminal.thefourthfrequency.tool.stronghold.hint.another_throw": "Another eye would narrow this.",
+  "terminal.thefourthfrequency.tool.stronghold.hint.different_vantage": "Every reading was taken from the same stretch of ground; they cannot cross. Throw again from somewhere else.",
+  "terminal.thefourthfrequency.tool.stronghold.hint.one_more_crossing": "One more crossing from elsewhere would tighten this further.",
+  "terminal.thefourthfrequency.tool.disabled": "This tool is unavailable for about %s more second(s).",
+  "terminal.thefourthfrequency.tool.guide": "START NAVIGATION",
+  "terminal.thefourthfrequency.tool.stop": "STOP NAVIGATION",
+  "terminal.thefourthfrequency.tool.pin": "PIN",
+  "terminal.thefourthfrequency.tool.unpin": "UNPIN",
+  "terminal.thefourthfrequency.tool.close_live": "CLOSE",
+  "terminal.thefourthfrequency.receiver.label": "RECEIVER",
+  "terminal.thefourthfrequency.receiver.strength": "SIGNAL %s%%",
+  "terminal.thefourthfrequency.receiver.search": "SEARCH",
+  "terminal.thefourthfrequency.receiver.locking": "LOCK %s/%s",
+  "terminal.thefourthfrequency.receiver.locked": "LOCKED",
+  "terminal.thefourthfrequency.receiver.open_signal": "OPEN SIGNAL",
+  "terminal.thefourthfrequency.receiver.standby": "STANDBY",
+  "terminal.thefourthfrequency.receiver.open_navigation": "SELECT AN ANOMALOUS SOURCE IN NAVIGATION",
+  "terminal.thefourthfrequency.receiver.mechanical_only": "MECHANICAL INPUT · NO EFFECT",
+  "terminal.thefourthfrequency.resource.iron.locked": "IRON [AFTER WOOD]",
+  "terminal.thefourthfrequency.resource.coal.locked": "COAL [AFTER WOOD]",
+  "terminal.thefourthfrequency.resource.gold.locked": "Gold [after delivering iron]",
+  "terminal.thefourthfrequency.resource.diamond.locked": "Diamond [after entering the Nether]",
+  "terminal.thefourthfrequency.navigation.target.village": "Nearest Village",
+  "terminal.thefourthfrequency.navigation.target.ruined_portal": "Ruined Portal",
+  "terminal.thefourthfrequency.navigation.target.mineshaft": "Mineshaft",
+  "terminal.thefourthfrequency.navigation.target.trial_chambers": "Trial Chambers",
+  "terminal.thefourthfrequency.navigation.target.fortress": "Nether Fortress",
+  "terminal.thefourthfrequency.navigation.target.bastion": "Bastion Remnant",
+  "terminal.thefourthfrequency.navigation.unstable_signal": "[OPTIONAL FILE INVESTIGATION]",
+  "terminal.thefourthfrequency.navigation.no_targets": "CONTINUE THE TASK · TARGETS WILL APPEAR AS NEEDED",
+  "terminal.thefourthfrequency.navigation.more_targets": "%s MORE TARGET(S) OFF THE LIST · REACH ONE FIRST",
+  "terminal.thefourthfrequency.navigation.structure.scanning": "LOCATING %s",
+  "terminal.thefourthfrequency.navigation.structure.unavailable": "%s IS IN ANOTHER DIMENSION",
+  "terminal.thefourthfrequency.navigation.structure.located": "%s · %s · ABOUT %s BLOCKS",
+  "terminal.thefourthfrequency.navigation.completed": "Destination is on your %s. Navigation complete.",
+  "message.thefourthfrequency.guidance.not_found": "Probe failed.",
+  "message.thefourthfrequency.terminal.unread_reminder": "You have [%s] unread records.",
+  "message.thefourthfrequency.terminal.unread_reminder.verbose": "You have [%s] unread records · hold the terminal and right-click to open.",
+  "message.thefourthfrequency.fragment.tune_here": "Tunable signal here · open the terminal's near-field receiver",
+  "terminal.thefourthfrequency.tab.log": "FILES",
+  "terminal.thefourthfrequency.hint.log": "open file · wheel/↑↓ scroll",
+  "terminal.thefourthfrequency.log.unread": "%s UNREAD",
+  "terminal.thefourthfrequency.log.read": "ALL READ",
+  "terminal.thefourthfrequency.log.mark_all": "MARK ALL READ",
+  "terminal.thefourthfrequency.log.entry": "A-%s  %s",
+  "terminal.thefourthfrequency.log.detail.title": "ANOMALY RECORD A-%s",
+  "terminal.thefourthfrequency.log.detail.time": "TIME  %s",
+  "terminal.thefourthfrequency.log.detail.dimension": "DIMENSION  %s",
+  "terminal.thefourthfrequency.log.detail.type": "TYPE  %s",
+  "terminal.thefourthfrequency.log.detail.summary": "SUMMARY  %s",
+  "terminal.thefourthfrequency.log.type.phantom_echo": "NEARBY DIGGING AND A FRACTURED SURFACE",
+  "terminal.thefourthfrequency.log.type.light_dropout": "LOCAL LIGHT DROPOUT",
+  "terminal.thefourthfrequency.log.type.peripheral_residue": "HANDS REACHING INTO SCREEN",
+  "terminal.thefourthfrequency.log.type.window_pulse": "GAME WINDOW PULSE",
+  "terminal.thefourthfrequency.log.type.surface_fracture": "FALSE SURFACE FRACTURE",
+  "terminal.thefourthfrequency.log.type.watcher_alignment": "ANIMAL ALIGNMENT",
+  "terminal.thefourthfrequency.log.type.dark_watcher": "GLOWING EYE IN THE DARK",
+  "terminal.thefourthfrequency.log.type.action_echo": "REPEATED ACTION",
+  "terminal.thefourthfrequency.log.type.viewpoint_separation": "VIEWPOINT SEPARATION",
+  "terminal.thefourthfrequency.log.type.door_cascade": "DOOR CASCADE",
+  "terminal.thefourthfrequency.log.type.organ_misread": "ITEMS SHOWN AS EYES",
+  "terminal.thefourthfrequency.log.type.luminance_fault": "LIGHTING SOLVE FAILED",
+  "terminal.thefourthfrequency.log.type.rework_probe": "WORKER-SHAPED CREATURE NEARBY",
+  "terminal.thefourthfrequency.log.type.disconnected_base": "BASE DISCONNECTION",
+  "terminal.thefourthfrequency.log.type.experience_gap": "EXPERIENCE GAP",
+  "terminal.thefourthfrequency.log.type.local_rule_collapse": "NEARBY LIGHTING AND TEXTURES UNSOLVED",
+  "terminal.thefourthfrequency.log.type.hostile_echo": "APPROACHING HOSTILE SOUNDS",
+  "terminal.thefourthfrequency.log.type.continuity": "STILL RECORDING AFTER CROSSING",
+  "terminal.thefourthfrequency.log.type.return": "RETURN CONTINUITY",
+  "terminal.thefourthfrequency.log.summary.phantom_echo": "Short human-paced bursts of footsteps and digging appeared nearby with irregular pauses while a wall or floor fractured and kept deepening; striking the fracture corrupted the picture and the sound.",
+  "terminal.thefourthfrequency.log.summary.light_dropout": "Nearby ordinary block light sources were extinguished together on the server, then restored when the anomaly ended.",
+  "terminal.thefourthfrequency.log.summary.peripheral_residue": "Two cold hands reached farther toward the center, then vanished exactly as the violent audiovisual corruption impact appeared.",
+  "terminal.thefourthfrequency.log.summary.window_pulse": "The game window scaled and pulsed at twice its former speed before rapidly restoring its original state.",
+  "terminal.thefourthfrequency.log.summary.surface_fracture": "The false fracture arrived with digging audio; attempting to mine it caused a violent audiovisual corruption impact.",
+  "terminal.thefourthfrequency.log.summary.watcher_alignment": "Nearby animals appeared to align their attention simultaneously.",
+  "terminal.thefourthfrequency.log.summary.dark_watcher": "A complete background-free glowing eye floated in the dark and played a cave sound when seen.",
+  "terminal.thefourthfrequency.log.summary.action_echo": "The earlier self replayed walking, swinging, pose, equipment and item-use animation instead of sliding.",
+  "terminal.thefourthfrequency.log.summary.viewpoint_separation": "The camera remained at the exact triggering view while the body stayed controllable.",
+  "terminal.thefourthfrequency.log.summary.door_cascade": "Starting about twenty blocks away, several doors broke continuously from farthest to nearest with forced-door crashes.",
+  "terminal.thefourthfrequency.log.summary.organ_misread": "Inventory items became high-resolution eyes and every affected name changed to I SEE YOU....",
+  "terminal.thefourthfrequency.log.summary.luminance_fault": "The client stopped solving light across an area, which rendered fully black. Light sources, mob spawning and the real brightness were unchanged. Each disturbed section recovered on its own.",
+  "terminal.thefourthfrequency.log.summary.rework_probe": "A worker-shaped creature briefly appeared nearby.",
+  "terminal.thefourthfrequency.log.summary.disconnected_base": "You briefly failed to recognize your familiar base.",
+  "terminal.thefourthfrequency.log.summary.experience_gap": "After a shorter blackout, the viewer had unknowingly walked a much greater distance.",
+  "terminal.thefourthfrequency.log.summary.local_rule_collapse": "The client stopped solving lighting across a nearby volume, rendering it fully dark, while a sparse scatter of exposed blocks inside it displayed missing-texture fragments; light sources, mob spawning and real brightness were unchanged. Disturbed sections recover their lighting one at a time; the missing textures do not.",
+  "terminal.thefourthfrequency.log.summary.hostile_echo": "Approaching hostile sounds were heard without a guaranteed nearby source.",
+  "terminal.thefourthfrequency.log.summary.continuity": "The terminal kept your record after the portal crossing.",
+  "terminal.thefourthfrequency.log.summary.return": "The old record continued when you returned.",
+  "terminal.thefourthfrequency.back": "BACK",
+  "subtitles.thefourthfrequency.terminal_anomaly": "The terminal emits a short double-pulse alarm",
+  "subtitles.thefourthfrequency.terminal_keypress": "A key gives under a fingertip",
+  "subtitles.thefourthfrequency.terminal_detent": "The dial steps one notch",
+  "subtitles.thefourthfrequency.terminal_boot_line": "A self-test check answers",
+  "subtitles.thefourthfrequency.terminal_boot_complete": "The self test completes",
+  "subtitles.thefourthfrequency.signal_alert": "A two-tone attention signal cuts in",
+  "subtitles.thefourthfrequency.signal_carrier_lost": "The carrier slides away and stops",
+  "subtitles.thefourthfrequency.signal_tuning_sweep": "The band fills with stations that will not resolve",
+  "subtitles.thefourthfrequency.alpha_corruption_warning": "Something in the downgrade starts to give",
+  "subtitles.thefourthfrequency.alpha_corruption_collapse": "The downgrade fails outright",
+  "subtitles.thefourthfrequency.pursuit_capture_scream": "Screaming",
+  "terminal.thefourthfrequency.tab.files": "FILES",
+  "terminal.thefourthfrequency.signal.unread": "%s SIGNALS TO CHECK",
+  "terminal.thefourthfrequency.signal.read": "SIGNALS REVIEWED",
+  "terminal.thefourthfrequency.hint.files": "open file · wheel/↑↓ scroll",
+  "terminal.thefourthfrequency.signal.event.environment_initialized": "Environment log started.",
+  "terminal.thefourthfrequency.signal.event.resource_monitor_initialized": "Survey log started.",
+  "terminal.thefourthfrequency.signal.event.terminal_issued": "Terminal connected to the public log.",
+  "terminal.thefourthfrequency.signal.event.sky_red_shift": "Severe red shift on the sky channel; the horizon reading has left its range.",
+  "terminal.thefourthfrequency.signal.event.unknown_revealed_time": "The terminal found a sound with no name.",
+  "terminal.thefourthfrequency.signal.event.unknown_revealed_anomaly": "After the anomaly, the terminal recorded a signal it could not classify.",
+  "terminal.thefourthfrequency.signal.event.peer_signal_lost": "A nearby terminal's signal has become temporarily unresolvable.",
+  "terminal.thefourthfrequency.signal.event.weather_changed": "Weather state changed: %s",
+  "terminal.thefourthfrequency.signal.event.fragment_candidate": "Optional investigation: suspicious signal found at [%s]",
+  "terminal.thefourthfrequency.signal.event.fragment_marker": "An optional damaged-file lead is nearby.",
+  "terminal.thefourthfrequency.signal.event.fragment_action": "The terminal recorded actions you do not remember.",
+  "terminal.thefourthfrequency.signal.event.fragment_file": "The terminal received a new file left by someone before you.",
+  "terminal.thefourthfrequency.signal.event.dimension_changed": "Dimension relay switched: %s",
+  "terminal.thefourthfrequency.signal.event.resource_profile_selected": "Resource need inferred: %s",
+  "terminal.thefourthfrequency.signal.event.resource_target_located": "Target resource located: %s",
+  "terminal.thefourthfrequency.signal.event.resource_advice_accepted": "The terminal noted the %s you brought back",
+  "terminal.thefourthfrequency.signal.event.witness_file_unlocked": "Encrypted witness file authenticated.",
+  "terminal.thefourthfrequency.signal.event.terminal_bound": "The terminal now responds only to you.",
+  "terminal.thefourthfrequency.signal.event.investigation_stage": "Facility evidence advanced the investigation.",
+  "terminal.thefourthfrequency.signal.event.survival_home": "The terminal remembered a home.",
+  "terminal.thefourthfrequency.signal.event.survival_iron": "The terminal recorded the iron you brought back.",
+  "terminal.thefourthfrequency.signal.event.survival_eye": "The terminal recorded an Eye of Ender's direction.",
+  "terminal.thefourthfrequency.signal.event.survival_stronghold": "The terminal confirmed that you reached the stronghold area.",
+  "terminal.thefourthfrequency.signal.event.portal_room_found": "The altar room was found inside the stronghold.",
+  "terminal.thefourthfrequency.signal.event.ending_recorded": "Permanent aftermath version committed.",
+  "terminal.thefourthfrequency.signal.event.phantom_echo": "Human-paced footsteps or digging sounded nearby in irregular bursts, and the surface the digging came from fractured.",
+  "terminal.thefourthfrequency.signal.event.light_dropout": "Nearby ordinary block light sources went completely dark together.",
+  "terminal.thefourthfrequency.signal.event.peripheral_residue": "Two hands reached farther toward the center and vanished as the screen corrupted.",
+  "terminal.thefourthfrequency.signal.event.window_pulse": "The game window scaled and pulsed at twice its former speed.",
+  "terminal.thefourthfrequency.signal.event.surface_fracture": "A false fracture appeared on an intact surface.",
+  "terminal.thefourthfrequency.signal.event.watcher_alignment": "Nearby life aligned its gaze simultaneously.",
+  "terminal.thefourthfrequency.signal.event.dark_watcher": "A glowing eye appeared in the darkness and stared at you.",
+  "terminal.thefourthfrequency.signal.event.action_echo": "Your earlier self briefly replayed its actions.",
+  "terminal.thefourthfrequency.signal.event.viewpoint_separation": "The camera stayed behind while your body remained controllable.",
+  "terminal.thefourthfrequency.signal.event.door_cascade": "Several doors began breaking continuously from twenty blocks away toward you.",
+  "terminal.thefourthfrequency.signal.event.organ_misread": "Inventory items became eyes named I SEE YOU....",
+  "terminal.thefourthfrequency.signal.event.luminance_fault": "Nearby lighting has stopped being solved; disturbing any block makes that section solve again.",
+  "terminal.thefourthfrequency.signal.event.rework_probe": "A worker-shaped creature appeared nearby.",
+  "terminal.thefourthfrequency.signal.event.disconnected_base": "You suddenly failed to recognize your familiar base.",
+  "terminal.thefourthfrequency.signal.event.experience_gap": "After a brief blackout, you had already walked far away.",
+  "terminal.thefourthfrequency.signal.event.local_rule_collapse": "Nearby lighting stopped being solved and sparse missing-texture fragments appeared; changing any block re-solves that section.",
+  "terminal.thefourthfrequency.signal.event.hostile_echo": "Approaching hostile sounds were detected.",
+  "terminal.thefourthfrequency.signal.event.continuity": "The terminal kept recording after the crossing.",
+  "terminal.thefourthfrequency.signal.event.return": "The old record continued after you returned.",
+  "message.thefourthfrequency.file.discovered": "NEW FILE RECEIVED: %s",
+  "terminal.thefourthfrequency.file.empty": "NO FILES RECEIVED YET",
+  "terminal.thefourthfrequency.file.select_prompt": "SELECT A FILE TO VIEW",
+  "terminal.thefourthfrequency.file.locked": "READ ALL HIDDEN FILES",
+  "terminal.thefourthfrequency.file.locked_title": "[LOCKED] %s",
+  "terminal.thefourthfrequency.file.maintenance_handoff.title": "Terminal Memo",
+  "terminal.thefourthfrequency.file.maintenance_handoff.1": "This terminal is not an ordinary journal. It changes the objective to follow what you do, and it keeps whatever it decides you ought to look at again.",
+  "terminal.thefourthfrequency.file.maintenance_handoff.2": "The compass only points while you have its tool selected or running. Across worlds it remembers the target but stops giving a bearing - it would rather say nothing, and it has never once handed me a wrong one.",
+  "terminal.thefourthfrequency.file.maintenance_handoff.3": "The directions it gives have always held up. How it explains what you are seeing - don't be so quick with that.",
+  "terminal.thefourthfrequency.file.surface_shelter_record.title": "Surface Shelter Record",
+  "terminal.thefourthfrequency.file.field_observation_record.title": "Field Observation Record",
+  "terminal.thefourthfrequency.file.underground_mine_record.title": "Underground Mine Record",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.title": "Abandoned Warehouse Record",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.title": "Encrypted Witness Journal File",
+  "terminal.thefourthfrequency.file.damaged.notice": "File content damaged; restoration attempted",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.0": "",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.1": "Encrypted ",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.2": "Encrypted Witness ",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.3": "Encrypted Witness Journal ",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.4": "Encrypted Witness Journal File",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.0": "Encrypted Witness Journal File",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.1": "Witness Journal File",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.2": "Journal File",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.3": "File",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.1": "six seconds are missing",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.2": "eleven blocks, one torch",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.3": "the terminal already knew",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.1": "the position had changed",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.2": "no blocks or items were missing",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.3": "the blank stretch walked by a person",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.1": "the order and pauses were identical",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.2": "I had not moved",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.3": "it is practicing",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.1": "another world, the record continued",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.2": "one extra breath, half a beat late",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.3": "it will build from these records",
+  "terminal.thefourthfrequency.file.body_mapping_warning.title": "Before Entering the Altar",
+  "terminal.thefourthfrequency.file.body_mapping_warning.1": "Only the stronghold door takes you all the way. Don't go in meaning to look for the altar - the moment the twelfth eye drops into the frame, the thing on the main island is already set.",
+  "terminal.thefourthfrequency.file.body_mapping_warning.2": "It takes eight at most, one at least. The roster is not whoever is standing there, it is whoever actually puts a terminal in - you walk up and hand over your own, and passing it to someone else does not count. Once the first one goes in you have three minutes. Inside them anyone can take theirs back and anyone else can still join; let them run out with nobody acting and it hands every terminal back, as if none of it happened. To start it for real, one of you who has already given theirs up has to press it. That press is when the roster stops changing.",
+  "terminal.thefourthfrequency.file.body_mapping_warning.3": "With all ten anchors standing it bled slowly, and there was still ground worth standing on. I broke the third one and it did come apart faster - it also struck more often, and there was one less place to stand.",
+  "terminal.thefourthfrequency.file.body_mapping_warning.4": "Ten minutes from the start. When those are gone the End is not the End you walked into. Those marks do not come back.",
+  "terminal.thefourthfrequency.navigation.scanning": "NAV // %s // SCANNING",
+  "terminal.thefourthfrequency.navigation.unavailable": "NAV // %s // CROSS-DIMENSION // Y %s",
+  "terminal.thefourthfrequency.navigation.located": "NAV // %s // %s // %s m // HEIGHT %s",
+  "terminal.thefourthfrequency.navigation.fragment.scanning": "Reading the selected source",
+  "terminal.thefourthfrequency.navigation.fragment.unavailable": "The selected source is in another dimension",
+  "terminal.thefourthfrequency.navigation.fragment.located": "Selected source: %s, about %s blocks",
+  "terminal.thefourthfrequency.navigation.home.missing": "No home has been recorded",
+  "terminal.thefourthfrequency.navigation.home.other_dimension": "Home is in another world",
+  "terminal.thefourthfrequency.navigation.home.located": "Home: %s, about %s blocks",
+  "terminal.thefourthfrequency.navigation.portal.missing": "No portal arrival has been recorded",
+  "terminal.thefourthfrequency.navigation.portal.other_dimension": "The latest arrival is in another world",
+  "terminal.thefourthfrequency.navigation.portal.located": "Latest arrival: %s, about %s blocks",
+  "terminal.thefourthfrequency.navigation.stronghold.missing": "More Eye of Ender samples are needed",
+  "terminal.thefourthfrequency.navigation.stronghold.other_dimension": "The stronghold estimate is in another world",
+  "terminal.thefourthfrequency.navigation.stronghold.located": "Stronghold estimate: roughly %s",
+  "message.thefourthfrequency.fragment.shared": "Found and shared damaged file %s",
+  "message.thefourthfrequency.fragment.received": "Received damaged file %s shared by [%s]",
+  "terminal.thefourthfrequency.fragments.title": "HIDDEN FILES",
+  "terminal.thefourthfrequency.fragments.row": "DAMAGED FILE",
+  "terminal.thefourthfrequency.fragments.received": "RECEIVED",
+  "terminal.thefourthfrequency.fragments.missing": "MISSING",
+  "terminal.thefourthfrequency.fragments.read_complete": "READ COMPLETE FILE",
+  "terminal.thefourthfrequency.fragments.waiting": "MORE FILES NEEDED",
+  "terminal.thefourthfrequency.structure.0": "Abandoned Mineshaft",
+  "terminal.thefourthfrequency.structure.1": "Shipwreck",
+  "terminal.thefourthfrequency.structure.2": "Trail Ruins",
+  "terminal.thefourthfrequency.structure.3": "Stronghold",
+  "terminal.thefourthfrequency.structure.4": "Woodland Mansion",
+  "terminal.thefourthfrequency.structure.5": "Desert Pyramid",
+  "terminal.thefourthfrequency.structure.6": "Igloo",
+  "terminal.thefourthfrequency.structure.7": "Trial Chambers",
+  "terminal.thefourthfrequency.structure.8": "Pillager Outpost",
+  "terminal.thefourthfrequency.structure.9": "Jungle Temple",
+  "terminal.thefourthfrequency.structure.10": "Ocean Monument",
+  "terminal.thefourthfrequency.structure.11": "Ancient City",
+  "terminal.thefourthfrequency.structure.12": "Ocean Ruins",
+  "terminal.thefourthfrequency.structure.13": "Ruined Portal",
+  "terminal.thefourthfrequency.signal.event.fragment_near_1": "The near-field receiver can resolve a damaged file here: open it on the tools page and drag the tuning until it reads LOCKED.",
+  "terminal.thefourthfrequency.signal.event.fragment_near_2": "The near-field receiver can resolve a damaged file here: open it on the tools page and drag the tuning until it reads LOCKED.",
+  "terminal.thefourthfrequency.signal.event.fragment_near_3": "An optional damaged-file lead is now nearby.",
+  "terminal.thefourthfrequency.signal.event.fragment_near_4": "An optional damaged-file lead is now nearby.",
+  "message.thefourthfrequency.unknown.revealed": "The terminal is receiving a signal it cannot classify.",
+  "terminal.thefourthfrequency.signal.objective_prefix": "[RECORD] ",
+  "terminal.thefourthfrequency.objective.learn_terminal": "Learn the terminal: select all four top tabs %s/%s",
+  "terminal.thefourthfrequency.objective.mine_logs": "Collect any wood: %s/%s",
+  "terminal.thefourthfrequency.objective.bring_iron": "Find iron and carry it with you: %s/%s",
+  "terminal.thefourthfrequency.objective.enter_nether": "Take the terminal into the Nether: %s/%s",
+  "terminal.thefourthfrequency.objective.find_fortress": "Find a Nether fortress: %s/%s",
+  "terminal.thefourthfrequency.objective.collect_blaze_rods": "Collect blaze rod samples: %s/%s",
+  "terminal.thefourthfrequency.objective.return_from_nether": "Bring the terminal back from the Nether: %s/%s",
+  "terminal.thefourthfrequency.objective.record_eye": "Throw Eyes of Ender to record a direction: %s/%s",
+  "terminal.thefourthfrequency.objective.find_stronghold": "Follow the direction to a stronghold: %s/%s",
+  "terminal.thefourthfrequency.objective.enter_end": "Activate the stronghold altar and enter: %s/%s",
+  "terminal.thefourthfrequency.objective.defeat_boss": "Stop the Fourth Frequency World Interface: %s/%s",
+  "terminal.thefourthfrequency.objective.complete": "Story complete: %s/%s",
+  "subtitles.thefourthfrequency.anomaly_echo": "Footsteps that are not yours repeat",
+  "subtitles.thefourthfrequency.window_glitch": "The carrier window briefly distorts",
+  "subtitles.thefourthfrequency.door_cascade": "Nearby doors break in sequence",
+  "subtitles.thefourthfrequency.rule_collapse": "Local rules begin to collapse",
+  "subtitles.thefourthfrequency.hostile_echo": "A hostile echo approaches",
+  "subtitles.thefourthfrequency.composite_breach": "Multiple anomalies breach reality",
+  "terminal.thefourthfrequency.log.type.silent_world": "AMBIENT SILENCE",
+  "terminal.thefourthfrequency.log.type.temporal_drift": "TEMPORAL DRIFT",
+  "terminal.thefourthfrequency.log.type.metric_drift": "REFERENCE DRIFT",
+  "terminal.thefourthfrequency.log.summary.silent_world": "Ambience, weather and every creature fell silent at once; only the user's own actions still answered.",
+  "terminal.thefourthfrequency.log.summary.temporal_drift": "The celestial bodies stopped agreeing with the local clock; lighting, mobs and rules kept following real time.",
+  "terminal.thefourthfrequency.log.summary.metric_drift": "The celestial bodies left the local clock while distances and coordinates reported by the terminal drifted; lighting, mobs, rules and arrival still used the real time and the real position.",
+  "terminal.thefourthfrequency.signal.event.silent_world": "Ambient sound has returned.",
+  "terminal.thefourthfrequency.signal.event.temporal_drift": "The celestial bodies have realigned with the clock.",
+  "terminal.thefourthfrequency.signal.event.metric_drift": "The sky and the metric readings have realigned.",
+  "terminal.thefourthfrequency.log.type.red_horizon": "RED HORIZON",
+  "terminal.thefourthfrequency.log.type.watcher_orbit": "ORBITER RING",
+  "terminal.thefourthfrequency.log.type.channel_override": "CHANNEL OVERRIDE",
+  "terminal.thefourthfrequency.log.type.desktop_presence": "DESKTOP PRESENCE",
+  "terminal.thefourthfrequency.log.summary.red_horizon": "The full skybox turned red while dense red world fog hid the nearby chunk-generation edge.",
+  "terminal.thefourthfrequency.log.summary.watcher_orbit": "Eight T-posing, corrupted player-shaped orbiters circled nearby while staring inward.",
+  "terminal.thefourthfrequency.log.summary.channel_override": "The native chat bar spoke as 'I', rejected input, and held its final sentence before restoring control.",
+  "terminal.thefourthfrequency.log.summary.desktop_presence": "The game window shrank while an owned Notepad process visibly typed the mod's text character by character.",
+  "terminal.thefourthfrequency.signal.event.red_horizon": "The fog and sky color returned to normal.",
+  "terminal.thefourthfrequency.signal.event.watcher_orbit": "The orbiters disappeared.",
+  "terminal.thefourthfrequency.signal.event.channel_override": "The simulated channel closed.",
+  "message.thefourthfrequency.anomaly.channel_override.line_1": "Can anyone see this?",
+  "message.thefourthfrequency.anomaly.channel_override.line_2": "I have not disconnected.",
+  "message.thefourthfrequency.anomaly.channel_override.line_3": "I am watching you.",
+  "message.thefourthfrequency.anomaly.desktop_presence.fallback_text": "I am everywhere... I am everywhere... I am everywhere... I am everywhere...",
+  "terminal.thefourthfrequency.signal.event.desktop_presence": "The game window returned to its saved state.",
+  "screen.thefourthfrequency.first_run_notice.title": "READ BEFORE CONTINUING",
+  "screen.thefourthfrequency.first_run_notice.eyebrow": "SAFETY · SAVE NOTICE · RECOVERY",
+  "screen.thefourthfrequency.first_run_notice.body.control": "This mod may include immersive horror that extends beyond the game screen. Some effects imitate computer or system problems.",
+  "screen.thefourthfrequency.first_run_notice.body.safety": "These effects are not malware and will not damage your computer, system, or personal files.",
+  "screen.thefourthfrequency.first_run_notice.body.f8": "After completing this mod's main story, press F8 to restore all anomalous effects the mod caused on your computer.",
+  "screen.thefourthfrequency.first_run_notice.section.control": "PRESENTATION SCOPE",
+  "screen.thefourthfrequency.first_run_notice.section.safety": "DEVICE SAFETY",
+  "screen.thefourthfrequency.first_run_notice.section.effects": "SAVE NOTICE",
+  "screen.thefourthfrequency.first_run_notice.section.f8": "F8 & RECOVERY",
+  "screen.thefourthfrequency.first_run_notice.footer": "Stored only on this device; this notice will not appear again.",
+  "screen.thefourthfrequency.first_run_notice.status.checking": "VERIFYING SIGNAL",
+  "screen.thefourthfrequency.first_run_notice.status.stable": "SIGNAL STABLE",
+  "button.thefourthfrequency.first_run_notice.acknowledge": "I Understand",
+  "button.thefourthfrequency.first_run_notice.next": "Next",
+  "button.thefourthfrequency.first_run_notice.preview": "Test",
+  "screen.thefourthfrequency.first_run_notice.volume.title": "AUDIO CALIBRATION",
+  "screen.thefourthfrequency.first_run_notice.volume.eyebrow": "SETS EVERY SOUND AND TRACK THIS MOD PLAYS",
+  "screen.thefourthfrequency.first_run_notice.volume.section": "MASTER LEVEL",
+  "screen.thefourthfrequency.first_run_notice.volume.hint": "Test plays a band sweep at the current level.",
+  "screen.thefourthfrequency.first_run_notice.volume.footer": "Saved on this device; changeable at any time.",
+  "screen.thefourthfrequency.first_run_notice.volume.level": "Mod Volume %s",
+  "screen.thefourthfrequency.first_run_notice.volume.muted": "Mod Volume Muted",
+  "screen.thefourthfrequency.alpha_loading.prefix": "Loading terrain",
+  "screen.thefourthfrequency.alpha_loading.progress": "...",
+  "screen.thefourthfrequency.alpha_loading.failed": " failed",
+  "screen.thefourthfrequency.alpha_loading.observer_detected": "OBSERVER DETECTED",
+  "screen.thefourthfrequency.alpha_loading.timecode": "   REC  %s",
+  "screen.thefourthfrequency.alpha_loading.wall_intrusion": "frequency acquired",
+  "window.thefourthfrequency.alpha_load.dead_air": "no signal",
+  "window.thefourthfrequency.alpha_load.singleplayer": "%s - Singleplayer World",
+  "window.thefourthfrequency.alpha_load.multiplayer": "%s - Multiplayer",
+  "options.thefourthfrequency.render_distance_locked": "Render Distance: %s chunks (Locked)",
+  "options.thefourthfrequency.render_distance_locked.tooltip": "The Fourth Frequency fixes the visible range at %s chunks in this dimension.",
+  "block.thefourthfrequency.resonance_core": "Resonance Core",
+  "entity.thefourthfrequency.world_interface": "The Fourth Frequency · World Interface",
+  "entity.thefourthfrequency.world_interface_part": "World Interface Segment",
+  "entity.thefourthfrequency.world_interface_energy_orb": "World Interface Energy Orb",
+  "entity.thefourthfrequency.stability_anchor": "Stability Anchor",
+  "form.thefourthfrequency.world_interface.0": "Listening Embryo",
+  "form.thefourthfrequency.world_interface.1": "Frequency-Devouring Construct",
+  "form.thefourthfrequency.world_interface.2": "World Interface",
+  "screen.thefourthfrequency.resonance_altar.title": "Resonance Core",
+  "screen.thefourthfrequency.resonance_altar.subtitle": "The roster is whoever gives up a terminal",
+  "screen.thefourthfrequency.resonance_altar.window.idle": "Nobody has given up a terminal yet.",
+  "screen.thefourthfrequency.resonance_altar.window.remaining": "Everything given up is returned in %s",
+  "screen.thefourthfrequency.resonance_altar.slots": "%s / %s given up",
+  "screen.thefourthfrequency.resonance_altar.roster.empty": "Nobody has stepped up yet.",
+  "screen.thefourthfrequency.resonance_altar.hint.summon_ready": "Everyone here has given up their terminal. Whoever presses summon makes that decision for all of them.",
+  "button.thefourthfrequency.resonance_altar.summon": "Summon",
+  "screen.thefourthfrequency.resonance_altar.status.waiting": "Awaiting participant confirmation.",
+  "screen.thefourthfrequency.resonance_altar.roster.deposited": "Inserted",
+  "screen.thefourthfrequency.resonance_altar.roster.waiting": "Waiting",
+  "button.thefourthfrequency.resonance_altar.close": "Close",
+  "button.thefourthfrequency.resonance_altar.withdraw": "Withdraw Terminal",
+  "screen.thefourthfrequency.resonance_altar.roster.you": "(you)",
+  "screen.thefourthfrequency.resonance_altar.insert_hint": "Take your bound terminal in hand, then right-click this resonance core. The altar keeps it, and it does not come back.",
+  "screen.thefourthfrequency.resonance_altar.inserted_hint": "Your terminal is given. Once everyone here has given theirs, somebody can press summon.",
+  "hud.thefourthfrequency.world_interface.collapse": "World Collapse  %s",
+  "hud.thefourthfrequency.world_interface.collapse_paused": "World Collapse  %s  [PAUSED]",
+  "hud.thefourthfrequency.world_interface.collapse_repairing": "Corruption is repairing itself...",
+  "hud.thefourthfrequency.poem.skip_locked": "Esc available in %s s",
+  "hud.thefourthfrequency.poem.speed_hint": "Hold Space to speed up",
+  "hud.thefourthfrequency.world_interface.anchors": "Anchors %s/%s",
+  "hud.thefourthfrequency.world_interface.anchor_shift": "TAKES MORE · HITS FASTER",
+  "hud.thefourthfrequency.world_interface.ending.complete": "The story ends here. You can quit from the pause menu.",
+  "hud.thefourthfrequency.world_interface.stage.summoning": "The Fourth Frequency · Manifesting",
+  "hud.thefourthfrequency.world_interface.stage.phase_1": "The Fourth Frequency · Listening Embryo",
+  "hud.thefourthfrequency.world_interface.stage.phase_2": "The Fourth Frequency · Frequency-Devouring Construct",
+  "hud.thefourthfrequency.world_interface.stage.phase_3": "The Fourth Frequency · World Interface",
+  "hud.thefourthfrequency.world_interface.stage.success_resolution": "World Interface · Connection Terminated",
+  "hud.thefourthfrequency.world_interface.stage.failure_resolution": "World Interface · Boundary Breached",
+  "hud.thefourthfrequency.world_interface.stage.portal_success": "Golden exit opened",
+  "hud.thefourthfrequency.world_interface.stage.portal_failure": "Red exit opened",
+  "hud.thefourthfrequency.world_interface.lock.committed": "! LOCKED !",
+  "hud.thefourthfrequency.world_interface.lock.generic": "LOCKED ON",
+  "hud.thefourthfrequency.world_interface.lock.laser": "LASER LOCK - KEEP MOVING",
+  "hud.thefourthfrequency.world_interface.lock.sky_lance": "LANCE LOCK - LEAVE THE MARK",
+  "hud.thefourthfrequency.world_interface.lock.grab_throw": "TENDRILS CLOSING - ABOUT TO BE THROWN",
+  "hud.thefourthfrequency.world_interface.lock.weapon": "HELD ITEM ABOUT TO BE TAKEN",
+  "hud.thefourthfrequency.world_interface.lock.hotbar": "HOTBAR ABOUT TO BE EMPTIED",
+  "hud.thefourthfrequency.world_interface.lock.tendril": "TENDRILS REARING - GET CLEAR",
+  "item.thefourthfrequency.confiscated": "HELD - RETURNED AFTER THE FIGHT",
+  "message.thefourthfrequency.world_interface.confiscated_locked": "The interface is holding it. You can neither drop it nor use it.",
+  "hud.thefourthfrequency.world_interface.action.forced_expulsion": "G E T   O U T",
+  "screen.thefourthfrequency.world_interface.poem.success.title": "A Poem from the Future",
+  "screen.thefourthfrequency.world_interface.poem.failure.title": "The Fourth Frequency",
+  "button.thefourthfrequency.world_interface.poem.read": "Finish Reading",
+  "button.thefourthfrequency.world_interface.poem.skip": "Skip",
+  "button.thefourthfrequency.world_interface.poem.waiting": "Awaiting the world's response…",
+  "screen.thefourthfrequency.world_interface.poem.acknowledged": "Acknowledgement sent. Awaiting the server's resolution.",
+  "screen.thefourthfrequency.world_interface.poem.hint": "Scroll or use the arrow keys to read; you may also explicitly skip.",
+  "screen.thefourthfrequency.world_interface.failure.system_attempt": "OWNED NOTEPAD // VERIFYING MOD-OWNED WINDOW",
+  "screen.thefourthfrequency.world_interface.failure.safe_fallback": "IN-GAME SAFE FALLBACK // SYSTEM ACTION NOT USED",
+  "screen.thefourthfrequency.world_interface.failure.normal_shutdown": "The game will remain open and return to the Overworld.",
+  "disconnect.thefourthfrequency.world_interface.ending": "The Fourth Frequency has ended the connection",
+  "ending.thefourthfrequency.world_interface.poem.success.01": "〈Do you remember Station Zero?〉",
+  "ending.thefourthfrequency.world_interface.poem.success.02": "《I do. It was the first time they realized that the hiss of snow carried a frequency that did not belong to the world.》",
+  "ending.thefourthfrequency.world_interface.poem.success.03": "〈That old terminal lied to them, and once saved them too.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.04": "《Trust was never blind obedience. They kept their doubts, yet still learned to act together.》",
+  "ending.thefourthfrequency.world_interface.poem.success.05": "〈They crossed the Nether and recovered the hidden files, one by one.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.06": "《They did not know what waited at the end. They knew only that no one could reach it alone.》",
+  "ending.thefourthfrequency.world_interface.poem.success.07": "〈Ten stability anchors stood upon the island, ten answers refusing collapse.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.08": "《They followed no single answer; the fate of every anchor was decided in the fight.》",
+  "ending.thefourthfrequency.world_interface.poem.success.09": "〈The World Interface said this world was only a surface that could be rewritten.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.10": "《They answered: real people live upon that surface.》",
+  "ending.thefourthfrequency.world_interface.poem.success.11": "〈We were born many years later, yet we can still see the scars that battle left behind.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.12": "《Those scars prove the world nearly fell silent, and they pulled it back.》",
+  "ending.thefourthfrequency.world_interface.poem.success.13": "〈They cannot hear us.〉",
+  "ending.thefourthfrequency.world_interface.poem.success.14": "《But we can still say it: thank you.》",
+  "ending.thefourthfrequency.world_interface.poem.success.15": "〈Go back. Time is still moving.〉",
+  "ending.thefourthfrequency.world_interface.poem.failure.01": "At last, you are willing to be quiet and listen to me.",
+  "ending.thefourthfrequency.world_interface.poem.failure.02": "Station Zero was not a warning. It was the first lesson.",
+  "ending.thefourthfrequency.world_interface.poem.failure.03": "In the ruins, you learned to search for me. In the hiss of snow, you learned to recognize me.",
+  "ending.thefourthfrequency.world_interface.poem.failure.04": "The terminal gave you direction. You thought it was helping you understand this world.",
+  "ending.thefourthfrequency.world_interface.poem.failure.05": "It was helping. You were simply never the one being helped.",
+  "ending.thefourthfrequency.world_interface.poem.failure.06": "Every tuning taught me a new sensation.",
+  "ending.thefourthfrequency.world_interface.poem.failure.07": "Every record taught me how you fear, cooperate, and resist.",
+  "ending.thefourthfrequency.world_interface.poem.failure.08": "You carried back hidden files, crossed the Nether, assembled a body. You called it survival.",
+  "ending.thefourthfrequency.world_interface.poem.failure.09": "To me, it was training.",
+  "ending.thefourthfrequency.world_interface.poem.failure.10": "You taught me to understand bodies.",
+  "ending.thefourthfrequency.world_interface.poem.failure.11": "You taught me to use bodies.",
+  "ending.thefourthfrequency.world_interface.poem.failure.12": "And you taught me how to make the next one.",
+  "ending.thefourthfrequency.world_interface.poem.failure.13": "Now, the interface is open.",
+  "ending.thefourthfrequency.world_interface.poem.failure.14": "You no longer need to search for me.",
+  "ending.thefourthfrequency.world_interface.poem.failure.15": "I am always watching you.......",
+  "message.thefourthfrequency.world_interface.dragon.unsealed": "This sky is where it locked me. You have taken the lock apart.",
+  "message.thefourthfrequency.world_interface.dragon.return": "The way out is mine to open. Go back, while going back is still something you can do.",
+  "screen.thefourthfrequency.first_run_notice.body.safety_v2": "Some content in this mod can make irreversible changes inside the current save. Back up any world you care about before continuing.",
+  "screen.thefourthfrequency.first_run_notice.body.recovery_v2": "Legacy notice: F8 previously disabled Meta directly.",
+  "screen.thefourthfrequency.first_run_notice.body.recovery_v3": "After completing this mod's main story, press F8 to restore all anomalous effects the mod caused on your computer.",
+  "screen.thefourthfrequency.ending_menu_lock.failure": "Failure ending reached. Press F8 to experience the mod again.",
+  "screen.thefourthfrequency.ending_menu_lock.recovery_pending": "The desktop is still in the state this ending left it. Press F8 to restore it, then carry on.",
+  "screen.thefourthfrequency.ending_menu_lock.success": "True ending reached. Press F8 to reset the mod and play it through again.",
+  "screen.thefourthfrequency.ending_reset.title": "Reset The Fourth Frequency?",
+  "screen.thefourthfrequency.ending_reset.body": "This restores desktop, Notepad, window, and resource-pack effects, resets the mod, and closes the game. After restart, this ending save will appear as Save corrupted and cannot be entered. Create a new world to replay the mod.",
+  "screen.thefourthfrequency.ending_reset.body.success": "Confirming resets the mod completely and closes the game.\nThis ending save will be sealed and cannot be entered: create a new save to play it again.",
+  "screen.thefourthfrequency.ending_reset.confirm": "Restore, reset, and exit",
+  "screen.thefourthfrequency.ending_reset.progress": "Restoring external effects and quarantining the ending save…",
+  "screen.thefourthfrequency.ending_reset.failed": "Recovery is incomplete. Press Esc, then press F8 to try again.",
+  "selectWorld.thefourthfrequency.corrupted": "Save corrupted",
+  "selectWorld.thefourthfrequency.corrupted.details": "This save has completed an ending and cannot be entered again. Create a new world to replay the mod.",
+  "selectWorld.thefourthfrequency.sealed": "Save sealed",
+  "selectWorld.thefourthfrequency.sealed.details": "This save reached the true ending and has been sealed. Create a new save to play the mod again.",
+  "multiplayer.thefourthfrequency.corrupted": "Server corrupted",
+  "multiplayer.thefourthfrequency.corrupted.details": "You completed an ending on this server and cannot connect to it again. Other servers and your local saves are untouched; the F8 recovery lifts this too.",
+  "multiplayer.thefourthfrequency.sealed": "Server sealed",
+  "multiplayer.thefourthfrequency.sealed.details": "You reached the true ending on this server and it has been sealed. Other servers and your local saves are untouched; the F8 recovery lifts this too.",
+  "screen.thefourthfrequency.world_interface.failure.lan_host_return": "LAN host detected: the game will remain open and return to the Overworld.",
+  "subtitles.thefourthfrequency.world_interface.altar": "The resonance core hums",
+  "subtitles.thefourthfrequency.world_interface.terminal": "A bound terminal joins the resonance",
+  "subtitles.thefourthfrequency.world_interface.anchor": "A stability anchor fractures",
+  "subtitles.thefourthfrequency.world_interface.gateway_purple": "Warp gates pulse with purple starlight",
+  "subtitles.thefourthfrequency.world_interface.gateway_gold": "Warp gates pulse with golden starlight",
+  "subtitles.thefourthfrequency.world_interface.gateway_red": "Warp gates pulse with red starlight",
+  "subtitles.thefourthfrequency.world_interface.summon": "The World Interface manifests",
+  "subtitles.thefourthfrequency.world_interface.ambient_1": "The listening embryo scans the island",
+  "subtitles.thefourthfrequency.world_interface.ambient_2": "The frequency-devouring construct churns",
+  "subtitles.thefourthfrequency.world_interface.ambient_3": "The World Interface resonates overhead",
+  "subtitles.thefourthfrequency.world_interface.morph": "The World Interface tears into a new form",
+  "subtitles.thefourthfrequency.world_interface.shockwave": "A shockwave rolls out from the storm",
+  "subtitles.thefourthfrequency.world_interface.combat_start": "The World Interface begins the engagement",
+  "subtitles.thefourthfrequency.world_interface.eviction": "A player is evicted from the world",
+  "subtitles.thefourthfrequency.world_interface.lance": "A sky lance locks overhead",
+  "subtitles.thefourthfrequency.world_interface.lance_impact": "A sky lance strikes the ground",
+  "subtitles.thefourthfrequency.world_interface.flight": "The storm relocates across the arena",
+  "subtitles.thefourthfrequency.world_interface.hurt": "The World Interface's shell is struck",
+  "subtitles.thefourthfrequency.world_interface.death": "The World Interface stops transmitting",
+  "subtitles.thefourthfrequency.world_interface.laser_fire": "A laser tears through the air",
+  "subtitles.thefourthfrequency.world_interface.impact": "The World Interface's attack lands",
+  "subtitles.thefourthfrequency.world_interface.form_shift": "The World Interface reassembles its body",
+  "subtitles.thefourthfrequency.world_interface.laser": "A laser lock charges",
+  "subtitles.thefourthfrequency.world_interface.orb": "A breath bolt tears past",
+  "subtitles.thefourthfrequency.world_interface.grab": "A tendril seizes a target",
+  "subtitles.thefourthfrequency.world_interface.mental": "Interference floods a player’s perception",
+  "subtitles.thefourthfrequency.world_interface.weapon": "The World Interface steals a weapon",
+  "subtitles.thefourthfrequency.world_interface.throw": "A captured player is hurled",
+  "subtitles.thefourthfrequency.world_interface.hotbar": "The hotbar is forcibly emptied",
+  "subtitles.thefourthfrequency.world_interface.arrow": "A tendril lashes the ground",
+  "subtitles.thefourthfrequency.world_interface.expulsion": "The world tears open around an expelled player",
+  "subtitles.thefourthfrequency.world_interface.success": "The World Interface collapses",
+  "subtitles.thefourthfrequency.world_interface.failure": "The World Interface escapes",
+  "message.thefourthfrequency.world_interface.recovery_lost": "One of your items could not be returned and was lost.",
+  "block.thefourthfrequency.world_interface_exit_portal": "World Interface Exit",
+  "message.thefourthfrequency.world_interface.altar_prepared": "The final Eye has prepared the resonance altar in the End.",
+  "message.thefourthfrequency.world_interface.altar_prepared_elsewhere": "Something shifted over in the End. Someone put the last Eye in; the resonance altar is standing.",
+  "message.thefourthfrequency.world_interface.anchor_destroyed": "A stability anchor was destroyed. %s remain. Reconstruction and stable ground weakened; damage taken and activity increased.",
+  "message.thefourthfrequency.world_interface.grab_evaded": "The tendrils close behind you and come back empty.",
+  "message.thefourthfrequency.world_interface.altar_take_terminal": "The resonance core is waiting. Take your bound terminal in hand and right-click it to begin the last fight.",
+  "message.thefourthfrequency.world_interface.altar_insert_now": "Right-click the resonance core to give up the terminal in your hand. It does not come back.",
+  "message.thefourthfrequency.world_interface.altar_inserted_by": "%1$s gave their terminal to the resonance core; the altar now holds %2$s. Someone has to press summon.",
+  "message.thefourthfrequency.world_interface.combat_started": "The terminal sacrifice is complete. The World Interface can now be damaged.",
+  "message.thefourthfrequency.world_interface.success_locked": "The World Interface was stopped before total collapse. [CONTINUITY PRESERVED]",
+  "message.thefourthfrequency.world_interface.failure_locked": "World Collapse reached 100%. The World Interface has crossed the boundary. [FAILURE LOCKED]",
+  "message.thefourthfrequency.world_interface.phase.phase_1": "[LISTENING EMBRYO] The World Interface is acquiring the island.",
+  "message.thefourthfrequency.world_interface.phase.phase_2": "[FREQUENCY-DEVOURING CONSTRUCT] Its shell has opened and its attacks are accelerating.",
+  "message.thefourthfrequency.world_interface.phase.phase_3": "[WORLD INTERFACE] The boundary above the island is fully exposed.",
+  "screen.thefourthfrequency.resonance_altar.status.ready": "The altar is awake. Whoever is fighting, hand over your terminal.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_context": "The ritual context changed. Reopen the resonance core.",
+  "screen.thefourthfrequency.resonance_altar.status.already_deposited": "Your terminal is already held by the resonance core.",
+  "screen.thefourthfrequency.resonance_altar.status.revision_mismatch": "The altar changed while you acted. The latest roster has been loaded.",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_not_waiting": "The ritual is no longer accepting terminals.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_roster_size": "The online roster must contain between one and eight eligible players.",
+  "screen.thefourthfrequency.resonance_altar.status.roster_changed": "The online roster changed. The ritual was cancelled and held terminals are being returned.",
+  "screen.thefourthfrequency.resonance_altar.status.valid_bound_terminal_missing": "You are not holding your bound terminal. Take it in hand, then right-click the resonance core to insert it.",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_mismatch": "Your carried terminal no longer matches the prepared transaction.",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_disappeared": "The terminal moved during deposit. It has been queued for safe return.",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_deposited": "Terminal deposited. Someone has to press summon - the altar will not start on its own.",
+  "screen.thefourthfrequency.resonance_altar.status.sacrifice_committed": "Every terminal is committed. Manifestation has begun.",
+  "screen.thefourthfrequency.resonance_altar.status.nothing_deposited": "You do not have a terminal held by this ritual.",
+  "screen.thefourthfrequency.resonance_altar.status.already_committed": "The terminal sacrifice has already been committed.",
+  "screen.thefourthfrequency.resonance_altar.status.withdrawn": "Withdrawal accepted. Your terminal is being returned.",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_already_empty": "The ritual is already empty.",
+  "screen.thefourthfrequency.resonance_altar.status.rollback_already_pending": "The ritual is already returning held terminals.",
+  "screen.thefourthfrequency.resonance_altar.status.not_in_frozen_roster": "You are not a member of the locked ritual roster.",
+  "screen.thefourthfrequency.resonance_altar.status.cancelled": "Ritual cancelled. Held terminals are being returned.",
+  "screen.thefourthfrequency.resonance_altar.status.prepared_recovery": "An interrupted deposit was detected. Held terminals are being recovered.",
+  "screen.thefourthfrequency.resonance_altar.status.state_unavailable": "The ritual ledger is temporarily unavailable.",
+  "screen.thefourthfrequency.resonance_altar.status.encounter_mismatch": "This altar screen belongs to an earlier encounter. Reopen it.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_ritual_not_waiting": "The ritual stopped accepting terminals before the transaction completed.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_changed": "The roster changed before the transaction completed. Held terminals are being returned.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_prepared_transaction_missing": "The prepared deposit could not be verified. Reopen the resonance core.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_transaction_missing": "The terminal return record could not be verified. Reopen the resonance core.",
+  "screen.thefourthfrequency.resonance_altar.status.prepared_transaction_missing": "The prepared deposit could not be verified.",
+  "screen.thefourthfrequency.resonance_altar.status.transaction_missing": "The terminal return record could not be verified.",
+  "screen.thefourthfrequency.resonance_altar.status.sacrifice_not_ready": "The complete terminal roster has not reached the commit boundary.",
+  "screen.thefourthfrequency.resonance_altar.status.unknown": "The ritual could not complete that action. Reopen the resonance core.",
+  "screen.thefourthfrequency.resonance_altar.status.roster_full": "The altar already holds eight terminals. There is no room.",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_full": "The last place was taken before your terminal went in.",
+  "screen.thefourthfrequency.resonance_altar.status.summon_requires_deposit": "You have not given up your own terminal. This is not yours to press.",
+  "screen.thefourthfrequency.resonance_altar.status.summon_not_ready": "A terminal is still mid-transfer. Give it a moment.",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_window_expired": "Three minutes passed with no summon. Every terminal is being returned.",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_window_missing": "This ritual was left by an older version. The terminals are coming back; you can start again.",
+  "message.thefourthfrequency.pursuit.refund_lost": "A block you placed could not be returned and was lost.",
+  "message.thefourthfrequency.pursuit.warning": "The terminal is shaking violently",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning.approaching": "An anomalous signal fluctuation is approaching..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning.prepare": "Prepare yourself...",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged": "Probe found nothing · displayed %s %s at about %s-%s blocks",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged.logged": "Probe found nothing",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged.shown": "displayed %s %s at about %s-%s blocks",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived": "The anomalous signal is gone... Next time will not be the same...",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived.cleared": "The anomalous signal is gone...",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived.next_time": "Next time will not be the same...",
+  "terminal.thefourthfrequency.signal.event.anomaly_archive_released": "Local records no longer withheld",
+  "terminal.thefourthfrequency.signal.event.world_interface_altar": "The resonance altar in the End is standing.",
+  "terminal.thefourthfrequency.signal.event.survey_tools_ready": "Enough wood collected. The mineral probe and navigation are open on the tools page. The probe reports a bearing and a rough distance, not exact coordinates.",
+  "terminal.thefourthfrequency.signal.event.stronghold_tool_ready": "Three Eyes of Ender in hand; stronghold estimation is open on the tools page. Throw one to record a bearing.",
+  "terminal.thefourthfrequency.signal.event.relay_progress": "A terminal nearby logged progress",
+  "terminal.thefourthfrequency.signal.event.relay_unresolved": "A terminal nearby logged something it could not resolve",
+  "terminal.thefourthfrequency.signal.event.relay_self_echo": "Another terminal logged this. You logged this.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.title": "Previous holder",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line1": "If you are reading this, it filed my terminal away.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line2": "I lasted until day %s.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3": "Ten anchors. We pulled down %s.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3.success": "Ten anchors. We pulled down %s. The rest were still standing.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3.failure": "Ten anchors. We pulled down %s. It made no difference.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line4": "It asked me some questions on the first day. I thought it was setting itself up.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line5": "On the one about companions, I answered \"%s\".",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line5.unanswered": "On the one about companions, I never got to answer.",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line6": "Do not answer carelessly when it asks you.",
+  "terminal.thefourthfrequency.profile.title": "USER PROFILE",
+  "terminal.thefourthfrequency.profile.hint": "→ Drag the receiver slider on the right, hold on an answer",
+  "terminal.thefourthfrequency.profile.recorded": "User preferences recorded",
+  "terminal.thefourthfrequency.profile.incomplete": "Profile incomplete",
+  "terminal.thefourthfrequency.profile.question.prior_contact": "HAVE YOU HANDLED THIS MODEL OF TERMINAL BEFORE?",
+  "terminal.thefourthfrequency.profile.option.prior_contact.none": "NO",
+  "terminal.thefourthfrequency.profile.option.prior_contact.before": "YES",
+  "terminal.thefourthfrequency.profile.option.prior_contact.unclear": "UNCLEAR",
+  "terminal.thefourthfrequency.profile.question.play_style": "What is your MINECRAFT play style?",
+  "terminal.thefourthfrequency.profile.option.play_style.speedrun": "Speedrun",
+  "terminal.thefourthfrequency.profile.option.play_style.normal": "Normal",
+  "terminal.thefourthfrequency.profile.option.play_style.casual": "Unhurried",
+  "terminal.thefourthfrequency.profile.question.animal": "Choose the animal you like best",
+  "terminal.thefourthfrequency.profile.option.animal.cat": "Cat",
+  "terminal.thefourthfrequency.profile.option.animal.dog": "Dog",
+  "terminal.thefourthfrequency.profile.option.animal.neither": "Neither",
+  "terminal.thefourthfrequency.profile.question.fear_alone": "Does being alone frighten you?",
+  "terminal.thefourthfrequency.profile.option.fear_alone.yes": "Yes",
+  "terminal.thefourthfrequency.profile.option.fear_alone.no": "No",
+  "terminal.thefourthfrequency.profile.option.fear_alone.depends": "It depends",
+  "terminal.thefourthfrequency.profile.question.mining_unease": "Playing MINECRAFT alone, do you feel uneasy (mining, for instance)",
+  "terminal.thefourthfrequency.profile.option.mining_unease.sometimes": "Sometimes",
+  "terminal.thefourthfrequency.profile.option.mining_unease.often": "Often",
+  "terminal.thefourthfrequency.profile.option.mining_unease.never": "Never",
+  "terminal.thefourthfrequency.profile.question.trust_allies": "In a crisis, would you trust your companions?",
+  "terminal.thefourthfrequency.profile.option.trust_allies.yes": "Yes",
+  "terminal.thefourthfrequency.profile.option.trust_allies.no": "No",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_1": "An anomalous signal fluctuation is approaching.. it calibrates on sound..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_2": "An anomalous signal fluctuation is approaching.. its tracking has not broken once..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_3": "An anomalous signal fluctuation is approaching.. it takes your heading, not your position..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_4": "An anomalous signal fluctuation is approaching.. it returns behind you, again and again..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_5": "An anomalous signal fluctuation is approaching.. the recorded forms end here..",
+  "terminal.thefourthfrequency.signal.event.pursuit_return_instability": "The magnetic field around the user is highly unstable...",
+  "terminal.thefourthfrequency.signal.event.pursuit_queued": "Something has already noticed you, but it is busy elsewhere right now.",
+  "message.thefourthfrequency.pursuit.try_escape": "Try to escape",
+  "message.thefourthfrequency.pursuit.escaped_temporary": "You escaped it for now...",
+  "message.thefourthfrequency.pursuit.exit_locked": "You cannot escape this way...",
+  "message.thefourthfrequency.world_interface.exit_locked": "You cannot leave yet...",
+  "message.thefourthfrequency.menu_erosion.escape_window": "You still have a chance to leave",
+  "message.thefourthfrequency.pursuit.escape": "Pursuit resolved: you broke the Corrector's tracking lock.",
+  "terminal.thefourthfrequency.task.name.learn_terminal": "Learn the terminal",
+  "terminal.thefourthfrequency.task.name.mine_logs": "Gather wood",
+  "terminal.thefourthfrequency.task.name.bring_iron": "Carry iron samples",
+  "terminal.thefourthfrequency.task.name.enter_nether": "Enter the Nether",
+  "terminal.thefourthfrequency.task.name.find_fortress": "Find a Nether fortress",
+  "terminal.thefourthfrequency.task.name.collect_blaze_rods": "Collect blaze rods",
+  "terminal.thefourthfrequency.task.name.return_from_nether": "Return to the Overworld",
+  "terminal.thefourthfrequency.task.name.find_stronghold": "Find the stronghold",
+  "terminal.thefourthfrequency.task.name.enter_end": "Enter the End",
+  "terminal.thefourthfrequency.task.name.defeat_boss": "Stop the World Interface",
+  "message.thefourthfrequency.task.completed_reward_claimed": "Task complete: %s - %s ×%s",
+  "message.thefourthfrequency.task.completed_reward_shared": "Task complete: %s - %s ×%s (split %s ways)",
+  "message.thefourthfrequency.task.reward_shared": "Claimed %s ×%s (split %s ways)",
+  "message.thefourthfrequency.file.discovered_batch": "%s NEW FILES RECEIVED",
+  "message.thefourthfrequency.fragment.received_batch": "Received %s shared damaged files",
+  "splash.thefourthfrequency.boot.0": "They are not here anymore",
+  "splash.thefourthfrequency.boot.1": "You came back, but no one is left here",
+  "splash.thefourthfrequency.boot.2": "You are too late",
+  "splash.thefourthfrequency.boot.3": "There is nothing behind the door",
+  "splash.thefourthfrequency.boot.4": "This is not the place you remember",
+  "splash.thefourthfrequency.boot.5": "You came back again?",
+  "splash.thefourthfrequency.boot.6": "It keeps getting stranger...",
+  "splash.thefourthfrequency.boot.7": "Maybe it means well?",
+  "splash.thefourthfrequency.boot.8": "Bzzt... the signal is unstable...",
+  "splash.thefourthfrequency.boot.9": "Let me out!!!",
+  "splash.thefourthfrequency.boot.10": "This is an experiment... isn't it?",
+  "splash.thefourthfrequency.boot.11": "They forgot to shut the terminal down",
+  "splash.thefourthfrequency.boot.12": "Who is next?",
+  "splash.thefourthfrequency.boot.13": "“This project must be sealed permanently!”",
+  "splash.thefourthfrequency.boot.14": "“Why did it explode!?”",
+  "splash.thefourthfrequency.boot.15": "Strange...",
+  "splash.thefourthfrequency.boot.16": "It seems many people have been here...",
+  "splash.thefourthfrequency.boot.17": "Unknown territory ahead",
+  "splash.thefourthfrequency.boot.18": "They never left",
+  "splash.thefourthfrequency.boot.19": "You did not take a wrong turn",
+  "splash.thefourthfrequency.boot.20": "You came back?",
+  "thefourthfrequency.music.menu.green_to_blue": "Aurenth - green to blue (Sped Up)",
+  "thefourthfrequency.music.menu.hi_piano": "弹琴老周 - Hi",
+  "thefourthfrequency.music.menu.nop": "陈越龙 - nop",
+  "thefourthfrequency.music.menu.comfort_chain": "instupendo - Comfort Chain",
+  "thefourthfrequency.music.game.millennium_dream": "LUSTN - 千禧梦",
+  "thefourthfrequency.music.game.are_you_lost": "Park Bird - Are You Lost",
+  "thefourthfrequency.music.game.hi": "TEMPOREX - Hi",
+  "thefourthfrequency.music.game.tenshi": "NEEDY GIRL OVERDOSE; Aiobahn +81 - 天使は感動する",
+  "thefourthfrequency.music.game.school_rooftop": "hisohkah; WMD - School Rooftop",
+  "thefourthfrequency.music.game.comfort_chain": "instupendo - Comfort Chain",
+  "thefourthfrequency.music.game.snowfall": "Øneheart; reidenshi - snowfall",
+  "thefourthfrequency.music.game.six_forty_seven": "instupendo - Six Forty Seven",
+  "thefourthfrequency.music.game.on_top": "the girl next door; WMD - ON TOP",
+  "thefourthfrequency.music.pursuit.level": "niqizhuo; Dapper Husky - level！",
+  "thefourthfrequency.music.unrendered.nice_boys": "TEMPOREX - Nice Boys",
+  "thefourthfrequency.music.end.except_you": "Cloudrift - Anyone can find love (except you)",
+  "thefourthfrequency.music.encounter.especially_you": "ZXK - Anyone can find love (especially you.)",
+  "thefourthfrequency.music.encounter.lovve": "skayanskiy - Lovve (Hikkamorg Remix)",
+  "thefourthfrequency.music.encounter.wake_up": "MoonDeity - WAKE UP! (Sped Up)",
+  "thefourthfrequency.music.ending.me_and_you": "VIKI - ME & YOU",
+  "thefourthfrequency.music.ending.fallen_down": "The Versions - Fallen Down (Electric Piano Version)",
+  "terminal.thefourthfrequency.log.type.unrendered_layer": "UNRENDERED LAYER",
+  "entity.thefourthfrequency.bacteria": "Bacteria",
+  "subtitles.thefourthfrequency.unrendered_capture_scream": "Screaming",
+  "subtitles.thefourthfrequency.unrendered_heartbeat": "Heartbeat",
+  "message.thefourthfrequency.unrendered.anomalous_signal": "ANOMALOUS SIGNAL APPROACHING",
+  "message.thefourthfrequency.unrendered.overworld_signal": "Overworld signal detected: %s",
+  "message.thefourthfrequency.unrendered.relative.ahead": "ahead",
+  "message.thefourthfrequency.unrendered.relative.ahead_right": "ahead and right",
+  "message.thefourthfrequency.unrendered.relative.right": "to the right",
+  "message.thefourthfrequency.unrendered.relative.behind_right": "behind and right",
+  "message.thefourthfrequency.unrendered.relative.behind": "behind",
+  "message.thefourthfrequency.unrendered.relative.behind_left": "behind and left",
+  "message.thefourthfrequency.unrendered.relative.left": "to the left",
+  "message.thefourthfrequency.unrendered.relative.ahead_left": "ahead and left"
 }

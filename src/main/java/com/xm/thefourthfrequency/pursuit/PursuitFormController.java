@@ -7,6 +7,7 @@ import com.xm.thefourthfrequency.networking.PursuitPresentationPayload;
 import com.xm.thefourthfrequency.terminal.AnomalyIntensity;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.world.FrequencyWorldData;
+import com.xm.thefourthfrequency.world.MaximumHealthAdjustment;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
@@ -379,11 +380,10 @@ public final class PursuitFormController {
 
 	private static void tickResolution(ServerPlayer player, Runtime runtime, long now) {
 		if (now < runtime.resolutionEndsAt) return;
-		var maximumHealth = player.getAttribute(Attributes.MAX_HEALTH);
 		double delta = PursuitProgressPolicy.resolutionMaxHealthDelta(
 				runtime.resolution == Resolution.CAPTURED,
-				maximumHealth == null ? MAX_PLAYER_MAX_HEALTH : maximumHealth.getBaseValue());
-		adjustMaximumHealth(player, delta);
+				MaximumHealthAdjustment.currentBase(player));
+		MaximumHealthAdjustment.apply(player, delta);
 		// Both CAPTURED and ESCAPED land here, and only they do: a technically interrupted chase
 		// returns straight from capture() without ever setting a resolution. That makes this the
 		// one point that means "the player actually went through a chase and it concluded", which
@@ -401,15 +401,6 @@ public final class PursuitFormController {
 		PursuitSessionService.returnToSource(player, reason);
 		TerminalRuntimeService.synchronizeProjection(player);
 		TerminalRuntimeService.refresh(player);
-	}
-
-	private static void adjustMaximumHealth(ServerPlayer player, double delta) {
-		var maximumHealth = player.getAttribute(Attributes.MAX_HEALTH);
-		if (maximumHealth == null) return;
-		double adjusted = Math.clamp(maximumHealth.getBaseValue() + delta,
-				MIN_PLAYER_MAX_HEALTH, MAX_PLAYER_MAX_HEALTH);
-		maximumHealth.setBaseValue(adjusted);
-		if (player.getHealth() > adjusted) player.setHealth((float) adjusted);
 	}
 
 	private static final class Runtime {

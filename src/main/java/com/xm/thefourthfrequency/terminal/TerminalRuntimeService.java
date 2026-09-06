@@ -19,6 +19,7 @@ import com.xm.thefourthfrequency.world.FrequencyWorldData;
 import com.xm.thefourthfrequency.world.FragmentInvestigationService;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -41,13 +42,36 @@ public final class TerminalRuntimeService {
 	/** Snapshot cadence while a lock is counting up, so the readout can actually be watched. */
 	private static final int RECEIVER_LOCK_SYNC_TICKS = 2;
 	private static final Map<UUID, ViewState> OPEN_VIEWS = new LinkedHashMap<>();
-	private static final Map<UUID, Integer> REMEMBERED_MODES = new LinkedHashMap<>();
+	/**
+	 * How many players' remembered views are kept.
+	 *
+	 * <p>These three maps are convenience, not state: they restore the tab and dial a player left the
+	 * screen on. They are keyed per player and were only ever cleared on {@code SERVER_STOPPED},
+	 * which on a public server that never restarts means one entry per person who has ever opened a
+	 * terminal, forever. Clearing them on disconnect was the other option and was rejected - it
+	 * throws the convenience away for exactly the player most likely to want it, somebody who
+	 * relogged - so the answer is a bound instead. Evicting the least recently used entry costs the
+	 * two-hundred-and-fifty-seventh least active player their remembered tab and nobody else
+	 * anything.
+	 */
+	private static final int REMEMBERED_VIEW_LIMIT = 256;
+	private static final Map<UUID, Integer> REMEMBERED_MODES = rememberedViews();
 	/**
 	 * The tab the player was last looking at. The wire mode only distinguishes signal from files, so
 	 * it cannot tell home from tools from records; reopening on the remembered tab needs the page.
 	 */
-	private static final Map<UUID, Integer> REMEMBERED_PAGES = new LinkedHashMap<>();
-	private static final Map<UUID, Integer> REMEMBERED_TUNING = new LinkedHashMap<>();
+	private static final Map<UUID, Integer> REMEMBERED_PAGES = rememberedViews();
+	private static final Map<UUID, Integer> REMEMBERED_TUNING = rememberedViews();
+
+	/** Access-ordered and bounded, so reading a player's remembered view also keeps it alive. */
+	private static Map<UUID, Integer> rememberedViews() {
+		return new LinkedHashMap<>(16, 0.75F, true) {
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<UUID, Integer> eldest) {
+				return size() > REMEMBERED_VIEW_LIMIT;
+			}
+		};
+	}
 	private static boolean initialized;
 
 	private TerminalRuntimeService() {
@@ -57,6 +81,20 @@ public final class TerminalRuntimeService {
 		if (initialized) return;
 		initialized = true;
 		ServerTickEvents.END_SERVER_TICK.register(TerminalRuntimeService::tick);
+		// Dropping the connection ends an unfinished profile, exactly as closing the terminal does.
+		// The walkthrough is one-shot, and without this the one path that skips CLOSE would be the one
+		// path that replays it: a player who pulled the plug on question two would be asked all five
+		// again on the next login, which is the whole property the latch exists to hold.
+		//
+		// The cost is deliberate and was chosen over the alternative. Latching on entry instead would
+		// be airtight, but it would throw away all five answers for a disconnect during the first
+		// question rather than keeping the ones already given.
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+			latchProfileIfUnfinished(handler.player);
+			// The refusal cooldown is keyed per player and would otherwise keep an entry for everyone
+			// who has ever tried to drop a bound terminal on this server.
+			TerminalNoticeService.forget(handler.player.getUUID());
+		});
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			OPEN_VIEWS.clear();
 			REMEMBERED_MODES.clear();
@@ -168,8 +206,25 @@ public final class TerminalRuntimeService {
 			// claim() only runs the catch-up pass - so there is no outcome here worth a notice: the
 			// reward, if one was still owed, announces itself through the usual completion line.
 			case TerminalControlPayload.CLAIM_TASK_REWARD -> TerminalTaskService.claim(player, value);
+			case TerminalControlPayload.ANSWER_PROFILE -> {
+				if (!recordProfileAnswer(player, value)) return;
+			}
+			case TerminalControlPayload.REPORT_PREVIOUS_RUN -> {
+				if (!recordPreviousRun(player, value != 0)) return;
+			}
 			case TerminalControlPayload.CLOSE -> {
-				if (value != 0) return;
+				if (value != TerminalControlPayload.CLOSE_SHOWN
+						&& value != TerminalControlPayload.CLOSE_NEVER_SHOWN) return;
+				// Closing part-way through the profile ends it. The exit is held while the profile is
+				// on screen, so the only ways to get here are the damage failsafe and a forced close -
+				// both of which mean the player stopped answering, and the walkthrough does not ask
+				// twice. The gaps stay gaps; the terminal is able to say the file is incomplete.
+				//
+				// CLOSE_NEVER_SHOWN is the one case where that reasoning does not hold: the client
+				// abandoned an opening that never became a screen, because something the player
+				// opened covered it while it was rising. Latching there would burn a one-shot record
+				// for somebody who opened their inventory in the first second of the run.
+				if (value == TerminalControlPayload.CLOSE_SHOWN) latchProfileIfUnfinished(player);
 				remember(player.getUUID(), view);
 				OPEN_VIEWS.remove(player.getUUID());
 				return;
@@ -178,6 +233,85 @@ public final class TerminalRuntimeService {
 		}
 		sendSnapshot(player, view);
 		sendNavigation(player);
+	}
+
+	/**
+	 * Records one profile answer and moves to the next question.
+	 *
+	 * <p>The question index is the server's, never the client's. The packet carries only which option
+	 * was chosen, so there is no way to answer ahead, answer the same question twice, or reach back
+	 * and rewrite one that is already down. Any legal option is a legal answer, so none of this is
+	 * defending against a cheat - it is defending against a one-shot record that cannot be corrected.
+	 */
+	private static boolean recordProfileAnswer(ServerPlayer player, int optionIndex) {
+		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
+		if (record == null) return false;
+		if (TerminalData.profileTaken(record)) return false;
+		if (record.getBooleanOr(TerminalData.ONBOARDING_DONE, false)) return false;
+		int question = record.getIntOr(TerminalData.PROFILE_QUESTION, 0);
+		if (!TerminalProfileQuestionnaire.validAnswer(question, optionIndex)) return false;
+		data.updateTerminalRecord(player.getUUID(), tag -> {
+			int[] answers = TerminalData.profileAnswers(tag);
+			answers[question] = optionIndex;
+			tag.putIntArray(TerminalData.PROFILE_ANSWERS, answers);
+			int next = question + 1;
+			tag.putInt(TerminalData.PROFILE_QUESTION, next);
+			if (next >= TerminalProfileQuestionnaire.questionCount()) {
+				tag.putBoolean(TerminalData.PROFILE_TAKEN, true);
+			}
+		});
+		synchronizeProjection(player, data);
+		return true;
+	}
+
+	/**
+	 * Ends an unfinished profile without filling in what was never answered.
+	 *
+	 * <p>Deliberately does not supply defaults. An unanswered question stays
+	 * {@code TerminalProfileQuestionnaire.UNANSWERED}, because a default here would be exactly the
+	 * failure the safety rules name: a value that is wrong but entirely plausible, written into a
+	 * record the player has no way to revisit.
+	 */
+	private static void latchProfileIfUnfinished(ServerPlayer player) {
+		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
+		if (record == null || TerminalData.profileTaken(record)) return;
+		if (record.getBooleanOr(TerminalData.ONBOARDING_DONE, false)) return;
+		data.updateTerminalRecord(player.getUUID(), tag -> tag.putBoolean(TerminalData.PROFILE_TAKEN, true));
+		synchronizeProjection(player, data);
+	}
+
+	/**
+	 * Files, or removes, the fragment a previous playthrough left behind.
+	 *
+	 * <p>Follows what the client says rather than latching once. A player who pressed {@code F8} has
+	 * had that record erased from their machine on purpose, and leaving the file standing in a world
+	 * they carry on playing would be the mod holding on to something the reset was supposed to have
+	 * let go of.
+	 *
+	 * <p>Discovered and unlocked in the same breath, because there is no investigation to do: it was
+	 * in the terminal when they were handed it. Only the existence is stored - the body is composed on
+	 * the client from its own config, and nothing here is counted by
+	 * {@code HiddenFilePolicy.FILE_IDS}.
+	 */
+	private static boolean recordPreviousRun(ServerPlayer player, boolean present) {
+		FrequencyWorldData data = FrequencyWorldData.get(player.level().getServer());
+		CompoundTag record = data.terminalRecord(player.getUUID()).orElse(null);
+		if (record == null) return false;
+		boolean known = TerminalFileState.discovered(record, HiddenFilePolicy.RECOVERED_FILE_ID);
+		if (known == present) return false;
+		long now = player.level().getGameTime();
+		long dayTime = player.level().getDayTime() % 24_000L;
+		data.updateTerminalRecord(player.getUUID(), tag -> {
+			if (present) {
+				TerminalFileState.discover(tag, HiddenFilePolicy.RECOVERED_FILE_ID, now, dayTime, true);
+			} else {
+				TerminalFileState.remove(tag, HiddenFilePolicy.RECOVERED_FILE_ID);
+			}
+		});
+		synchronizeProjection(player, data);
+		return true;
 	}
 
 	private static boolean markTruthRead(ServerPlayer player) {
@@ -276,6 +410,65 @@ public final class TerminalRuntimeService {
 				sendNavigation(player);
 			}
 		}
+		streamClosedTerminalNavigation(server, now);
+	}
+
+	/**
+	 * Keeps the guidance bearing flowing to players whose terminal is shut.
+	 *
+	 * <p>Navigation used to be sent only from the loop above, which iterates the <em>open</em> views -
+	 * so the moment the screen closed the bearing stopped updating. That is exactly backwards for
+	 * what the tool is for: following a bearing means walking, and walking means the screen is shut.
+	 * The player had to reopen the terminal at every correction to find out they had drifted, and the
+	 * information was live the whole time.
+	 *
+	 * <p>With the screen closed {@code navigationSnapshot} resolves the tool from
+	 * {@code TerminalToolService.guidanceTool} - the quick tool the player actually committed to,
+	 * rather than whichever tab happened to be on screen - which is the one this should follow.
+	 *
+	 * <p>Cheap enough to run at the same four-tick cadence the open screen uses: the snapshot reads
+	 * the player's terminal record and does arithmetic on stored coordinates. Nothing here searches
+	 * for a structure. Players with no target resolve to {@code NONE} and are skipped before anything
+	 * is sent, and a player without a usable terminal is skipped before the record is even read.
+	 */
+	private static void streamClosedTerminalNavigation(MinecraftServer server, long now) {
+		if (now % NAVIGATION_SYNC_TICKS != 0L) return;
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			TerminalNavigationPayload navigation = closedNavigationFor(player, data);
+			if (navigation != null) ServerPlayNetworking.send(player, navigation);
+		}
+	}
+
+	/**
+	 * What a closed terminal should be streaming to this player, or null when it should stream
+	 * nothing.
+	 *
+	 * <p>The whole decision in one place so it can be asserted without a client on the other end of a
+	 * packet: an open screen already has its own faster stream, a player without a usable terminal
+	 * has no device to speak for them, and a guidance tool with nothing selected resolves to
+	 * {@code NONE} and has nothing to say.
+	 */
+	public static TerminalNavigationPayload closedNavigationFor(ServerPlayer player, FrequencyWorldData data) {
+		if (OPEN_VIEWS.containsKey(player.getUUID())) return null;
+		if (!ownsUsableTerminal(player, data)) return null;
+		TerminalNavigationPayload navigation = navigationSnapshot(player);
+		return navigation.targetKind() == TerminalNavigationPayload.NONE ? null : navigation;
+	}
+
+	/**
+	 * Whether the player still has a terminal this readout may speak for.
+	 *
+	 * <p>Possession rather than holding: the point of the readout is to be legible while a pickaxe is
+	 * in hand. But it is still the terminal's voice, so a player whose terminal is in the finale's
+	 * custody - or who never had one - gets nothing, rather than a bearing from a device they do not
+	 * have.
+	 */
+	private static boolean ownsUsableTerminal(ServerPlayer player, FrequencyWorldData data) {
+		for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+			if (data.isValidTerminal(player.getInventory().getItem(slot), player.getUUID())) return true;
+		}
+		return false;
 	}
 
 	private static boolean validHeldTerminal(ServerPlayer player, InteractionHand hand) {
@@ -295,11 +488,33 @@ public final class TerminalRuntimeService {
 		ServerLevel level = player.level();
 		boolean bound = tag.getBooleanOr(TerminalData.BOUND, false);
 		java.util.List<TerminalLogEntryPayload> logs = TerminalSignalLog.entries(tag).stream()
-				.map(entry -> new TerminalLogEntryPayload(entry.sequence(), entry.band().wireId(), entry.type(), entry.gameTime(),
-						entry.dayTime(), entry.dimension(), entry.position(), entry.variant(), entry.severity(), entry.unread()))
+				// Relayed lines live in the same store as everything else - they are ordinary records
+				// once they arrive - but they are tagged here so the page can settle them in rather than
+				// simply drawing them, and so the navigation shortcut will not aim at them.
+				.map(entry -> new TerminalLogEntryPayload(entry.sequence(), entry.band().wireId(),
+						entry.type(), entry.gameTime(), entry.dayTime(), entry.dimension(), entry.position(),
+						entry.variant(), entry.severity(), entry.unread(),
+						(TerminalRelayPolicy.Shape.isRelayType(entry.type())
+								? TerminalRecordPolicy.Source.RELAY
+								: TerminalRecordPolicy.Source.STORY).wireId()))
 				.toList();
+		// The quarantined anomaly store, and only once the terminal has stopped withholding it. Sending
+		// it early would put it one client-side conditional away from being visible, and that is not a
+		// place to keep the one list whose whole point is that the player was never shown it.
+		java.util.List<TerminalLogEntryPayload> anomalyLogs = TerminalData.anomalyBackfillReleased(tag)
+				? TerminalAnomalyLog.entries(tag).stream()
+						.map(entry -> new TerminalLogEntryPayload(entry.sequence(), SignalBand.UNKNOWN.wireId(),
+								entry.type(), entry.gameTime(), entry.gameTime() % 24_000L, entry.dimension(),
+								entry.position(), entry.variant(), entry.severity(), entry.unread(),
+								TerminalRecordPolicy.Source.ANOMALY_BACKFILL.wireId()))
+						.toList()
+				: java.util.List.of();
 		java.util.List<TerminalFilePayload> files = visibleFiles(tag);
-		TerminalTaskService.TaskSnapshot objective = TerminalTaskService.current(tag);
+		// Priced for the party actually on the server, so the reward frame shows the stack the player
+		// will be handed rather than the solo figure.
+		TerminalTaskService.TaskSnapshot objective = TerminalTaskService.current(tag,
+				TerminalTaskService.rewardParticipants(level.getServer(),
+						TerminalTaskService.current(tag).index()));
 		long now = level.getGameTime();
 		TerminalSnapshotPayload payload = new TerminalSnapshotPayload(
 				TerminalSnapshotPayload.CURRENT_PROTOCOL_VERSION,
@@ -332,10 +547,37 @@ public final class TerminalRuntimeService {
 				!tag.getBooleanOr(TerminalData.ONBOARDING_DONE, false),
 				// The same call that decides which of the six item forms this player is holding, so
 				// the lamp on the panel and the lamp on the device are one statement, not two.
-				TerminalData.attentionActive(tag));
+				TerminalData.attentionActive(tag),
+				anomalyLogs,
+				profileQuestion(tag),
+				profileAnswers(tag),
+				// Unlabelled, coarse, and allowed to be wrong when the scheduler defers. See the policy.
+				OscilloscopeWaveformPolicy.approach(
+						tag.getLongOr(TerminalData.NEXT_AMBIENT_ANOMALY_TICK, 0L), now),
+				com.xm.thefourthfrequency.world.FragmentInvestigationService.discoveredFragmentMask(player));
 		ServerPlayNetworking.send(player, payload);
 		ServerPlayNetworking.send(player, TerminalToolService.snapshot(player, view.selectedTool,
 				view.tuning, receiverLockTicks(player, view)));
+	}
+
+	/**
+	 * The profile question on screen, or {@code -1}.
+	 *
+	 * <p>Gated on the taken latch rather than on how many answers are filled in, because a profile
+	 * released early by the damage failsafe is finished even though it has gaps. Asking again later
+	 * would be a replay, and the walkthrough is one-shot by contract.
+	 */
+	private static int profileQuestion(CompoundTag tag) {
+		if (TerminalData.profileTaken(tag)) return -1;
+		int question = tag.getIntOr(TerminalData.PROFILE_QUESTION, 0);
+		return TerminalProfileQuestionnaire.valid(question) ? question : -1;
+	}
+
+	private static java.util.List<Integer> profileAnswers(CompoundTag tag) {
+		int[] answers = TerminalData.profileAnswers(tag);
+		java.util.ArrayList<Integer> boxed = new java.util.ArrayList<>(answers.length);
+		for (int answer : answers) boxed.add(answer);
+		return java.util.List.copyOf(boxed);
 	}
 
 	public static java.util.List<TerminalFilePayload> visibleFiles(CompoundTag tag) {

@@ -1,5 +1,8 @@
 package com.xm.thefourthfrequency.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
@@ -283,6 +286,118 @@ final class WorldInterfaceRigTest {
 				}
 			}
 		}
+	}
+
+	/**
+	 * No bone jumps: nothing on the storm moves in one tick in a way its neighbouring ticks do not
+	 * explain.
+	 *
+	 * <p>The complaint this exists to catch is "the boss teleports, especially the head", and it was
+	 * not a rendering problem - three separate authored things produced it, none of them visible in
+	 * a screenshot. {@code WorldInterfaceRig.actionCharge} fell from one to its idle sentinel in a
+	 * single tick at two seconds into <em>every</em> action, undoing the whole of the three heads'
+	 * lean between two frames. Every hold in {@code WorldInterfaceClips} unwound through a flat
+	 * {@code seconds - 0.12F} release, so a hundred and eighty degrees of centre neck came off in two
+	 * and a half ticks. And the recovery accents spaced their overshoot frames 0.04 to 0.11 seconds
+	 * apart on {@code storm_body}, which every neck and limb hangs off.
+	 *
+	 * <p><b>Stated as a discontinuity, not as a speed limit.</b> That distinction is the whole test.
+	 * A first attempt capped blocks-per-tick and immediately failed the grab, which hauls a skull
+	 * across two and a half blocks a tick for half a second - and that is not a defect, it is a lunge,
+	 * and the fight would be worse without it. What a player reads as a teleport is a single frame
+	 * that does not belong to the frames around it, so what is measured is each step against the
+	 * average of its neighbours. Sustained fast motion passes, however fast; one frame out of
+	 * character fails, however small.
+	 *
+	 * <p>Swept per tick, which is the resolution the server publishes poses at. The neighbouring
+	 * tests sample every 250ms and would step clean over every one of the three faults above.
+	 */
+	@Test
+	void noBoneJumpsBetweenTwoTicks() {
+		List<String> jumps = new ArrayList<>();
+		for (int form = 0; form < WorldInterfaceAnatomy.FORM_COUNT; form++) {
+			for (int action = 0; action <= WorldInterfaceClips.PROTOCOL_ACTION_COUNT + 1; action++) {
+				int heads = WorldInterfaceAnatomy.HEAD_COUNT;
+				int limbs = WorldInterfaceAnatomy.tentacleCount(form);
+				int tracked = heads * 3 + limbs;
+				double[][] steps = new double[tracked][SWEEP_TICKS];
+				Vec3[] previous = null;
+				for (int tick = 0; tick <= SWEEP_TICKS; tick++) {
+					WorldInterfaceRig.Pose pose =
+							WorldInterfaceRig.pose(form, tick, 0.5F, action, tick * 50L);
+					Vec3[] now = new Vec3[tracked];
+					for (int head = 0; head < heads; head++) {
+						now[head] = pose.headOffset(head);
+						now[heads + head * 2] = pose.neckJointOffset(head, 0);
+						now[heads + head * 2 + 1] = pose.neckJointOffset(head, 1);
+					}
+					for (int limb = 0; limb < limbs; limb++) {
+						now[heads * 3 + limb] = pose.tendrilTipOffset(limb, true);
+					}
+					if (previous != null) {
+						for (int bone = 0; bone < tracked; bone++) {
+							steps[bone][tick - 1] = now[bone].distanceTo(previous[bone]);
+						}
+					}
+					previous = now;
+				}
+				for (int bone = 0; bone < tracked; bone++) {
+					collectJumps(steps[bone], form, action, boneName(bone, heads), jumps);
+				}
+			}
+		}
+		assertTrue(jumps.isEmpty(), jumps.size() + " single-tick jumps - a frame that does not belong"
+				+ " to the frames around it is what a player reads as a teleport: "
+				+ jumps.stream().limit(20).toList());
+	}
+
+	/** Ticks swept per action; long enough to run past the longest clip and its held tail. */
+	private static final int SWEEP_TICKS = 240;
+
+	/**
+	 * Below this a step is too small to be seen as a jump whatever its neighbours are doing, and
+	 * flagging it would turn the test into a detector of floating-point noise in a still pose.
+	 */
+	private static final double JUMP_FLOOR_BLOCKS = 1.0D;
+
+	/**
+	 * How many times its neighbourhood a step may be before it stops reading as continuous motion.
+	 *
+	 * <p>Four is deliberately forgiving. Every fault this test was written against exceeded its
+	 * neighbours by more than an order of magnitude - the head lean came off from a standing start -
+	 * so the bar does not need to be tight to catch them, and a tight bar would start policing
+	 * choreography instead.
+	 */
+	private static final double JUMP_RATIO = 4.0D;
+
+	/** Ticks either side of a step that count as its neighbourhood. */
+	private static final int JUMP_WINDOW = 4;
+
+	private static void collectJumps(double[] steps, int form, int action, String bone,
+			List<String> jumps) {
+		for (int tick = 0; tick < steps.length; tick++) {
+			double step = steps[tick];
+			if (step < JUMP_FLOOR_BLOCKS) continue;
+			double sum = 0.0D;
+			int counted = 0;
+			for (int near = tick - JUMP_WINDOW; near <= tick + JUMP_WINDOW; near++) {
+				if (near == tick || near < 0 || near >= steps.length) continue;
+				sum += steps[near];
+				counted++;
+			}
+			double local = counted == 0 ? 0.0D : sum / counted;
+			if (step > JUMP_RATIO * local) {
+				jumps.add("form " + form + " action " + action + " tick " + tick + " " + bone + " moved "
+						+ String.format("%.2f", step) + " against a neighbourhood of "
+						+ String.format("%.2f", local));
+			}
+		}
+	}
+
+	private static String boneName(int bone, int heads) {
+		if (bone < heads) return "skull " + bone;
+		if (bone < heads * 3) return "neck joint " + (bone - heads);
+		return "limb tip " + (bone - heads * 3);
 	}
 
 	/** Every bone the clips address must exist in the rig, or the server is posing a shorter storm. */

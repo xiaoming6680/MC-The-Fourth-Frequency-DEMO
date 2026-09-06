@@ -6,6 +6,22 @@ public final class WorldInterfacePolicy {
 	public static final int MAX_ROSTER_SIZE = 8;
 	public static final int TOTAL_ANCHORS = 10;
 	/**
+	 * Three minutes: how long a terminal sits in the core before it comes back out.
+	 *
+	 * <p>The window is a deadline to <em>start</em>, not a countdown to starting. Nothing happens when
+	 * it runs out except that every escrowed terminal is returned and the altar goes dormant, which
+	 * is why it can afford to be short. What it is protecting against is a party that hands over one
+	 * terminal and then goes to do something else: the ritual is the one state in the mod where a
+	 * player is standing in the End without the object the whole game is about, and leaving that open
+	 * indefinitely turns an act into a condition.
+	 *
+	 * <p>Long enough that eight people who are already on the island can each take a turn at the core
+	 * without hurrying, and short enough that walking away from it costs a walk back rather than a
+	 * lost evening. Nobody is punished for letting it lapse - the terminals are handed back and the
+	 * ritual can be started again immediately.
+	 */
+	public static final int RITUAL_WINDOW_TICKS = 3 * 60 * 20;
+	/**
 	 * Ten minutes, and the only clock the fight runs on.
 	 *
 	 * <p>Cutting an anchor used to spend a slice of this, which made the one action the encounter
@@ -28,7 +44,7 @@ public final class WorldInterfacePolicy {
 	 *
 	 * <p>The pool used to be a flat six hundred per head, which is the wrong shape for this fight.
 	 * A table does not scale linearly with its size - they share one boss, one set of anchors and
-	 * one six-minute clock, and every extra pair of hands is another damage source against the same
+	 * one collapse clock, and every extra pair of hands is another damage source against the same
 	 * timer - so charging full price per player made the encounter get strictly harder the more
 	 * people showed up, and a four-stack was grinding twenty-four hundred points inside a deadline
 	 * built for six hundred. At half price the pool still grows with the roster, so nobody's
@@ -64,7 +80,8 @@ public final class WorldInterfacePolicy {
 	 * spends its whole design keeping players out of.
 	 *
 	 * <p>Two and a half puts a good bow at a little over twenty a shot: comfortably ahead of the
-	 * regeneration on its own, worth the arrows, and still short of trivialising a six-minute pool.
+	 * regeneration on its own, worth the arrows, and still short of trivialising the pool inside one
+	 * collapse clock.
 	 * It is a flat multiplier rather than a per-form or per-part one deliberately - "where do I aim"
 	 * is already answered by the geometry, and this should not add a second, invisible answer.
 	 */
@@ -277,6 +294,27 @@ public final class WorldInterfacePolicy {
 	public static long repairedElapsedTicks(long elapsedAtDefeat, long resolutionAge) {
 		if (elapsedAtDefeat < 0L) throw new IllegalArgumentException("Elapsed ticks cannot be negative");
 		return Math.round(elapsedAtDefeat * (1.0D - repairFraction(resolutionAge)));
+	}
+
+	/**
+	 * Whether the collapse readout is showing the repair rather than the deadline it was decided on.
+	 *
+	 * <p>The whole tail of a won encounter, not one stage of it. Keyed on {@code SUCCESS_RESOLUTION}
+	 * alone, the rail unwound to zero over {@link #REPAIR_DURATION_TICKS} and then **snapped back to
+	 * full** - because that duration is 500 ticks and the exit opens on resolution tick 500, so the
+	 * stage advanced to {@code PORTAL_OPEN} on the very tick the repair finished and the projection
+	 * fell through to the raw stored clock. What the players saw was the damage being undone and then
+	 * instantly re-applied, on the one screen that is supposed to say it is over.
+	 *
+	 * <p>{@link #repairFraction} clamps at 1, so continuing past the repair duration simply holds the
+	 * readout at zero for as long as the encounter is still on screen.
+	 *
+	 * <p>Gated on the outcome rather than on the stage alone, because {@code PORTAL_OPEN} is reached
+	 * from a loss too, and a losing table keeps the island the countdown left them.</p>
+	 */
+	public static boolean repairsCollapseReadout(WorldInterfaceStage stage, boolean succeeded) {
+		return succeeded && stage != null
+				&& stage.wireId() >= WorldInterfaceStage.SUCCESS_RESOLUTION.wireId();
 	}
 
 	/** Collapse fraction below which combat shows no erosion at all. */

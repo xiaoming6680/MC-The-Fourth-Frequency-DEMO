@@ -29,7 +29,20 @@ import java.util.function.Consumer;
  */
 public final class WorldInterfaceState {
 	public static final String ROOT_KEY = "world_interface";
-	public static final int FORMAT_VERSION = 1;
+	/**
+	 * Bumped to 2 for the ritual window.
+	 *
+	 * <p>Version 1 froze the roster as "every online non-spectator at the moment of the first
+	 * deposit" and had nothing to time. Version 2 grows the roster one depositor at a time and runs
+	 * a deadline against it, which needs one persisted field ({@code ritual_deadline_tick}).
+	 *
+	 * <p>Reading version 1 is supported and the missing field decodes as "no window running". That
+	 * leaves a v1 save that was mid-ritual in a shape v2 cannot otherwise produce - a non-empty
+	 * roster with no deadline - which {@code WorldInterfaceRitualService} normalises by rolling the
+	 * ritual back and returning the terminals, exactly as it already does for any other uncertain
+	 * boundary. Nothing is lost: nobody had committed.</p>
+	 */
+	public static final int FORMAT_VERSION = 2;
 	public static final int GATE_COUNT = 20;
 	public static final int ANCHOR_COUNT = 10;
 	public static final int MAX_ROSTER_SIZE = 8;
@@ -189,7 +202,8 @@ public final class WorldInterfaceState {
 	}
 
 	private static Snapshot decode(CompoundTag tag) {
-		if (tag.getIntOr("format_version", -1) != FORMAT_VERSION) throw invalid("unsupported_version");
+		int formatVersion = tag.getIntOr("format_version", -1);
+		if (formatVersion < 1 || formatVersion > FORMAT_VERSION) throw invalid("unsupported_version");
 		UUID encounterId = parseUuid(tag.getStringOr("encounter_id", ""), "encounter_id");
 		long revision = positive(tag.getLongOr("revision", -1L), "revision");
 		WorldInterfaceStage stage = WorldInterfaceStage.fromWireId(tag.getIntOr("stage", -1));
@@ -238,13 +252,18 @@ public final class WorldInterfaceState {
 		long resolutionTick = tag.getLongOr("resolution_tick", -1L);
 		if (resolutionTick < -1L) throw invalid("resolution_tick");
 		boolean sacrificeCommitted = tag.getBooleanOr("sacrifice_committed", false);
+		// Absent in format 1, and its absence is meaningful rather than a default: a v1 ritual had no
+		// window at all. See FORMAT_VERSION for what happens to a v1 save caught mid-ritual.
+		long ritualDeadline = tag.getLongOr("ritual_deadline_tick", -1L);
+		if (ritualDeadline < -1L) throw invalid("ritual_deadline_tick");
 
 		Snapshot snapshot = new Snapshot(true, true, Optional.of(encounterId), revision, stage, outcome,
 				arenaVersion, dimension, arenaCenter, altarCenter, safeSpawn, arenaBuildCursor,
 				gates, anchors, roster, transactions, sacrificeCommitted, bossUuid, maxHealth, health,
 				activeTicks, runningSince, seed, attack, stageStarted, actionSequence,
 				lastAction, nextAction, lastEviction, controlCooldowns, recoveryGrace, terrainUsed,
-				respawns, poem, recovery, dragonId, exitPosition, exitOpen, resolutionStep, resolutionTick);
+				respawns, poem, recovery, dragonId, exitPosition, exitOpen, resolutionStep, resolutionTick,
+				ritualDeadline);
 		validate(snapshot, false);
 		return snapshot;
 	}
@@ -291,6 +310,7 @@ public final class WorldInterfaceState {
 		tag.putBoolean("exit_open", state.exitOpen());
 		tag.putInt("resolution_step", state.resolutionStep());
 		tag.putLong("resolution_tick", state.resolutionTick());
+		tag.putLong("ritual_deadline_tick", state.ritualDeadlineTick());
 		return tag;
 	}
 
@@ -325,6 +345,14 @@ public final class WorldInterfaceState {
 		}
 		if (state.resolutionStep() < 0 || state.resolutionStep() > 64 || state.resolutionTick() < -1L) {
 			throw invalid("resolution_state");
+		}
+		// A running window is only meaningful while the altar is still collecting terminals, and it
+		// must be gone the instant the sacrifice commits - otherwise a restart mid-summon would find a
+		// deadline still counting against a fight that has already started.
+		if (state.ritualDeadlineTick() < -1L) throw invalid("ritual_deadline");
+		if (state.ritualDeadlineTick() >= 0L
+				&& (state.sacrificeCommitted() || state.stage() != WorldInterfaceStage.WAITING_TERMINALS)) {
+			throw invalid("ritual_window_stage");
 		}
 		boolean hasCommittedTransaction = state.terminalTransactions().values().stream()
 				.anyMatch(value -> value.state() == TerminalTransactionState.COMMITTED);
@@ -836,7 +864,7 @@ public final class WorldInterfaceState {
 			int recoveryGraceTicks, int terrainEditsUsed, Map<UUID, RespawnLedgerEntry> respawnLedger,
 			Map<UUID, PoemLedgerEntry> poemLedger, List<RecoveryEntry> recoveryLedger,
 			Optional<UUID> friendlyDragonUuid, BlockPos exitPosition, boolean exitOpen,
-			int resolutionStep, long resolutionTick) {
+			int resolutionStep, long resolutionTick, long ritualDeadlineTick) {
 		public Snapshot {
 			encounterId = encounterId == null ? Optional.empty() : encounterId;
 			Objects.requireNonNull(stage, "stage");
@@ -893,7 +921,17 @@ public final class WorldInterfaceState {
 					List.of(), List.of(), Set.of(), Map.of(), false, Optional.empty(),
 					0.0D, 0.0D, 0L, -1L, 0L, Optional.empty(),
 					0L, 0L, 0, 0L, -1L, Map.of(), 0, 0, Map.of(), Map.of(), List.of(),
-					Optional.empty(), BlockPos.ZERO, false, 0, -1L);
+					Optional.empty(), BlockPos.ZERO, false, 0, -1L, -1L);
+		}
+
+		/** Whether the ritual window is counting down right now. */
+		public boolean ritualWindowRunning() {
+			return ritualDeadlineTick >= 0L;
+		}
+
+		/** Ticks left in the ritual window, or 0 when none is running or it has already lapsed. */
+		public long ritualWindowRemaining(long gameTime) {
+			return ritualDeadlineTick < 0L ? 0L : Math.max(0L, ritualDeadlineTick - gameTime);
 		}
 	}
 
@@ -936,6 +974,7 @@ public final class WorldInterfaceState {
 		private boolean exitOpen;
 		private int resolutionStep;
 		private long resolutionTick;
+		private long ritualDeadlineTick;
 
 		private MutableState(Snapshot source) {
 			this.encounterId = source.encounterId().orElseThrow();
@@ -976,6 +1015,7 @@ public final class WorldInterfaceState {
 			this.exitOpen = source.exitOpen();
 			this.resolutionStep = source.resolutionStep();
 			this.resolutionTick = source.resolutionTick();
+			this.ritualDeadlineTick = source.ritualDeadlineTick();
 		}
 
 		private static MutableState initial(UUID encounterId, ArenaLayout arena, long seed) {
@@ -985,7 +1025,7 @@ public final class WorldInterfaceState {
 					arena.gates(), arena.anchors(), Set.of(), Map.of(), false, Optional.empty(),
 					0.0D, 0.0D, 0L, -1L, seed, Optional.empty(),
 					0L, 0L, 0, 0L, -1L, Map.of(), 0, 0,
-					Map.of(), Map.of(), List.of(), Optional.empty(), arena.altarCenter(), false, 0, -1L);
+					Map.of(), Map.of(), List.of(), Optional.empty(), arena.altarCenter(), false, 0, -1L, -1L);
 			return new MutableState(seedState);
 		}
 
@@ -1027,6 +1067,7 @@ public final class WorldInterfaceState {
 		public boolean exitOpen() { return exitOpen; }
 		public int resolutionStep() { return resolutionStep; }
 		public long resolutionTick() { return resolutionTick; }
+		public long ritualDeadlineTick() { return ritualDeadlineTick; }
 
 		public void transitionTo(WorldInterfaceStage next) {
 			Objects.requireNonNull(next, "next");
@@ -1073,16 +1114,42 @@ public final class WorldInterfaceState {
 			return anchors.get(index);
 		}
 
-		public void freezeRoster(Set<UUID> players) {
-			if (!frozenRoster.isEmpty() || sacrificeCommitted || players.isEmpty() || players.size() > MAX_ROSTER_SIZE) {
-				throw new IllegalStateException("roster_cannot_freeze");
-			}
-			frozenRoster.addAll(players);
+		/**
+		 * Adds one depositor to the roster.
+		 *
+		 * <p>The roster used to be a snapshot of everyone online, taken once, at the first deposit.
+		 * That made three unrelated things into one number: who was playing, who was participating,
+		 * and how big the fight should be. A ninth person logging in anywhere in the world made the
+		 * ritual impossible; anyone joining or leaving invalidated it; and someone who had never
+		 * touched the story still had to walk to the End and hand over a terminal or nobody could
+		 * start. The roster is now built out of the only evidence that means anything here - a
+		 * terminal actually placed in the core - and grows one person at a time.</p>
+		 */
+		public void joinRoster(UUID playerId) {
+			Objects.requireNonNull(playerId, "playerId");
+			if (sacrificeCommitted) throw new IllegalStateException("sacrifice_committed");
+			if (frozenRoster.contains(playerId)) return;
+			if (frozenRoster.size() >= MAX_ROSTER_SIZE) throw new IllegalStateException("roster_full");
+			frozenRoster.add(playerId);
 		}
 
 		public void clearFrozenRoster() {
 			if (sacrificeCommitted) throw new IllegalStateException("sacrifice_committed");
 			frozenRoster.clear();
+			ritualDeadlineTick = -1L;
+		}
+
+		/**
+		 * Arms, or disarms with -1, the deadline the ritual has to be summoned within.
+		 *
+		 * <p>Stored as an absolute game time rather than a remaining count so it survives a restart
+		 * without anyone having to remember to tick it down, and so the client can render a countdown
+		 * from one number it already receives.</p>
+		 */
+		public void setRitualDeadline(long gameTime) {
+			if (gameTime < -1L) throw invalid("ritualDeadlineTick");
+			if (sacrificeCommitted && gameTime >= 0L) throw new IllegalStateException("sacrifice_committed");
+			ritualDeadlineTick = gameTime;
 		}
 
 		public void putTerminalTransaction(TerminalTransaction transaction) {
@@ -1093,7 +1160,18 @@ public final class WorldInterfaceState {
 			terminalTransactions.put(transaction.playerId(), transaction);
 		}
 
-		public void removeTerminalTransaction(UUID playerId) { terminalTransactions.remove(playerId); }
+		/**
+		 * Drops one escrow entry, and with it that player's place on the roster.
+		 *
+		 * <p>The two are the same fact now: the roster <em>is</em> the set of people whose terminal is
+		 * in the core. Leaving a name behind after its terminal went home would make the fight scale
+		 * for someone who is not in it, and would let {@code readyToSummon} count a participant who
+		 * has already walked away.</p>
+		 */
+		public void removeTerminalTransaction(UUID playerId) {
+			terminalTransactions.remove(playerId);
+			if (!sacrificeCommitted) frozenRoster.remove(playerId);
+		}
 
 		public void commitSacrifice(double maximumHealth) {
 			if (sacrificeCommitted || frozenRoster.isEmpty()
@@ -1103,6 +1181,10 @@ public final class WorldInterfaceState {
 			}
 			terminalTransactions.replaceAll((id, value) -> value.withState(TerminalTransactionState.COMMITTED));
 			sacrificeCommitted = true;
+			// The window existed to bound the wait for this moment; past it there is nothing to wait
+			// for, and a deadline still ticking against a committed sacrifice is a state the validator
+			// refuses outright.
+			ritualDeadlineTick = -1L;
 			maxVirtualHealth = finiteNonNegative(maximumHealth, "maxVirtualHealth");
 			if (maxVirtualHealth <= 0.0D) throw invalid("maxVirtualHealth");
 			virtualHealth = maxVirtualHealth;
@@ -1174,7 +1256,8 @@ public final class WorldInterfaceState {
 					nextActionActiveTick, lastForcedEvictionTick, Map.copyOf(controlCooldowns),
 					recoveryGraceTicks, terrainEditsUsed,
 					Map.copyOf(respawnLedger), Map.copyOf(poemLedger), List.copyOf(recoveryLedger),
-					Optional.ofNullable(friendlyDragonUuid), exitPosition, exitOpen, resolutionStep, resolutionTick);
+					Optional.ofNullable(friendlyDragonUuid), exitPosition, exitOpen, resolutionStep, resolutionTick,
+					ritualDeadlineTick);
 			validate(frozen, initial);
 			return frozen;
 		}

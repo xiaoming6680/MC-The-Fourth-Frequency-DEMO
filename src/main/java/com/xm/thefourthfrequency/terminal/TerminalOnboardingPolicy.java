@@ -16,6 +16,18 @@ public final class TerminalOnboardingPolicy {
 	public enum Phase {
 		/** The power-on self test. Nothing is interactive; the exit is held. */
 		BOOT,
+		/**
+		 * The first-boot profile, answered on the receiver slider.
+		 *
+		 * <p>One phase for all five questions, with which question a separate server-owned number -
+		 * the same shape the four tab steps already use, where the phase says "walking the tabs" and
+		 * the visited count says which one. The alternative was five enum constants that would have
+		 * to be kept in step with an array in another class.
+		 *
+		 * <p>{@link #target} is null here, so {@link #allowsPage} refuses every tab for free: while
+		 * the terminal is taking a profile there is no page to be on.
+		 */
+		PROFILE,
 		STEP_1, STEP_2, STEP_3, STEP_4,
 		/** Released early by the damage failsafe. Progress is kept; the exit is free. */
 		RELEASED,
@@ -40,6 +52,68 @@ public final class TerminalOnboardingPolicy {
 	 */
 	public static final int DONE_LINGER_TICKS = 40;
 
+	/** Lines of explanation each page gets, beyond the heading that names it. */
+	public static final int DETAIL_LINE_COUNT = 3;
+	/**
+	 * How long one explanation line takes to arrive, and how fast its characters print.
+	 *
+	 * <p>Slower per character than the self test. The boot lines are a machine reporting to itself
+	 * and the player is watching a texture; these are sentences aimed at them, and printing prose at
+	 * report speed makes it scenery rather than something to read.
+	 */
+	public static final long DETAIL_LINE_MILLIS = 420L;
+	public static final long DETAIL_CHAR_MILLIS = 18L;
+
+	/**
+	 * When the advance button becomes pressable.
+	 *
+	 * <p>Gated on the text having finished arriving rather than on a timer of its own. The button is
+	 * the only way forward now, so an enabled button is an invitation to skip - and a player who
+	 * presses it on arrival never sees the explanation the step exists to give. Once the last line
+	 * has printed there is nothing left to protect and it opens immediately; nobody is made to wait
+	 * for a beat after the reading is done.
+	 */
+	/**
+	 * When the last character of the last line has been printed.
+	 *
+	 * <p>Takes the longest line's length because the answer depends on the translation, and this
+	 * class must not guess at one. The first draft counted only when each line <em>started</em> and
+	 * opened the button a line-length early - the button lit while text was still arriving under it,
+	 * which is precisely the skip the gate exists to prevent.
+	 *
+	 * <p>Using the longest line against the last line's start time is an upper bound on all of them:
+	 * no line starts later than the last one and none is longer than the longest, so nothing can
+	 * still be printing once this has passed. A few tens of milliseconds of slack on a short final
+	 * line is the right side to err on.
+	 *
+	 * @param longestLineCodePoints code points in the longest of this step's explanation lines
+	 */
+	public static long detailTotalMillis(int longestLineCodePoints) {
+		return (DETAIL_LINE_COUNT - 1) * DETAIL_LINE_MILLIS
+				+ Math.max(0, longestLineCodePoints) * DETAIL_CHAR_MILLIS;
+	}
+
+	public static boolean advanceReady(long stepElapsedMillis, int longestLineCodePoints) {
+		return stepElapsedMillis >= detailTotalMillis(longestLineCodePoints);
+	}
+
+	/** How many explanation lines have started printing. */
+	public static int visibleDetailLines(long stepElapsedMillis) {
+		if (stepElapsedMillis < 0L) return 0;
+		return (int) Math.clamp(stepElapsedMillis / DETAIL_LINE_MILLIS + 1L, 0L, DETAIL_LINE_COUNT);
+	}
+
+	/** Code points printed so far on the given explanation line. */
+	public static int typedDetailCharacters(int totalCodePoints, long stepElapsedMillis, int lineIndex) {
+		return TerminalMotion.typedCharacters(totalCodePoints,
+				stepElapsedMillis - lineIndex * DETAIL_LINE_MILLIS, DETAIL_CHAR_MILLIS);
+	}
+
+	/** The last step's button finishes the walkthrough rather than continuing it. */
+	public static boolean finalStep(Phase phase) {
+		return stepIndex(phase) == ORDER.length;
+	}
+
 	/**
 	 * The order the walkthrough visits the tabs in.
 	 *
@@ -63,17 +137,34 @@ public final class TerminalOnboardingPolicy {
 	 *                     is exactly the objective's progress. Enough on its own because the order
 	 *                     is fixed, so no extra wire field is needed to resume after a disconnect.
 	 */
-	public static Phase initial(boolean required, int visitedTabs) {
+	public static Phase initial(boolean required, int visitedTabs, boolean profileTaken) {
 		if (!required) return Phase.DONE;
 		if (visitedTabs >= ORDER.length) return Phase.DONE;
+		// Always the self test first, whether or not a profile is owed: what follows it is
+		// afterBoot's decision, and putting that fork here as well would give it two owners.
 		if (visitedTabs <= 0) return Phase.BOOT;
-		// Any tab already visited means the self test has been seen. It never plays twice.
+		// Any tab already visited means the self test has been seen. It never plays twice - and it
+		// also means the profile is behind them, since no tab can be opened until it is.
 		return step(visitedTabs + 1);
 	}
 
-	public static Phase afterBoot(Phase phase, long bootElapsedMillis) {
+	/**
+	 * What follows the self test: the profile if this terminal has not taken one, otherwise the tabs.
+	 *
+	 * <p>Gated on the taken latch rather than on whether the answers are filled in. A profile the
+	 * damage failsafe released half-finished is finished - the walkthrough is one-shot by contract,
+	 * and re-asking would be a replay however incomplete the file it produced.
+	 */
+	public static Phase afterBoot(Phase phase, long bootElapsedMillis, boolean profileTaken) {
 		if (phase != Phase.BOOT) return phase;
-		return bootElapsedMillis >= BOOT_TOTAL_MILLIS ? Phase.STEP_1 : Phase.BOOT;
+		if (bootElapsedMillis < BOOT_TOTAL_MILLIS) return Phase.BOOT;
+		return profileTaken ? Phase.STEP_1 : Phase.PROFILE;
+	}
+
+	/** Leaves the profile once the server says it has been taken. */
+	public static Phase afterProfile(Phase phase, boolean profileTaken) {
+		if (phase != Phase.PROFILE) return phase;
+		return profileTaken ? Phase.STEP_1 : Phase.PROFILE;
 	}
 
 	/** The tab this phase is waiting for, or null when it is not waiting for one. */
@@ -125,7 +216,7 @@ public final class TerminalOnboardingPolicy {
 			case STEP_2 -> 2;
 			case STEP_3 -> 3;
 			case STEP_4 -> 4;
-			case BOOT, RELEASED, DONE -> 0;
+			case BOOT, PROFILE, RELEASED, DONE -> 0;
 		};
 	}
 

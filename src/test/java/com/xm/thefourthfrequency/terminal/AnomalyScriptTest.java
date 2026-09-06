@@ -64,6 +64,29 @@ final class AnomalyScriptTest {
 		assertFalse(AnomalySelectionRules.caveLike(false, 0, 3));
 	}
 
+	/**
+	 * The window is what stops a replay of somebody standing still, so the assertions are about the
+	 * two ends of it rather than about the arithmetic: a player who has never done anything is not
+	 * "recently active", and one whose last action has aged out is not either.
+	 */
+	@Test
+	void recentActivityNeedsAnActionInsideTheWindow() {
+		long window = AnomalySelectionRules.ACTIVITY_WINDOW_TICKS;
+		assertFalse(AnomalySelectionRules.recentlyActive(0L, 10_000L, window));
+		assertTrue(AnomalySelectionRules.recentlyActive(10_000L, 10_000L, window));
+		assertTrue(AnomalySelectionRules.recentlyActive(10_000L, 10_000L + window, window));
+		assertFalse(AnomalySelectionRules.recentlyActive(10_000L, 10_000L + window + 1L, window));
+	}
+
+	@Test
+	void aSampleCountsAsMovementOnlyAtTheThreshold() {
+		assertTrue(AnomalySelectionRules.sampleMoved(AnomalySelectionRules.MOVEMENT_SAMPLE_BLOCKS));
+		assertTrue(AnomalySelectionRules.sampleMoved(40.0D));
+		// Standing still with the usual sub-block drift of idling is not walking.
+		assertFalse(AnomalySelectionRules.sampleMoved(0.0D));
+		assertFalse(AnomalySelectionRules.sampleMoved(1.0D));
+	}
+
 	@Test
 	void nightCoversFullDarkAndExcludesTheSunsetAndSunriseRamps() {
 		assertTrue(AnomalySelectionRules.night(13_000L));

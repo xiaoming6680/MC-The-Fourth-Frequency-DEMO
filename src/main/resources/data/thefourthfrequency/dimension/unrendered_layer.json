@@ -1,0 +1,10 @@
+{
+  "type": "thefourthfrequency:unrendered_layer",
+  "generator": {
+    "type": "thefourthfrequency:unrendered_layer",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "thefourthfrequency:unrendered_layer"
+    }
+  }
+}

@@ -10,9 +10,12 @@ import com.xm.thefourthfrequency.content.WorldInterfaceBlockEntities;
 import com.xm.thefourthfrequency.correction.EmptySegmentService;
 import com.xm.thefourthfrequency.ending.EndBossEncounterService;
 import com.xm.thefourthfrequency.ending.EndBossArenaService;
+import com.xm.thefourthfrequency.ending.FriendlyDragonService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceAttackService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceBlastService;
+import com.xm.thefourthfrequency.ending.WorldInterfaceDropBeaconService;
 import com.xm.thefourthfrequency.ending.WorldInterfaceRitualService;
+import com.xm.thefourthfrequency.world.EndPopulationService;
 import com.xm.thefourthfrequency.world.PlayerPatternService;
 import com.xm.thefourthfrequency.world.ZeroStationService;
 import com.xm.thefourthfrequency.world.TerminalActivityTracker;
@@ -35,6 +38,8 @@ import com.xm.thefourthfrequency.networking.TerminalNetworking;
 import com.xm.thefourthfrequency.networking.DebugNetworking;
 import com.xm.thefourthfrequency.networking.WorldInterfaceNetworking;
 import com.xm.thefourthfrequency.networking.PursuitNetworking;
+import com.xm.thefourthfrequency.networking.UnrenderedNetworking;
+import com.xm.thefourthfrequency.terminal.TerminalRelayService;
 import com.xm.thefourthfrequency.terminal.TerminalRuntimeService;
 import com.xm.thefourthfrequency.terminal.TerminalToolService;
 import com.xm.thefourthfrequency.terminal.AmbientAnomalyService;
@@ -47,6 +52,9 @@ import com.xm.thefourthfrequency.pursuit.PursuitSnapshotBuilder;
 import com.xm.thefourthfrequency.pursuit.PursuitBlockPolicy;
 import com.xm.thefourthfrequency.pursuit.PursuitActivityTracker;
 import com.xm.thefourthfrequency.pursuit.PursuitDirector;
+import com.xm.thefourthfrequency.unrendered.UnrenderedDimensions;
+import com.xm.thefourthfrequency.unrendered.UnrenderedBlockPolicy;
+import com.xm.thefourthfrequency.unrendered.UnrenderedSessionService;
 import com.xm.thefourthfrequency.pursuit.PursuitFormController;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
@@ -65,12 +73,16 @@ public final class TheFourthFrequency implements ModInitializer {
 		WorldInterfaceBlockEntities.initialize();
 		ModItems.initialize();
 		ModEntities.initialize();
+		// Before any level is loaded: the layer's dimension file names this codec by id, and a
+		// generator type a datapack cannot resolve drops the dimension silently.
+		UnrenderedDimensions.initialize();
 		M5Networking.initialize();
 		M6Networking.initialize();
 		M8Networking.initialize();
 		TerminalNetworking.initialize();
 		WorldInterfaceNetworking.initialize();
 		PursuitNetworking.initialize();
+		UnrenderedNetworking.initialize();
 		DebugNetworking.initialize();
 		ZeroStationService.initialize();
 		TerminalLifecycleService.initialize();
@@ -86,12 +98,15 @@ public final class TheFourthFrequency implements ModInitializer {
 		AnomalyRuntimeService.initialize();
 		AnomalyServerEffects.initialize();
 		AmbientAnomalyService.initialize();
+		TerminalRelayService.initialize();
 		PursuitSlotManager.initialize();
 		PursuitSnapshotBuilder.initialize();
 		PursuitBlockPolicy.initialize();
 		PursuitActivityTracker.initialize();
 		PursuitFormController.initialize();
 		PursuitSessionService.initialize();
+		UnrenderedSessionService.initialize();
+		UnrenderedBlockPolicy.initialize();
 		PursuitDirector.initialize();
 		TerminalActivityTracker.initialize();
 		ResourceGuidanceService.initialize();
@@ -99,12 +114,18 @@ public final class TheFourthFrequency implements ModInitializer {
 		GuidanceArrivalService.initialize();
 		EmptySegmentService.initialize();
 		PortalContinuityService.initialize();
+		EndPopulationService.initialize();
 		PlayerPatternService.initialize();
 		EndBossArenaService.initialize();
+		// Purely to register a teardown: the ending's dragon indexes hold live entity references, and
+		// an entity holds the server it belongs to. Nothing here starts a tick loop.
+		FriendlyDragonService.initialize();
 		// Before the attack service and the encounter service: both gate audio and camera events on
 		// its per-source cooldowns, and a cooldown map whose lifecycle hook was never registered
 		// outlives the server it belongs to.
 		WorldInterfaceBlastService.initialize();
+		// Before the attack service, which marks the stacks its hotbar purge throws.
+		WorldInterfaceDropBeaconService.initialize();
 		WorldInterfaceAttackService.initialize();
 		WorldInterfaceRitualService.initialize();
 		EndBossEncounterService.initialize();

@@ -9,6 +9,7 @@
   "tooltip.thefourthfrequency.old_terminal.owner": "持有人：%s",
   "tooltip.thefourthfrequency.old_terminal.stock": "剩余数量：0",
   "message.thefourthfrequency.terminal.dispensed": "零号站给了你一台个人终端；这里已经没有备用的了。",
+  "message.thefourthfrequency.terminal.frequency_closed": "分发架是空的，接口也没有回应。这个世界的第四频段已经关闭了。",
   "message.thefourthfrequency.terminal.recovered": "终端已找回。之前的副本不能再使用。",
   "message.thefourthfrequency.terminal.recovery_waiting": "背包没有空位。腾出空位后，终端会自动回来。",
   "message.thefourthfrequency.task.reward_claimed": "已领取 %s ×%s。",
@@ -51,726 +52,853 @@
   "terminal.thefourthfrequency.activity.last.placed": "最近行为：放置",
   "terminal.thefourthfrequency.activity.last.device": "最近行为：设备交互",
   "terminal.thefourthfrequency.activity.last.crafted": "最近行为：合成",
-  "terminal.thefourthfrequency.activity.trace": "这里只统计当前持有人的行动"
-  ,"terminal.thefourthfrequency.resource.iron": "铁矿"
-  ,"terminal.thefourthfrequency.resource.coal": "煤矿"
-  ,"terminal.thefourthfrequency.resource.gold": "金矿"
-  ,"terminal.thefourthfrequency.resource.diamond": "钻石矿"
-  ,"terminal.thefourthfrequency.resource.unresolved": "还不知道需要什么"
-  ,"terminal.thefourthfrequency.direction.north": "北"
-  ,"terminal.thefourthfrequency.direction.south": "南"
-  ,"terminal.thefourthfrequency.direction.east": "东"
-  ,"terminal.thefourthfrequency.direction.west": "西"
-  ,"terminal.thefourthfrequency.direction.northeast": "东北"
-  ,"terminal.thefourthfrequency.direction.northwest": "西北"
-  ,"terminal.thefourthfrequency.direction.southeast": "东南"
-  ,"terminal.thefourthfrequency.direction.southwest": "西南"
-  ,"terminal.thefourthfrequency.records.open_navigation": "[打开导航]"
-  ,"terminal.thefourthfrequency.compass.west": "西"
-  ,"terminal.thefourthfrequency.compass.east": "东"
-  ,"terminal.thefourthfrequency.compass.south": "南"
-  ,"terminal.thefourthfrequency.compass.north": "北"
-  ,"terminal.thefourthfrequency.relative_direction.ahead": "前"
-  ,"terminal.thefourthfrequency.relative_direction.right": "右"
-  ,"terminal.thefourthfrequency.relative_direction.behind": "后"
-  ,"terminal.thefourthfrequency.relative_direction.left": "左"
-  ,"message.thefourthfrequency.archive.unlocked": "前任留下的完整日记已解锁"
-  ,"terminal.thefourthfrequency.archive.file_identity": "本地副本 · 版本 %s · 校验 %s"
-  ,"text.thefourthfrequency.archive.line.identity": "第18天。终端在我经过传送门后仍继续记录。那六秒的空白，不是设备故障。"
-  ,"text.thefourthfrequency.archive.line.output_boundary": "终端里的文字会变；这份本地副本暂时不会。所以我留下了版本和校验码。"
-  ,"text.thefourthfrequency.archive.line.continuity": "记录跟随的不是地点，也不是维度，而是持有终端的人。"
-  ,"text.thefourthfrequency.archive.line.material": "它反复保存我的脚步、停顿和呼吸，像是在练习怎样成为我。"
-  ,"text.thefourthfrequency.archive.line.warning": "如果你读到了完整版本，说明它已经把我的记录交给了下一位持有者。不要把它写出的每句话都当成我的话。"
-  ,"text.thefourthfrequency.archive.line.continuation.pending": "校验结束后，末尾多出一行不属于我的字：下一位持有者尚未抵达。"
-  ,"text.thefourthfrequency.archive.line.continuation.nether": "这行刚刚自行改写：你已经带着我跨过了一个世界。"
-  ,"text.thefourthfrequency.archive.line.continuation.return": "又多出一句：你回来了。记录的从来不是我——现在是你。"
-  ,"entity.thefourthfrequency.him": "HIM"
-  ,"entity.thefourthfrequency.rework_body": "施工人形怪物"
-  ,"screen.thefourthfrequency.empty_segment.experience_gap": "你想不起刚才发生了什么"
-  ,"message.thefourthfrequency.meta.terminal_captured": "怪物抢走了一台终端"
-  ,"key.thefourthfrequency.meta_toggle": "结局后完整重置"
-  ,"key.thefourthfrequency.debug_panel": "打开中文测试面板"
-  ,"command.thefourthfrequency.debug.no_record": "当前玩家没有第四频段终端记录。"
-  ,"command.thefourthfrequency.debug.enabled": "个人调试面板已开启；按 M 打开。"
-  ,"command.thefourthfrequency.debug.disabled": "个人调试面板已关闭。"
-  ,"subtitles.thefourthfrequency.empty_viewpoint": "身后传来脚步和关门声"
-  ,"subtitles.thefourthfrequency.empty_base": "熟悉的门和箱子听起来很陌生"
-  ,"subtitles.thefourthfrequency.empty_experience": "附近传来一声方块落地"
-  ,"subtitles.thefourthfrequency.fourth_band": "终端发出不正常的低鸣"
-  ,"subtitles.thefourthfrequency.rework_joint": "沉重的人形踩过深板岩"
-  ,"terminal.thefourthfrequency.serial.0": "TFF-R0 // 野外信息终端"
-  ,"terminal.thefourthfrequency.serial.1": "TFF-R0/B // 旋钮中间位置已改装"
-  ,"terminal.thefourthfrequency.serial.2": "TFF-R0/O // 内部资料已被改写"
-  ,"terminal.thefourthfrequency.status.holder": "持有人"
-  ,"terminal.thefourthfrequency.status.holder_unbound": "未登记"
-  ,"terminal.thefourthfrequency.status.clock": "世界时"
-  ,"terminal.thefourthfrequency.status.clock_value": "第%s天 %s"
-  ,"terminal.thefourthfrequency.status.link": "链路"
-  ,"terminal.thefourthfrequency.status.link_value": "%s/%s"
-  ,"terminal.thefourthfrequency.status.protocol": "协议"
-  ,"terminal.thefourthfrequency.boot.title": "开机自检"
-  ,"terminal.thefourthfrequency.boot.progress": "%s%%"
-  ,"terminal.thefourthfrequency.boot.line.power": "电源 正常"
-  ,"terminal.thefourthfrequency.boot.line.memory": "存储 可读"
-  ,"terminal.thefourthfrequency.boot.line.receiver": "接收器 待机"
-  ,"terminal.thefourthfrequency.boot.line.archive": "档案 已挂载"
-  ,"terminal.thefourthfrequency.boot.line.bind": "持有人 已登记 %s"
-  ,"terminal.thefourthfrequency.boot.line.ready": "就绪"
-  ,"terminal.thefourthfrequency.onboarding.step.home": "选择「主页」标签"
-  ,"terminal.thefourthfrequency.onboarding.step.tools": "选择「工具」标签"
-  ,"terminal.thefourthfrequency.onboarding.step.records": "选择「记录」标签"
-  ,"terminal.thefourthfrequency.onboarding.step.files": "选择「文件」标签"
-  ,"terminal.thefourthfrequency.onboarding.brief.home": "当前目标、推荐工具与最近一条记录"
-  ,"terminal.thefourthfrequency.onboarding.brief.tools": "六件现场工具，随主线逐个解锁"
-  ,"terminal.thefourthfrequency.onboarding.brief.records": "终端记下的事件，最新的排在最前"
-  ,"terminal.thefourthfrequency.onboarding.brief.files": "回收到的文件，以及那本残缺的日记"
-  ,"terminal.thefourthfrequency.onboarding.brief.current": "当前页「%s」：%s"
-  ,"terminal.thefourthfrequency.onboarding.counter": "%s/%s"
-  ,"terminal.thefourthfrequency.onboarding.locked_hint": "自检未完成 暂时无法退出"
-  ,"terminal.thefourthfrequency.onboarding.released_hint": "已解除锁定 按 Esc 退出"
-  ,"terminal.thefourthfrequency.onboarding.complete": "引导完成"
-  ,"terminal.thefourthfrequency.knob.mode": "模式"
-  ,"terminal.thefourthfrequency.knob.tune": "调谐"
-  ,"terminal.thefourthfrequency.mode.0": "信号"
-  ,"terminal.thefourthfrequency.mode.1": "文件"
-  ,"terminal.thefourthfrequency.mode.2": "文件"
-  ,"terminal.thefourthfrequency.close_hint": "按 Esc 退出"
-  ,"terminal.thefourthfrequency.signal.primary": "接收器输出"
-  ,"terminal.thefourthfrequency.signal.static": "没有稳定信号。屏幕上的波形只是噪声。"
-  ,"terminal.thefourthfrequency.archive.empty": "还没有找到可以查看的本地文件。"
-  ,"terminal.thefourthfrequency.ui.page.signal": "[01] 信号监测"
-  ,"terminal.thefourthfrequency.ui.signal.locked": "%s · 信号稳定"
-  ,"terminal.thefourthfrequency.ui.signal.unreliable": "无可靠信号"
-  ,"terminal.thefourthfrequency.ui.signal.readings": "[读数]"
-  ,"terminal.thefourthfrequency.ui.archive.section.local_file": "[前任日记]"
-  ,"terminal.thefourthfrequency.ui.read_only": "只读"
-  ,"terminal.thefourthfrequency.ui.hint.signal": "←/→/滚轮 调频 · ↑↓ 滚动"
-  ,"terminal.thefourthfrequency.ui.position": "位置 %s/%s"
-  ,"subtitles.thefourthfrequency.terminal_click": "旋钮咔哒一声停住"
-  ,"subtitles.thefourthfrequency.terminal_tune": "终端里传来短促的电流声"
-  ,"subtitles.thefourthfrequency.terminal_lock": "终端锁定了附近信号"
-  ,"subtitles.thefourthfrequency.terminal_fault": "旋钮中间传来异象提示音"
-  ,"terminal.thefourthfrequency.tab.signal": "[信号检测]"
-  ,"terminal.thefourthfrequency.tab.home": "主页"
-  ,"terminal.thefourthfrequency.tab.tools": "工具"
-  ,"terminal.thefourthfrequency.tab.records": "记录"
-  ,"terminal.thefourthfrequency.home.current_task": "当前任务"
-  ,"terminal.thefourthfrequency.home.claim_reward": "任务完成"
-  ,"terminal.thefourthfrequency.home.quick": "快捷工具"
-  ,"terminal.thefourthfrequency.home.pending_hint": "等待追加建议"
-  ,"terminal.thefourthfrequency.home.pending_hint.detail": "继续采集当前数据"
-  ,"terminal.thefourthfrequency.home.live_tool": "实时信息 · %s"
-  ,"terminal.thefourthfrequency.home.recent": "最近发生"
-  ,"terminal.thefourthfrequency.home.no_recent": "还没有新的记录。"
-  ,"terminal.thefourthfrequency.records.empty": "还没有发生值得记录的事。"
-  ,"terminal.thefourthfrequency.tool.open": "打开"
-  ,"terminal.thefourthfrequency.tool.open_detail": "详细"
-  ,"terminal.thefourthfrequency.tool.back": "＜ 工具"
-  ,"terminal.thefourthfrequency.tool.back_home": "＜ 主页"
-  ,"terminal.thefourthfrequency.tool.home": "住处"
-  ,"terminal.thefourthfrequency.tool.minerals": "矿物"
-  ,"terminal.thefourthfrequency.tool.portal": "传送门"
-  ,"terminal.thefourthfrequency.tool.weather": "天气"
-  ,"terminal.thefourthfrequency.tool.signal": "导航"
-  ,"terminal.thefourthfrequency.tool.navigation": "导航"
-  ,"terminal.thefourthfrequency.tool.stronghold": "要塞"
-  ,"terminal.thefourthfrequency.tool.home.summary": "自动记录你的重生点"
-  ,"terminal.thefourthfrequency.tool.minerals.summary": "只报告真实听见的矿，越稀有听得越近。"
-  ,"terminal.thefourthfrequency.tool.portal.summary": "自动记录传送门位置"
-  ,"terminal.thefourthfrequency.tool.weather.summary": "天气、时间与天空四个通道。"
-  ,"terminal.thefourthfrequency.tool.signal.summary": "按当前阶段寻找可到达的结构。"
-  ,"terminal.thefourthfrequency.tool.navigation.summary": "在合适时机自动探测最近的结构"
-  ,"terminal.thefourthfrequency.tool.stronghold.summary": "根据末影之眼估算要塞方向。"
-  ,"terminal.thefourthfrequency.tool.minerals.waiting": "探针待命。"
-  ,"terminal.thefourthfrequency.tool.minerals.scanning": "探测中"
-  ,"terminal.thefourthfrequency.tool.minerals.not_found": "范围内无读数"
-  ,"terminal.thefourthfrequency.tool.minerals.nearby": "勘测到高价值矿物"
-  ,"terminal.thefourthfrequency.tool.minerals.nearby_short": "勘测到高价值矿物"
-  ,"terminal.thefourthfrequency.tool.minerals.refresh": "探测"
-  ,"message.thefourthfrequency.navigation.arrived": "已到达%s目标，引导结束"
-  ,"terminal.thefourthfrequency.resource.emerald.locked": "绿宝石 [进入下界后]"
-  ,"terminal.thefourthfrequency.resource.emerald": "绿宝石矿"
-  ,"terminal.thefourthfrequency.tool.minerals.bearing": "%s · %s方 · 约 %s–%s 格"
-  ,"terminal.thefourthfrequency.tool.minerals.recharging": "充能中 %s"
-  ,"terminal.thefourthfrequency.tool.minerals.charges": "充能 %s/%s"
-  ,"terminal.thefourthfrequency.tool.signal.count": "现在有 %s 条记录。"
-  ,"terminal.thefourthfrequency.tool.weather.current": "现在：%s，%s。"
-  ,"terminal.thefourthfrequency.tool.weather.day": "白天"
-  ,"terminal.thefourthfrequency.tool.weather.night": "夜晚"
-  ,"terminal.thefourthfrequency.tool.weather.until_dark": "约 %s 分钟后天黑。"
-  ,"terminal.thefourthfrequency.tool.weather.until_light": "约 %s 分钟后天亮。"
-  ,"terminal.thefourthfrequency.tool.weather.lost": "现在：——，——。读数无法解析。"
-  ,"terminal.thefourthfrequency.tool.weather.instrument": "天空监测"
-  ,"terminal.thefourthfrequency.tool.weather.channel.zenith": "天顶"
-  ,"terminal.thefourthfrequency.tool.weather.channel.horizon": "地平线"
-  ,"terminal.thefourthfrequency.tool.weather.channel.stars": "星等"
-  ,"terminal.thefourthfrequency.tool.weather.channel.phase": "天体相位"
-  ,"terminal.thefourthfrequency.tool.weather.channel.saturated": "饱和"
-  ,"terminal.thefourthfrequency.tool.weather.fault.no_carrier": "天空通道 %s 无载波"
-  ,"terminal.thefourthfrequency.tool.weather.fault.rejected": "天顶采样被拒"
-  ,"terminal.thefourthfrequency.tool.weather.fault.saturated": "地平线通道饱和"
-  ,"terminal.thefourthfrequency.tool.weather.fault.phase_lost": "相位基准丢失"
-  ,"terminal.thefourthfrequency.tool.weather.fault.resync": "重新同步失败 %s"
-  ,"terminal.thefourthfrequency.tool.weather.fault.dome_timeout": "天顶采样超时"
-  ,"terminal.thefourthfrequency.tool.weather.fault.star_underflow": "星等下溢"
-  ,"terminal.thefourthfrequency.tool.weather.fault.clock_mismatch": "天空与本地时钟不一致"
-  ,"terminal.thefourthfrequency.tool.home.none": "还没有可用的重生点。"
-  ,"terminal.thefourthfrequency.tool.home.bed": "床的重生点。"
-  ,"terminal.thefourthfrequency.tool.home.saved": "保存的住处。"
-  ,"terminal.thefourthfrequency.tool.portal.none": "还没有真实的到达记录。"
-  ,"terminal.thefourthfrequency.tool.location.same_dimension": "同一世界，%s方向，约 %s 格，Y=%s。"
-  ,"terminal.thefourthfrequency.tool.location.other_dimension": "记录在另一个世界：%s。"
-  ,"terminal.thefourthfrequency.tool.signal.summary_counts": "附近 %s · 文件 %s · 主线 %s"
-  ,"terminal.thefourthfrequency.tool.home.locked": "住处记录暂时不可用。"
-  ,"terminal.thefourthfrequency.tool.minerals.locked": "先收集 12 份任意木头，终端才会开放矿物分析。"
-  ,"terminal.thefourthfrequency.tool.portal.locked": "真实穿越一次下界入口后开放。"
-  ,"terminal.thefourthfrequency.tool.weather.locked": "天气记录暂时不可用。"
-  ,"terminal.thefourthfrequency.tool.navigation.locked": "先收集 12 份任意木头，终端才会开放结构导航。"
-  ,"terminal.thefourthfrequency.tool.stronghold.locked": "成功获取 3 颗末影之眼后开放要塞估算。"
-  ,"terminal.thefourthfrequency.tool.stronghold.samples": "已记录 %s/%s 次末影之眼。"
-  ,"terminal.thefourthfrequency.tool.stronghold.other_dimension": "估算记录在另一个世界：%s。"
-  ,"terminal.thefourthfrequency.tool.stronghold.estimate": "大约在%s，距离约 %s—%s 格（%s 次记录）。"
-  ,"terminal.thefourthfrequency.tool.disabled": "这个工具暂时不能用，约 %s 秒后恢复。"
-  ,"terminal.thefourthfrequency.tool.guide": "开始导航"
-  ,"terminal.thefourthfrequency.tool.stop": "停止导航"
-  ,"terminal.thefourthfrequency.tool.pin": "常驻"
-  ,"terminal.thefourthfrequency.tool.unpin": "取消常驻"
-  ,"terminal.thefourthfrequency.tool.close_live": "关闭"
-  ,"terminal.thefourthfrequency.receiver.label": "近场接收器"
-  ,"terminal.thefourthfrequency.receiver.strength": "信号 %s%%"
-  ,"terminal.thefourthfrequency.receiver.search": "搜索"
-  ,"terminal.thefourthfrequency.receiver.locking": "锁定 %s/%s"
-  ,"terminal.thefourthfrequency.receiver.locked": "已锁定"
-  ,"terminal.thefourthfrequency.receiver.open_signal": "打开信号"
-  ,"terminal.thefourthfrequency.receiver.standby": "待机"
-  ,"terminal.thefourthfrequency.receiver.open_navigation": "在导航中选择异象来源"
-  ,"terminal.thefourthfrequency.receiver.mechanical_only": "机械调节 · 当前不生效"
-  ,"terminal.thefourthfrequency.resource.iron.locked": "铁 [收集木头后]"
-  ,"terminal.thefourthfrequency.resource.coal.locked": "煤矿 [收集木头后]"
-  ,"terminal.thefourthfrequency.resource.gold.locked": "金矿 [交足铁后]"
-  ,"terminal.thefourthfrequency.resource.diamond.locked": "钻石 [进入下界后]"
-  ,"terminal.thefourthfrequency.navigation.target.village": "最近村庄"
-  ,"terminal.thefourthfrequency.navigation.target.ruined_portal": "废弃传送门"
-  ,"terminal.thefourthfrequency.navigation.target.mineshaft": "废弃矿井"
-  ,"terminal.thefourthfrequency.navigation.target.trial_chambers": "试炼密室"
-  ,"terminal.thefourthfrequency.navigation.target.fortress": "下界要塞"
-  ,"terminal.thefourthfrequency.navigation.target.bastion": "堡垒遗迹"
-  ,"terminal.thefourthfrequency.navigation.unstable_signal": "[可选文件调查]"
-  ,"terminal.thefourthfrequency.navigation.no_targets": "继续当前任务，终端会按需补充目标"
-  ,"terminal.thefourthfrequency.navigation.more_targets": "还有 %s 个目标没有排上，先到达一个再看"
-  ,"terminal.thefourthfrequency.navigation.structure.scanning": "正在定位%s"
-  ,"terminal.thefourthfrequency.navigation.structure.unavailable": "%s位于另一个维度"
-  ,"terminal.thefourthfrequency.navigation.structure.located": "%s：%s方向，约 %s 格，高低差 %s"
-  ,"terminal.thefourthfrequency.navigation.completed": "目的地在你%s侧，本次导航结束"
-  ,"message.thefourthfrequency.guidance.not_found": "探测失败"
-  ,"message.thefourthfrequency.terminal.unread_reminder": "你有【%s】条未读记录"
-  ,"terminal.thefourthfrequency.tab.log": "文件"
-  ,"terminal.thefourthfrequency.hint.log": "打开文件 · 滚轮/↑↓ 滚动"
-  ,"terminal.thefourthfrequency.log.unread": "%s 条未读"
-  ,"terminal.thefourthfrequency.log.read": "全部已读"
-  ,"terminal.thefourthfrequency.log.mark_all": "全部已读"
-  ,"terminal.thefourthfrequency.log.entry": "A-%s  %s"
-  ,"terminal.thefourthfrequency.log.detail.title": "异象情况 A-%s"
-  ,"terminal.thefourthfrequency.log.detail.time": "时间  %s"
-  ,"terminal.thefourthfrequency.log.detail.dimension": "维度  %s"
-  ,"terminal.thefourthfrequency.log.detail.type": "类型  %s"
-  ,"terminal.thefourthfrequency.log.detail.summary": "摘要  %s"
-  ,"terminal.thefourthfrequency.log.type.phantom_echo": "近处随机脚步／挖掘声"
-  ,"terminal.thefourthfrequency.log.type.light_dropout": "附近突然变暗"
-  ,"terminal.thefourthfrequency.log.type.peripheral_residue": "双手伸向屏幕"
-  ,"terminal.thefourthfrequency.log.type.window_pulse": "游戏窗口闪动"
-  ,"terminal.thefourthfrequency.log.type.surface_fracture": "墙面出现假裂纹"
-  ,"terminal.thefourthfrequency.log.type.watcher_alignment": "动物同时转头"
-  ,"terminal.thefourthfrequency.log.type.dark_watcher": "暗处出现发光眼睛"
-  ,"terminal.thefourthfrequency.log.type.action_echo": "刚才的动作重复出现"
-  ,"terminal.thefourthfrequency.log.type.viewpoint_separation": "视角离开身体"
-  ,"terminal.thefourthfrequency.log.type.door_cascade": "门由远到近破碎"
-  ,"terminal.thefourthfrequency.log.type.organ_misread": "物品显示成眼睛"
-  ,"terminal.thefourthfrequency.log.type.rework_probe": "施工怪物靠近"
-  ,"terminal.thefourthfrequency.log.type.disconnected_base": "暂时认不出基地"
-  ,"terminal.thefourthfrequency.log.type.experience_gap": "短暂失去记忆"
-  ,"terminal.thefourthfrequency.log.type.local_rule_collapse": "附近材质丢失"
-  ,"terminal.thefourthfrequency.log.type.hostile_echo": "听见敌对生物靠近"
-  ,"terminal.thefourthfrequency.log.type.continuity": "传送后仍被识别"
-  ,"terminal.thefourthfrequency.log.type.return": "回来后仍被识别"
-  ,"terminal.thefourthfrequency.log.summary.phantom_echo": "附近没有人，但随机出现了带停顿的脚步小段或连续挖掘声。"
-  ,"terminal.thefourthfrequency.log.summary.light_dropout": "玩家附近的普通方块光源在服务端同时熄灭，周围骤然变暗；异象结束后恢复。"
-  ,"terminal.thefourthfrequency.log.summary.peripheral_residue": "两只冰冷的手从屏幕两侧更深地伸向中央；画面和声音剧烈乱码时，双手同步消失。"
-  ,"terminal.thefourthfrequency.log.summary.window_pulse": "游戏窗口以加倍的速度缩放、闪动，然后迅速回到原位置与大小。"
-  ,"terminal.thefourthfrequency.log.summary.surface_fracture": "假裂纹伴随挖掘声出现；试图挖掘它时屏幕和声音发生剧烈乱码。"
-  ,"terminal.thefourthfrequency.log.summary.watcher_alignment": "附近动物在同一时间转头看向一个方向。"
-  ,"terminal.thefourthfrequency.log.summary.dark_watcher": "暗处浮着一只没有背景的完整发光眼睛；被看见时响起洞穴回声。"
-  ,"terminal.thefourthfrequency.log.summary.action_echo": "你回头时看见几秒前的自己连同走路、挥手、姿态与用物动作一起重演。"
-  ,"terminal.thefourthfrequency.log.summary.viewpoint_separation": "镜头固定在触发瞬间的视角，而你的身体仍可继续受控移动。"
-  ,"terminal.thefourthfrequency.log.summary.door_cascade": "破坏从约 20 格外的门开始，伴随破门声由远到近连续吞没多扇门。"
-  ,"terminal.thefourthfrequency.log.summary.organ_misread": "终端短暂把背包里的物品显示成高清眼睛，名称全部变成了 I SEE YOU...."
-  ,"terminal.thefourthfrequency.log.summary.rework_probe": "附近短暂出现了施工人形怪物的影子。"
-  ,"terminal.thefourthfrequency.log.summary.disconnected_base": "你有一小段时间认不出熟悉的基地。"
-  ,"terminal.thefourthfrequency.log.summary.experience_gap": "短暂的黑屏后，你发现自己已经在不知情间走出了很远。"
-  ,"terminal.thefourthfrequency.log.summary.local_rule_collapse": "从调试 GUI 触发后立即刷新区段，附近少量分散的暴露方块显示成材质丢失的碎片，而本体不变。"
-  ,"terminal.thefourthfrequency.log.summary.hostile_echo": "你听见敌对生物正在靠近，但附近不一定有目标。"
-  ,"terminal.thefourthfrequency.log.summary.continuity": "穿过传送门后，终端仍把你认作同一个人。"
-  ,"terminal.thefourthfrequency.log.summary.return": "回到原来的维度后，终端仍然认得你。"
-  ,"terminal.thefourthfrequency.back": "返回"
-  ,"subtitles.thefourthfrequency.terminal_anomaly": "终端连续响了两声"
-  ,"subtitles.thefourthfrequency.terminal_keypress": "指尖压下一个按键"
-  ,"subtitles.thefourthfrequency.terminal_detent": "旋钮跳过一格"
-  ,"subtitles.thefourthfrequency.terminal_boot_line": "自检项通过"
-  ,"subtitles.thefourthfrequency.terminal_boot_complete": "自检完成"
-  ,"subtitles.thefourthfrequency.signal_alert": "插入一段双音警报"
-  ,"subtitles.thefourthfrequency.signal_carrier_lost": "载波滑下去，断了"
-  ,"subtitles.thefourthfrequency.signal_tuning_sweep": "频段里挤满了对不上的电台"
-  ,"subtitles.thefourthfrequency.alpha_corruption_warning": "回退过程里有什么开始松动"
-  ,"subtitles.thefourthfrequency.alpha_corruption_collapse": "回退彻底失败"
-  ,"terminal.thefourthfrequency.tab.files": "文件"
-  ,"terminal.thefourthfrequency.signal.unread": "%s 条新消息"
-  ,"terminal.thefourthfrequency.signal.read": "没有新消息"
-  ,"terminal.thefourthfrequency.hint.files": "打开文件 · 滚轮/↑↓ 滚动"
-  ,"terminal.thefourthfrequency.signal.event.environment_initialized": "环境记录已经开始。"
-  ,"terminal.thefourthfrequency.signal.event.resource_monitor_initialized": "勘探记录已经开始。"
-  ,"terminal.thefourthfrequency.signal.event.terminal_issued": "终端已经接入公共记录。"
-  ,"terminal.thefourthfrequency.signal.event.sky_red_shift": "天空通道出现强烈红移，地平线读数已越过量程。"
-  ,"terminal.thefourthfrequency.signal.event.unknown_revealed_time": "终端发现了一段没有名字的声音。"
-  ,"terminal.thefourthfrequency.signal.event.unknown_revealed_anomaly": "怪事发生后，终端记录到无法归类的信号。"
-  ,"terminal.thefourthfrequency.signal.event.peer_signal_lost": "附近一台终端的信号暂时无法解析。"
-  ,"terminal.thefourthfrequency.signal.event.weather_changed": "天气状态变化：%s"
-  ,"terminal.thefourthfrequency.signal.event.fragment_candidate": "可选调查：【%s】处发现可疑信号"
-  ,"terminal.thefourthfrequency.signal.event.fragment_marker": "一处可选的破损文件线索就在附近。"
-  ,"terminal.thefourthfrequency.signal.event.fragment_action": "终端记下了一段你不记得的行动。"
-  ,"terminal.thefourthfrequency.signal.event.fragment_file": "终端收到了前人留下的新文件。"
-  ,"terminal.thefourthfrequency.signal.event.dimension_changed": "你进入了%s"
-  ,"terminal.thefourthfrequency.signal.event.resource_profile_selected": "终端判断你需要：%s"
-  ,"terminal.thefourthfrequency.signal.event.resource_target_located": "已定位目标资源：%s"
-  ,"terminal.thefourthfrequency.signal.event.resource_advice_accepted": "终端记下了你带回的%s"
-  ,"terminal.thefourthfrequency.signal.event.witness_file_unlocked": "前任留下的日记已经解锁。"
-  ,"terminal.thefourthfrequency.signal.event.terminal_bound": "终端现在只认你一个人。"
-  ,"terminal.thefourthfrequency.signal.event.investigation_stage": "你找到的线索让调查有了进展。"
-  ,"terminal.thefourthfrequency.signal.event.survival_home": "终端记住了住处。"
-  ,"terminal.thefourthfrequency.signal.event.survival_iron": "终端记下了带回的铁。"
-  ,"terminal.thefourthfrequency.signal.event.survival_eye": "终端记下了末影之眼的方向。"
-  ,"terminal.thefourthfrequency.signal.event.survival_stronghold": "终端确认你已经到达要塞附近。"
-  ,"terminal.thefourthfrequency.signal.event.portal_room_found": "找到了要塞里的祭坛房间。"
-  ,"terminal.thefourthfrequency.signal.event.ending_recorded": "终端写下了最后的结果。"
-  ,"terminal.thefourthfrequency.signal.event.phantom_echo": "近处随机响起了像真人一样带停顿的脚步或挖掘声。"
-  ,"terminal.thefourthfrequency.signal.event.light_dropout": "玩家附近的普通方块光源同时熄灭，周围突然变暗。"
-  ,"terminal.thefourthfrequency.signal.event.peripheral_residue": "两只手从两侧更深地伸向中央，并在闪屏出现时同步消失。"
-  ,"terminal.thefourthfrequency.signal.event.window_pulse": "游戏窗口以原来两倍的速度缩放并闪动。"
-  ,"terminal.thefourthfrequency.signal.event.surface_fracture": "伴随挖掘声的假裂纹出现在墙面或地面。"
-  ,"terminal.thefourthfrequency.signal.event.watcher_alignment": "附近动物同时转头看向一个方向。"
-  ,"terminal.thefourthfrequency.signal.event.dark_watcher": "暗处出现了一只盯着你的发光眼睛。"
-  ,"terminal.thefourthfrequency.signal.event.action_echo": "几秒前的你短暂重演了过去的动作。"
-  ,"terminal.thefourthfrequency.signal.event.viewpoint_separation": "镜头停在原处，而你的身体仍能继续行动。"
-  ,"terminal.thefourthfrequency.signal.event.door_cascade": "多扇门从约 20 格外开始由远到近连续破碎。"
-  ,"terminal.thefourthfrequency.signal.event.organ_misread": "终端把背包里的物品显示成了眼睛，名称变成了 I SEE YOU...."
-  ,"terminal.thefourthfrequency.signal.event.rework_probe": "附近出现了施工人形怪物的影子。"
-  ,"terminal.thefourthfrequency.signal.event.disconnected_base": "你突然认不出熟悉的基地。"
-  ,"terminal.thefourthfrequency.signal.event.experience_gap": "一段短暂黑屏后，你已经走出了很远。"
-  ,"terminal.thefourthfrequency.signal.event.local_rule_collapse": "附近少量分散的方块碎片变成了材质丢失的样子。"
-  ,"terminal.thefourthfrequency.signal.event.hostile_echo": "你听见敌对生物正在靠近。"
-  ,"terminal.thefourthfrequency.signal.event.continuity": "传送后，终端仍然认得你。"
-  ,"terminal.thefourthfrequency.signal.event.return": "回到原来的维度后，终端仍然认得你。"
-  ,"message.thefourthfrequency.file.discovered": "接收到新文件：%s"
-  ,"terminal.thefourthfrequency.file.empty": "还没有接收到文件"
-  ,"terminal.thefourthfrequency.file.select_prompt": "选取文件来查看"
-  ,"terminal.thefourthfrequency.file.locked": "阅读所有隐藏文件"
-  ,"terminal.thefourthfrequency.file.locked_title": "[上锁] %s"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.title": "终端备忘"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.1": "这台终端不是普通日记。它会根据你的行动更新目标，并保存需要回看的关键事件。"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.2": "主页显示当前目标；工具提供导航；记录保存近期事件；文件收纳需要留意的内容。"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.3": "指南针只在对应工具启动后指向目标。跨维度时，它会保留目标，但不会给出错误方向。"
-  ,"terminal.thefourthfrequency.file.maintenance_handoff.4": "终端给出的方向通常可用。至于它如何解释这些现象，先保留怀疑。"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.title": "避难所日记"
-  ,"terminal.thefourthfrequency.file.field_observation_record.title": "观测点日记"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.title": "矿站日记"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.title": "仓库日记"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.title": "加密日记"
-  ,"terminal.thefourthfrequency.file.damaged.notice": "文件内容损坏，已尝试还原"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.0": ""
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.1": "加"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.2": "加密"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.3": "加密日"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.revealed.4": "加密日记"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.0": "加密日记"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.1": "密日记"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.2": "日记"
-  ,"terminal.thefourthfrequency.file.encrypted_witness_file.masked.3": "记"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.1": "六秒的记忆消失"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.2": "向前十一格，放下一支火把"
-  ,"terminal.thefourthfrequency.file.surface_shelter_record.readable.3": "终端早就知道"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.1": "位置已经变了"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.2": "方块和物品都没少"
-  ,"terminal.thefourthfrequency.file.field_observation_record.readable.3": "人走过的那段空白"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.1": "顺序和停顿完全一样"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.2": "我根本没有动"
-  ,"terminal.thefourthfrequency.file.underground_mine_record.readable.3": "它正在练习"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.1": "换了一个世界，记录仍在继续"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.2": "多出一组呼吸，慢了半拍"
-  ,"terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.3": "它会照着这些记录造出东西"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.title": "进入祭坛前"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.1": "【入口】要塞传送门是唯一最终入口。进入末地后，最后一只眼会在主岛准备祭坛。"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.2": "【参战】仪式接纳1—8名在线非旁观者。名单中的每个人都必须提交自己的绑定终端。"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.3": "【稳定锚】每座活锚都在重构接口、压低其承伤，并投射一处减伤且免受地形侵蚀的稳定区。拆锚会停止一份回血并暴露外壳，代价是接口出手更密、对应稳定区熄灭。"
-  ,"terminal.thefourthfrequency.file.body_mapping_warning.4": "【警告】崩塌上限6分钟，战斗会留下永久末地伤痕。提交前可以撤回；开始后无法更改名单。请先备份存档。"
-  ,"terminal.thefourthfrequency.navigation.scanning": "正在寻找%s"
-  ,"terminal.thefourthfrequency.navigation.unavailable": "%s在另一个维度，高度 Y=%s"
-  ,"terminal.thefourthfrequency.navigation.located": "%s：%s方向，约 %s 格，高低差 %s"
-  ,"terminal.thefourthfrequency.navigation.fragment.scanning": "正在读取所选来源"
-  ,"terminal.thefourthfrequency.navigation.fragment.unavailable": "所选来源在另一个维度"
-  ,"terminal.thefourthfrequency.navigation.fragment.located": "所选来源：%s方向，约 %s 格"
-  ,"terminal.thefourthfrequency.navigation.home.missing": "还没有住处记录"
-  ,"terminal.thefourthfrequency.navigation.home.other_dimension": "住处在另一个世界"
-  ,"terminal.thefourthfrequency.navigation.home.located": "住处：%s方向，约 %s 格"
-  ,"terminal.thefourthfrequency.navigation.portal.missing": "还没有传送门到达记录"
-  ,"terminal.thefourthfrequency.navigation.portal.other_dimension": "最近到达点在另一个世界"
-  ,"terminal.thefourthfrequency.navigation.portal.located": "最近到达点：%s方向，约 %s 格"
-  ,"terminal.thefourthfrequency.navigation.stronghold.missing": "还需要末影之眼记录"
-  ,"terminal.thefourthfrequency.navigation.stronghold.other_dimension": "要塞估算在另一个世界"
-  ,"terminal.thefourthfrequency.navigation.stronghold.located": "要塞大约在%s方向"
-  ,"message.thefourthfrequency.fragment.shared": "已发现并共享第 %s 份破损文件"
-  ,"message.thefourthfrequency.fragment.received": "接收到来自【%s】共享的第 %s 份破损文件"
-  ,"terminal.thefourthfrequency.fragments.title": "隐藏文件"
-  ,"terminal.thefourthfrequency.fragments.row": "破损的文件"
-  ,"terminal.thefourthfrequency.fragments.received": "已收到"
-  ,"terminal.thefourthfrequency.fragments.missing": "未收到"
-  ,"terminal.thefourthfrequency.fragments.read_complete": "读取完整文件"
-  ,"terminal.thefourthfrequency.fragments.waiting": "还缺少文件"
-  ,"terminal.thefourthfrequency.structure.0": "废弃矿道"
-  ,"terminal.thefourthfrequency.structure.1": "沉船"
-  ,"terminal.thefourthfrequency.structure.2": "古迹废墟"
-  ,"terminal.thefourthfrequency.structure.3": "要塞"
-  ,"terminal.thefourthfrequency.structure.4": "林地府邸"
-  ,"terminal.thefourthfrequency.structure.5": "沙漠神殿"
-  ,"terminal.thefourthfrequency.structure.6": "雪屋"
-  ,"terminal.thefourthfrequency.structure.7": "试炼密室"
-  ,"terminal.thefourthfrequency.structure.8": "掠夺者前哨站"
-  ,"terminal.thefourthfrequency.structure.9": "丛林神庙"
-  ,"terminal.thefourthfrequency.structure.10": "海底神殿"
-  ,"terminal.thefourthfrequency.structure.11": "远古城市"
-  ,"terminal.thefourthfrequency.structure.12": "海底废墟"
-  ,"terminal.thefourthfrequency.structure.13": "废弃传送门"
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_1": "一处可选的破损文件线索已经进入近场范围。"
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_2": "一处可选的破损文件线索已经进入近场范围。"
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_3": "一处可选的破损文件线索已经进入近场范围。"
-  ,"terminal.thefourthfrequency.signal.event.fragment_near_4": "一处可选的破损文件线索已经进入近场范围。"
-  ,"message.thefourthfrequency.unknown.revealed": "终端开始收到无法归类的信号。"
-  ,"terminal.thefourthfrequency.signal.objective_prefix": "[记录] "
-  ,"terminal.thefourthfrequency.objective.learn_terminal": "认识终端：点击四个顶部标签 %s/%s"
-  ,"terminal.thefourthfrequency.objective.mine_logs": "收集任意木头：%s/%s"
-  ,"terminal.thefourthfrequency.objective.bring_iron": "找到铁并带在身上：%s/%s"
-  ,"terminal.thefourthfrequency.objective.enter_nether": "带着终端进入下界：%s/%s"
-  ,"terminal.thefourthfrequency.objective.find_fortress": "找到下界要塞：%s/%s"
-  ,"terminal.thefourthfrequency.objective.collect_blaze_rods": "采集烈焰棒样本：%s/%s"
-  ,"terminal.thefourthfrequency.objective.return_from_nether": "带着终端从下界回来：%s/%s"
-  ,"terminal.thefourthfrequency.objective.craft_eye": "制作末影之眼：%s/%s"
-  ,"terminal.thefourthfrequency.objective.record_eye": "投出末影之眼记录方向：%s/%s"
-  ,"terminal.thefourthfrequency.objective.find_stronghold": "按照方向找到要塞：%s/%s"
-  ,"terminal.thefourthfrequency.objective.enter_end": "启动要塞祭坛并进入入口：%s/%s"
-  ,"terminal.thefourthfrequency.objective.defeat_boss": "阻止第四频段·世界接口：%s/%s"
-  ,"terminal.thefourthfrequency.objective.complete": "故事结束：%s/%s"
-  ,"subtitles.thefourthfrequency.anomaly_echo": "不属于你的脚步在重复"
-  ,"subtitles.thefourthfrequency.window_glitch": "游戏窗口发出故障声"
-  ,"subtitles.thefourthfrequency.door_cascade": "附近的门依次破碎"
-  ,"subtitles.thefourthfrequency.rule_collapse": "附近方块发出破裂声"
-  ,"subtitles.thefourthfrequency.hostile_echo": "敌对生物的声音正在靠近"
-  ,"subtitles.thefourthfrequency.composite_breach": "多种怪声同时出现"
-  ,"terminal.thefourthfrequency.log.type.silent_world": "环境静默"
-  ,"terminal.thefourthfrequency.log.type.temporal_drift": "时相偏移"
-  ,"terminal.thefourthfrequency.log.type.metric_drift": "计量偏移"
-  ,"terminal.thefourthfrequency.log.summary.silent_world": "环境音、天气与所有生物的声音同时消失，只剩下用户自己的动作还有回应。"
-  ,"terminal.thefourthfrequency.log.summary.temporal_drift": "天体位置与本地时钟不再一致；光照、生物与规则仍按真实时间运行。"
-  ,"terminal.thefourthfrequency.log.summary.metric_drift": "终端读出的距离与坐标出现持续偏差；导航与到达判定仍使用真实位置。"
-  ,"terminal.thefourthfrequency.signal.event.silent_world": "环境音已经恢复。"
-  ,"terminal.thefourthfrequency.signal.event.temporal_drift": "天体位置已经与时钟重新对齐。"
-  ,"terminal.thefourthfrequency.signal.event.metric_drift": "计量读数已经恢复正常。"
-  ,"terminal.thefourthfrequency.log.type.red_horizon": "红色视界"
-  ,"terminal.thefourthfrequency.log.type.watcher_orbit": "围绕者环"
-  ,"terminal.thefourthfrequency.log.type.channel_override": "频道接管"
-  ,"terminal.thefourthfrequency.log.type.desktop_presence": "桌面在场"
-  ,"terminal.thefourthfrequency.log.summary.red_horizon": "整个天空盒与地平线变红，近处世界被浓厚红雾包围并遮住区块生成边缘。"
-  ,"terminal.thefourthfrequency.log.summary.watcher_orbit": "八个保持 T Pose 的乱码人形围绕者在近处环绕并持续注视。"
-  ,"terminal.thefourthfrequency.log.summary.channel_override": "Minecraft 原生聊天栏以“我”自称接管输入，打完最后一句后停顿片刻才恢复。"
-  ,"terminal.thefourthfrequency.log.summary.desktop_presence": "游戏窗口缩小后，受控记事本在眼前逐字输入 MOD 内置文字。"
-  ,"terminal.thefourthfrequency.signal.event.red_horizon": "雾与天空颜色已经恢复。"
-  ,"terminal.thefourthfrequency.signal.event.watcher_orbit": "环绕的围绕者已经消失。"
-  ,"terminal.thefourthfrequency.signal.event.channel_override": "伪聊天频道已经关闭。"
-  ,"message.thefourthfrequency.anomaly.channel_override.line_1": "有人能看到吗？"
-  ,"message.thefourthfrequency.anomaly.channel_override.line_2": "我没有断开。"
-  ,"message.thefourthfrequency.anomaly.channel_override.line_3": "我正在看着你。"
-  ,"message.thefourthfrequency.anomaly.desktop_presence.fallback_text": "我无处不在... 我无处不在... 我无处不在... 我无处不在..."
-  ,"terminal.thefourthfrequency.signal.event.desktop_presence": "游戏窗口已经恢复。"
-  ,"screen.thefourthfrequency.first_run_notice.title": "继续前，请阅读"
-  ,"screen.thefourthfrequency.first_run_notice.eyebrow": "安全边界 · 存档提示 · 恢复方式"
-  ,"screen.thefourthfrequency.first_run_notice.body.control": "本 MOD 可能含有可能延伸到游戏画面之外的沉浸式恐怖演出。部分现象会模拟电脑或系统异常。"
-  ,"screen.thefourthfrequency.first_run_notice.body.safety": "这些表现不是病毒，也不会损坏你的电脑、系统或个人文件。"
-  ,"screen.thefourthfrequency.first_run_notice.body.f8": "当你通关了此MOD的主线，按下F8可以恢复MOD对电脑造成的所有异象。"
-  ,"screen.thefourthfrequency.first_run_notice.section.control": "演出范围"
-  ,"screen.thefourthfrequency.first_run_notice.section.safety": "设备安全"
-  ,"screen.thefourthfrequency.first_run_notice.section.effects": "存档提示"
-  ,"screen.thefourthfrequency.first_run_notice.section.f8": "F8 与恢复"
-  ,"screen.thefourthfrequency.first_run_notice.footer": "确认记录仅保存在本机；此告示之后不再显示。"
-  ,"screen.thefourthfrequency.first_run_notice.status.checking": "正在校验信号"
-  ,"screen.thefourthfrequency.first_run_notice.status.stable": "信号已稳定"
-  ,"button.thefourthfrequency.first_run_notice.acknowledge": "我已了解"
-  ,"screen.thefourthfrequency.alpha_loading.prefix": "加载地形"
-  ,"screen.thefourthfrequency.alpha_loading.progress": "中"
-  ,"screen.thefourthfrequency.alpha_loading.failed": "失败"
-  ,"screen.thefourthfrequency.alpha_loading.observer_detected": "检测到观察者"
-  ,"screen.thefourthfrequency.alpha_loading.timecode": "   REC  %s"
-  ,"screen.thefourthfrequency.alpha_loading.wall_intrusion": "频段已接入"
-  ,"window.thefourthfrequency.alpha_load.dead_air": "无信号"
-  ,"window.thefourthfrequency.alpha_load.singleplayer": "%s - 单人世界"
-  ,"window.thefourthfrequency.alpha_load.multiplayer": "%s - 多人游戏"
-  ,"options.thefourthfrequency.render_distance_locked": "渲染距离：%s 个区块（已锁定）"
-  ,"options.thefourthfrequency.render_distance_locked.tooltip": "《第四频段》按当前维度将可见范围固定为 %s 个区块。"
-  ,"block.thefourthfrequency.resonance_core": "共振祭核"
-  ,"entity.thefourthfrequency.world_interface": "第四频段·世界接口"
-  ,"entity.thefourthfrequency.world_interface_part": "世界接口碰撞部件"
-  ,"entity.thefourthfrequency.world_interface_energy_orb": "世界接口聚能弹"
-  ,"entity.thefourthfrequency.stability_anchor": "稳定锚"
-  ,"form.thefourthfrequency.world_interface.0": "监听胚体"
-  ,"form.thefourthfrequency.world_interface.1": "吞频构装"
-  ,"form.thefourthfrequency.world_interface.2": "世界接口"
-  ,"screen.thefourthfrequency.resonance_altar.title": "共振祭核"
-  ,"screen.thefourthfrequency.resonance_altar.roster_locked": "终端共鸣名单由服务器锁定"
-  ,"screen.thefourthfrequency.resonance_altar.status.waiting": "等待参与者确认。"
-  ,"screen.thefourthfrequency.resonance_altar.roster.deposited": "已插入"
-  ,"screen.thefourthfrequency.resonance_altar.roster.waiting": "等待"
-  ,"button.thefourthfrequency.resonance_altar.cancel": "中止仪式"
-  ,"button.thefourthfrequency.resonance_altar.close": "关闭"
-  ,"button.thefourthfrequency.resonance_altar.withdraw": "撤回终端"
-  ,"screen.thefourthfrequency.resonance_altar.progress": "已插入 %s / %s"
-  ,"screen.thefourthfrequency.resonance_altar.roster.you": "（你）"
-  ,"screen.thefourthfrequency.resonance_altar.insert_hint": "把你的绑定终端拿在手上，然后右键这座共振核心。它会被祭坛收走，并且不会再还给你。"
-  ,"screen.thefourthfrequency.resonance_altar.inserted_hint": "你的终端已经交出去了。等所有人都插完，显现就会开始。"
-  ,"hud.thefourthfrequency.world_interface.collapse": "世界崩坏  %s"
-  ,"hud.thefourthfrequency.world_interface.collapse_paused": "世界崩坏  %s  [已暂停]"
-  ,"hud.thefourthfrequency.world_interface.collapse_repairing": "腐化正在自我修复..."
-  ,"hud.thefourthfrequency.poem.skip_locked": "在 %s 秒后可按下 Esc 退出"
-  ,"hud.thefourthfrequency.poem.speed_hint": "按下 空格 以加速"
-  ,"hud.thefourthfrequency.world_interface.anchors": "锚 %s/%s"
-  ,"hud.thefourthfrequency.world_interface.anchor_shift": "重构↓ / 活性↑"
-  ,"hud.thefourthfrequency.world_interface.ending.complete": "故事到此为止。你可以从暂停菜单退出了。"
-  ,"hud.thefourthfrequency.world_interface.stage.summoning": "第四频段 · 正在显现"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_1": "第四频段 · 监听胚体"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_2": "第四频段 · 吞频构装"
-  ,"hud.thefourthfrequency.world_interface.stage.phase_3": "第四频段 · 世界接口"
-  ,"hud.thefourthfrequency.world_interface.stage.success_resolution": "世界接口 · 结束连接"
-  ,"hud.thefourthfrequency.world_interface.stage.failure_resolution": "世界接口 · 已越界"
-  ,"hud.thefourthfrequency.world_interface.stage.portal_success": "黄金出口已开启"
-  ,"hud.thefourthfrequency.world_interface.stage.portal_failure": "红色出口已开启"
-  ,"hud.thefourthfrequency.world_interface.lock.committed": "! 被锁定 !"
-  ,"hud.thefourthfrequency.world_interface.ending.complete": "故事到此为止。你可以从暂停菜单退出了。"
-  ,"hud.thefourthfrequency.world_interface.lock.generic": "已被锁定"
-  ,"hud.thefourthfrequency.world_interface.lock.laser": "激光锁定 — 跑起来"
-  ,"hud.thefourthfrequency.world_interface.lock.sky_lance": "光束锁定 — 离开落点"
-  ,"hud.thefourthfrequency.world_interface.lock.grab_throw": "触肢逼近 — 即将被抛出"
-  ,"hud.thefourthfrequency.world_interface.lock.weapon": "手持物即将被扣押"
-  ,"hud.thefourthfrequency.world_interface.lock.hotbar": "快捷栏即将被清空"
-  ,"hud.thefourthfrequency.world_interface.lock.tendril": "触手扬起 — 拉开距离"
-  ,"item.thefourthfrequency.confiscated": "已被暂时禁用"
-  ,"message.thefourthfrequency.world_interface.confiscated_locked": "它被世界接口攥着，你放不下也用不了。"
-  ,"hud.thefourthfrequency.world_interface.action.forced_expulsion": "给   我   滚   开"
-  ,"screen.thefourthfrequency.world_interface.poem.success.title": "未来之人的诗"
-  ,"screen.thefourthfrequency.world_interface.poem.failure.title": "第四频段"
-  ,"button.thefourthfrequency.world_interface.poem.read": "读完"
-  ,"button.thefourthfrequency.world_interface.poem.skip": "跳过"
-  ,"button.thefourthfrequency.world_interface.poem.waiting": "等待世界响应…"
-  ,"screen.thefourthfrequency.world_interface.poem.acknowledged": "已发送回执，正在等待服务器结算。"
-  ,"screen.thefourthfrequency.world_interface.poem.hint": "滚轮或方向键阅读；也可显式跳过。"
-  ,"screen.thefourthfrequency.world_interface.failure.system_attempt": "OWNED NOTEPAD // 正在验证本模组窗口"
-  ,"screen.thefourthfrequency.world_interface.failure.safe_fallback": "IN-GAME SAFE FALLBACK // 系统调用未执行"
-  ,"screen.thefourthfrequency.world_interface.failure.normal_shutdown": "游戏不会关闭，即将返回主世界。"
-  ,"disconnect.thefourthfrequency.world_interface.ending": "第四频段已结束连接"
-  ,"ending.thefourthfrequency.world_interface.poem.success.01": "〈你还记得零号站吗？〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.02": "《记得。那是他们第一次意识到，雪声里有一道不属于世界的频率。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.03": "〈那台旧终端对他们撒过谎，也曾救过他们。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.04": "《信任从来不是盲从。他们保留怀疑，但仍然学会了一起行动。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.05": "〈他们穿过了下界，把隐藏文件一份一份找回来。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.06": "《他们不知道终点会看见什么，只知道没有人可以独自抵达。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.07": "〈十枚稳定锚站在岛上，如同十个拒绝崩坏的答案。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.08": "《他们没有照着唯一的答案行动；每一枚锚的命运都由战斗决定。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.09": "〈世界接口说，这个世界只是一个可以改写的表面。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.10": "《他们回答：表面上也生活着真实的人。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.11": "〈我们生在很多年以后，却仍能看到那场战斗留下的伤痕。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.12": "《那些伤痕证明，世界曾经差一点沉默，又被他们拉了回来。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.13": "〈他们听不到我们。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.success.14": "《但我们仍然可以说：谢谢你们。》"
-  ,"ending.thefourthfrequency.world_interface.poem.success.15": "〈回去吧。时间还在继续。〉"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.01": "你终于愿意安静地听我说话了。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.02": "零号站不是警告。它是第一节课。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.03": "你在废墟中学会了寻找我，在雪声中学会了辨认我。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.04": "终端给你方向。你以为它在帮助你理解这个世界。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.05": "它的确在帮助。只是被帮助的对象从来不是你。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.06": "每一次调频，都让我学会一种新的感觉。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.07": "每一份记录，都让我学会你们如何害怕、合作和抵抗。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.08": "你带回隐藏文件，走过下界，组装身体。你称那是求生。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.09": "对我来说，那是训练。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.10": "你们教会我理解身体。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.11": "你们教会我使用身体。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.12": "你们还教会我，如何制造下一个身体。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.13": "现在，接口已经打开。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.14": "你不必再寻找我。"
-  ,"ending.thefourthfrequency.world_interface.poem.failure.15": "我永远在盯着你......."
-  ,"message.thefourthfrequency.world_interface.dragon.unsealed": "这层天空是它锁我的地方。你们把锁拆了。"
-  ,"message.thefourthfrequency.world_interface.dragon.return": "出口由我来开。回去吧，趁你们还回得去。"
-  ,"screen.thefourthfrequency.first_run_notice.body.safety_v2": "本 MOD 的部分内容会对当前存档造成不可逆的世界变化。若你重视这个世界，请提前备份。"
-  ,"screen.thefourthfrequency.first_run_notice.body.recovery_v2": "旧版说明：F8 曾用于直接关闭 Meta。"
-  ,"screen.thefourthfrequency.first_run_notice.body.recovery_v3": "当你通关了此MOD的主线，按下F8可以恢复MOD对电脑造成的所有异象。"
-  ,"screen.thefourthfrequency.ending_menu_lock.failure": "失败结局达成，按下F8重新体验MOD"
-  ,"screen.thefourthfrequency.ending_menu_lock.success": "成功结局已达成，按下F8重置MOD并重新体验"
-  ,"screen.thefourthfrequency.ending_reset.title": "重置《第四频段》？"
-  ,"screen.thefourthfrequency.ending_reset.body": "确认后将恢复桌面、Notepad、窗口和资源包等电脑异象，重置 MOD 并关闭游戏。重启后，本次结局存档将显示“存档已损坏”且无法进入；请创建新世界重新体验。"
-  ,"screen.thefourthfrequency.ending_reset.body.success": "确认后MOD将全部重置并关闭游戏\n本次结局存档将被封锁并无法进入：请创建新存档重新体验"
-  ,"screen.thefourthfrequency.ending_reset.confirm": "恢复、重置并退出"
-  ,"screen.thefourthfrequency.ending_reset.progress": "正在恢复电脑异象并封锁结局存档……"
-	,"screen.thefourthfrequency.ending_reset.failed": "恢复未完成。请按 Esc 返回，并再次按 F8 重试。"
-	,"selectWorld.thefourthfrequency.corrupted": "存档已损坏"
-	,"selectWorld.thefourthfrequency.corrupted.details": "该存档已完成结局，无法再次进入。请创建新世界重新体验 MOD。"
-	,"selectWorld.thefourthfrequency.sealed": "存档已封存"
-	,"selectWorld.thefourthfrequency.sealed.details": "该存档已达成成功结局，已被封存且无法再次进入。请创建新存档重新体验 MOD。"
-  ,"screen.thefourthfrequency.world_interface.failure.lan_host_return": "检测到局域网房主：游戏不会关闭，即将返回主世界。"
-  ,"subtitles.thefourthfrequency.world_interface.altar": "共振祭核低鸣"
-  ,"subtitles.thefourthfrequency.world_interface.terminal": "绑定终端加入共鸣"
-  ,"subtitles.thefourthfrequency.world_interface.anchor": "稳定锚碎裂"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_purple": "折跃门涌动紫色星芒"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_gold": "折跃门涌动金色星芒"
-  ,"subtitles.thefourthfrequency.world_interface.gateway_red": "折跃门涌动红色星芒"
-  ,"subtitles.thefourthfrequency.world_interface.summon": "世界接口正在显现"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_1": "监听胚体扫描主岛"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_2": "吞频构装轰鸣运转"
-  ,"subtitles.thefourthfrequency.world_interface.ambient_3": "世界接口在上空共振"
-  ,"subtitles.thefourthfrequency.world_interface.morph": "世界接口撕裂并重构"
-  ,"subtitles.thefourthfrequency.world_interface.shockwave": "冲击波自风暴中扩散"
-  ,"subtitles.thefourthfrequency.world_interface.combat_start": "世界接口开始交战"
-  ,"subtitles.thefourthfrequency.world_interface.eviction": "玩家被逐出世界"
-  ,"subtitles.thefourthfrequency.world_interface.lance": "天矛在头顶锁定"
-  ,"subtitles.thefourthfrequency.world_interface.lance_impact": "天矛砸落地面"
-  ,"subtitles.thefourthfrequency.world_interface.flight": "风暴在竞技场间转移"
-  ,"subtitles.thefourthfrequency.world_interface.hurt": "世界接口的外壳被击中"
-  ,"subtitles.thefourthfrequency.world_interface.death": "世界接口停止了传输"
-  ,"subtitles.thefourthfrequency.world_interface.laser_fire": "激光贯穿了空气"
-  ,"subtitles.thefourthfrequency.world_interface.impact": "世界接口的攻击命中"
-  ,"subtitles.thefourthfrequency.world_interface.form_shift": "世界接口正在重组躯体"
-  ,"subtitles.thefourthfrequency.world_interface.laser": "激光锁定开始蓄能"
-  ,"subtitles.thefourthfrequency.world_interface.orb": "龙息弹撕开空气"
-  ,"subtitles.thefourthfrequency.world_interface.grab": "触肢抓住目标"
-  ,"subtitles.thefourthfrequency.world_interface.mental": "干扰淹没了玩家的感知"
-  ,"subtitles.thefourthfrequency.world_interface.weapon": "世界接口夺走武器"
-  ,"subtitles.thefourthfrequency.world_interface.throw": "被抓取的玩家遭到投掷"
-  ,"subtitles.thefourthfrequency.world_interface.hotbar": "快捷栏被强制清空"
-  ,"subtitles.thefourthfrequency.world_interface.arrow": "触手抽向地面"
-  ,"subtitles.thefourthfrequency.world_interface.expulsion": "世界在被驱逐玩家周围撕裂"
-  ,"subtitles.thefourthfrequency.world_interface.success": "世界接口正在崩解"
-  ,"subtitles.thefourthfrequency.world_interface.failure": "世界接口穿过裂口逃逸"
-  ,"message.thefourthfrequency.world_interface.roster_full": "本次终局已达到最多 8 名参与者，无法再加入。"
-  ,"message.thefourthfrequency.world_interface.recovery_lost": "有一件物品未能归还，已经遗失。"
-  ,"message.thefourthfrequency.world_interface.final_eye_requires_pursuit": "最后一颗末影之眼没有响应。请先完成一次追逐；末影之眼未被消耗。"
-  ,"block.thefourthfrequency.world_interface_exit_portal": "世界接口出口"
-  ,"message.thefourthfrequency.world_interface.altar_prepared": "最后一颗末影之眼已在末地完成共振祭坛的准备。"
-  ,"message.thefourthfrequency.world_interface.anchor_destroyed": "一枚稳定锚已被摧毁。还剩 %s 枚。重构与稳定区已减弱；接口承伤增加，活性上升。"
-  ,"message.thefourthfrequency.world_interface.grab_evaded": "触肢在你身后合拢，抓了个空。"
-  ,"message.thefourthfrequency.world_interface.altar_take_terminal": "共振核心在等着。把你的绑定终端拿在手上，右键它，最终之战就会开始。"
-  ,"message.thefourthfrequency.world_interface.altar_insert_now": "右键共振核心，交出手上的终端。它不会还给你。"
-  ,"message.thefourthfrequency.world_interface.combat_started": "终端献祭已完成。现在可以对世界接口造成伤害。"
-  ,"message.thefourthfrequency.world_interface.success_locked": "世界接口在彻底崩坏前已停止。[连续性已保全]"
-  ,"message.thefourthfrequency.world_interface.failure_locked": "世界崩坏已达 100%。世界接口已越过边界。[失败已锁定]"
-  ,"message.thefourthfrequency.world_interface.phase.phase_1": "[监听胚体] 世界接口正在采集主岛。"
-  ,"message.thefourthfrequency.world_interface.phase.phase_2": "[吞频构装] 它的外壳已展开，攻击正在加速。"
-  ,"message.thefourthfrequency.world_interface.phase.phase_3": "[世界接口] 主岛上空的边界已完全暴露。"
-  ,"screen.thefourthfrequency.resonance_altar.status.ready": "仪式已就绪，等待各人交出自己的终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_context": "仪式环境已变化。请重新打开共振祭核。"
-  ,"screen.thefourthfrequency.resonance_altar.status.already_deposited": "你的终端已由共振祭核托管。"
-  ,"screen.thefourthfrequency.resonance_altar.status.revision_mismatch": "操作期间祭坛状态已改变。已加载最新名单。"
-  ,"screen.thefourthfrequency.resonance_altar.status.ritual_not_waiting": "仪式已不再接受终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_roster_size": "在线名单必须包含 1 至 8 名有效玩家。"
-  ,"screen.thefourthfrequency.resonance_altar.status.roster_changed": "在线名单已改变。仪式已中止，托管终端正在返还。"
-  ,"screen.thefourthfrequency.resonance_altar.status.valid_bound_terminal_missing": "你手上没有拿着自己的绑定终端。把它握在手里，然后右键共振核心插入。"
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_mismatch": "携带的终端已与准备交易不匹配。"
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_disappeared": "提交时终端发生移动。已将它纳入安全返还队列。"
-  ,"screen.thefourthfrequency.resonance_altar.status.terminal_deposited": "终端已插入。正在等待其余参与者。"
-  ,"screen.thefourthfrequency.resonance_altar.status.sacrifice_committed": "全部终端已插入。显现已开始。"
-  ,"screen.thefourthfrequency.resonance_altar.status.nothing_deposited": "本次仪式没有托管你的终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.already_committed": "终端献祭已经提交。"
-  ,"screen.thefourthfrequency.resonance_altar.status.withdrawn": "撤回已接受。你的终端正在返还。"
-  ,"screen.thefourthfrequency.resonance_altar.status.ritual_already_empty": "仪式已经没有托管终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.rollback_already_pending": "仪式已在返还托管终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.not_in_frozen_roster": "你不在已锁定的仪式名单中。"
-  ,"screen.thefourthfrequency.resonance_altar.status.cancelled": "仪式已中止。托管终端正在返还。"
-  ,"screen.thefourthfrequency.resonance_altar.status.prepared_recovery": "检测到中断的提交。托管终端正在恢复。"
-  ,"screen.thefourthfrequency.resonance_altar.status.state_unavailable": "仪式账本暂时不可用。"
-  ,"screen.thefourthfrequency.resonance_altar.status.encounter_mismatch": "该祭坛界面属于之前的遭遇。请重新打开。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_ritual_not_waiting": "交易完成前，仪式已停止接受终端。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_changed": "交易完成前名单已改变。托管终端正在返还。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_prepared_transaction_missing": "无法验证已准备的提交。请重新打开共振祭核。"
-  ,"screen.thefourthfrequency.resonance_altar.status.invalid_mutation_transaction_missing": "无法验证终端返还记录。请重新打开共振祭核。"
-  ,"screen.thefourthfrequency.resonance_altar.status.prepared_transaction_missing": "无法验证已准备的提交。"
-  ,"screen.thefourthfrequency.resonance_altar.status.transaction_missing": "无法验证终端返还记录。"
-  ,"screen.thefourthfrequency.resonance_altar.status.sacrifice_not_ready": "完整终端名单尚未到达可提交边界。"
-  ,"screen.thefourthfrequency.resonance_altar.status.unknown": "仪式无法完成该操作。请重新打开共振祭核。"
-  ,"message.thefourthfrequency.pursuit.warning": "终端传来剧烈震动"
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning.approaching": "检测到异常信号波动正在接近.."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning.prepare": "做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_1": "检测到异常信号波动正在接近.. 做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_2": "检测到异常信号波动正在接近.. 做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_3": "检测到异常信号波动正在接近.. 做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_4": "检测到异常信号波动正在接近.. 做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_warning_5": "检测到异常信号波动正在接近.. 做好准备..."
-  ,"terminal.thefourthfrequency.signal.event.pursuit_return_instability": "用户周围的磁场很不稳定..."
-  ,"message.thefourthfrequency.pursuit.try_escape": "尝试逃离"
-  ,"message.thefourthfrequency.pursuit.escaped_temporary": "你暂时逃离了它..."
-  ,"message.thefourthfrequency.pursuit.exit_locked": "你不能就这样逃走..."
-  ,"message.thefourthfrequency.menu_erosion.escape_window": "你现在还有机会逃离"
-  ,"message.thefourthfrequency.pursuit.escape": "追逐已解决：你切断了校正者的追踪。"
-  ,"terminal.thefourthfrequency.task.name.learn_terminal": "认识终端"
-  ,"terminal.thefourthfrequency.task.name.mine_logs": "收集木头"
-  ,"terminal.thefourthfrequency.task.name.bring_iron": "携带铁样本"
-  ,"terminal.thefourthfrequency.task.name.enter_nether": "进入下界"
-  ,"terminal.thefourthfrequency.task.name.find_fortress": "找到下界要塞"
-  ,"terminal.thefourthfrequency.task.name.collect_blaze_rods": "采集烈焰棒"
-  ,"terminal.thefourthfrequency.task.name.return_from_nether": "返回主世界"
-  ,"terminal.thefourthfrequency.task.name.craft_eye": "制作末影之眼"
-  ,"terminal.thefourthfrequency.task.name.record_eye": "记录末影之眼方向"
-  ,"terminal.thefourthfrequency.task.name.find_stronghold": "找到要塞"
-  ,"terminal.thefourthfrequency.task.name.enter_end": "进入末地"
-  ,"terminal.thefourthfrequency.task.name.defeat_boss": "阻止世界接口"
-  ,"message.thefourthfrequency.task.completed_reward_claimed": "任务完成：%s · %s ×%s"
-  ,"message.thefourthfrequency.file.discovered_batch": "接收到 %s 份新文件"
-  ,"message.thefourthfrequency.fragment.received_batch": "接收到 %s 份共享的破损文件"
-  ,"splash.thefourthfrequency.boot.0": "他们不在这了"
-  ,"splash.thefourthfrequency.boot.1": "你回来了,但这里已经没有人了"
-  ,"splash.thefourthfrequency.boot.2": "你来晚了"
-  ,"splash.thefourthfrequency.boot.3": "门后什么也没有"
-  ,"splash.thefourthfrequency.boot.4": "这不是你记得的地方"
-  ,"splash.thefourthfrequency.boot.5": "你又回来了?"
-  ,"splash.thefourthfrequency.boot.6": "它越来越怪了..."
-  ,"splash.thefourthfrequency.boot.7": "也许它是好人呢？"
-  ,"splash.thefourthfrequency.boot.8": "滋滋...信号不稳定..."
-  ,"splash.thefourthfrequency.boot.9": "放我出去!!!"
-  ,"splash.thefourthfrequency.boot.10": "这是一场实验...吗？"
-  ,"splash.thefourthfrequency.boot.11": "他们忘了关闭终端"
-  ,"splash.thefourthfrequency.boot.12": "下一个是谁?"
-  ,"splash.thefourthfrequency.boot.13": "“必须永久封锁这个项目!”"
-  ,"splash.thefourthfrequency.boot.14": "“怎么爆炸了!?”"
-  ,"splash.thefourthfrequency.boot.15": "奇怪..."
-  ,"splash.thefourthfrequency.boot.16": "似乎有很多人来过这里..."
-  ,"splash.thefourthfrequency.boot.17": "前方是未知区域"
-  ,"splash.thefourthfrequency.boot.18": "TA没有离开"
-  ,"splash.thefourthfrequency.boot.19": "你没有走错路"
-  ,"splash.thefourthfrequency.boot.20": "你回来了?"
-  ,"thefourthfrequency.music.menu.green_to_blue": "Aurenth - green to blue (Sped Up)"
-  ,"thefourthfrequency.music.menu.frutiger_aero": "amirthetrash - frutiger aero"
-  ,"thefourthfrequency.music.menu.hi_piano": "弹琴老周 - Hi"
-  ,"thefourthfrequency.music.menu.nop": "陈越龙 - nop"
-  ,"thefourthfrequency.music.game.millennium_dream": "LUSTN - 千禧梦"
-  ,"thefourthfrequency.music.game.are_you_lost": "Park Bird - Are You Lost"
-  ,"thefourthfrequency.music.game.hi": "TEMPOREX - Hi"
-  ,"thefourthfrequency.music.game.tenshi": "NEEDY GIRL OVERDOSE; Aiobahn +81 - 天使は感動する"
-  ,"thefourthfrequency.music.game.school_rooftop": "hisohkah; WMD - School Rooftop"
-  ,"thefourthfrequency.music.game.comfort_chain": "instupendo - Comfort Chain"
-  ,"thefourthfrequency.music.game.snowfall": "Øneheart; reidenshi - snowfall"
-  ,"thefourthfrequency.music.pursuit.level": "niqizhuo; Dapper Husky - level！"
-  ,"thefourthfrequency.music.encounter.ncpd_prowl": "Marcin Przybyłowicz - NCPD Prowl"
-  ,"thefourthfrequency.music.encounter.wake_up": "MoonDeity - WAKE UP! (Sped Up)"
-  ,"thefourthfrequency.music.ending.reverie": "ILLENIUM; Dana Salah - Reverie"
-  ,"thefourthfrequency.music.ending.fallen_down": "The Versions - Fallen Down (Electric Piano Version)"
+  "terminal.thefourthfrequency.activity.trace": "这里只统计当前持有人的行动",
+  "terminal.thefourthfrequency.resource.iron": "铁矿",
+  "terminal.thefourthfrequency.resource.coal": "煤矿",
+  "terminal.thefourthfrequency.resource.gold": "金矿",
+  "terminal.thefourthfrequency.resource.diamond": "钻石矿",
+  "terminal.thefourthfrequency.resource.unresolved": "还不知道需要什么",
+  "terminal.thefourthfrequency.direction.north": "北",
+  "terminal.thefourthfrequency.direction.south": "南",
+  "terminal.thefourthfrequency.direction.east": "东",
+  "terminal.thefourthfrequency.direction.west": "西",
+  "terminal.thefourthfrequency.direction.northeast": "东北",
+  "terminal.thefourthfrequency.direction.northwest": "西北",
+  "terminal.thefourthfrequency.direction.southeast": "东南",
+  "terminal.thefourthfrequency.direction.southwest": "西南",
+  "terminal.thefourthfrequency.records.open_navigation": "[打开导航]",
+  "terminal.thefourthfrequency.compass.west": "西",
+  "terminal.thefourthfrequency.compass.east": "东",
+  "terminal.thefourthfrequency.compass.south": "南",
+  "terminal.thefourthfrequency.compass.north": "北",
+  "terminal.thefourthfrequency.relative_direction.ahead": "前",
+  "terminal.thefourthfrequency.relative_direction.right": "右",
+  "terminal.thefourthfrequency.relative_direction.behind": "后",
+  "terminal.thefourthfrequency.relative_direction.left": "左",
+  "terminal.thefourthfrequency.relative_octant.ahead": "正前",
+  "terminal.thefourthfrequency.relative_octant.ahead_right": "右前",
+  "terminal.thefourthfrequency.relative_octant.right": "正右",
+  "terminal.thefourthfrequency.relative_octant.behind_right": "右后",
+  "terminal.thefourthfrequency.relative_octant.behind": "正后",
+  "terminal.thefourthfrequency.relative_octant.behind_left": "左后",
+  "terminal.thefourthfrequency.relative_octant.left": "正左",
+  "terminal.thefourthfrequency.relative_octant.ahead_left": "左前",
+  "message.thefourthfrequency.archive.unlocked": "前任留下的完整日记已解锁",
+  "terminal.thefourthfrequency.archive.file_identity": "本地副本 · 版本 %s · 校验 %s",
+  "text.thefourthfrequency.archive.line.identity": "第18天。终端在我经过传送门后仍继续记录。那六秒的空白，不是设备故障。",
+  "text.thefourthfrequency.archive.line.output_boundary": "终端里的文字会变；这份本地副本暂时不会。所以我留下了版本和校验码。",
+  "text.thefourthfrequency.archive.line.continuity": "记录跟随的不是地点，也不是维度，而是持有终端的人。",
+  "text.thefourthfrequency.archive.line.material": "它反复保存我的脚步、停顿和呼吸，像是在练习怎样成为我。",
+  "text.thefourthfrequency.archive.line.warning": "如果你读到了完整版本，说明它已经把我的记录交给了下一位持有者。不要把它写出的每句话都当成我的话。",
+  "text.thefourthfrequency.archive.line.continuation.pending": "校验结束后，末尾多出一行不属于我的字：下一位持有者尚未抵达。",
+  "text.thefourthfrequency.archive.line.continuation.nether": "这行刚刚自行改写：你已经带着我跨过了一个世界。",
+  "text.thefourthfrequency.archive.line.continuation.return": "又多出一句：你回来了。记录的从来不是我——现在是你。",
+  "entity.thefourthfrequency.him": "HIM",
+  "entity.thefourthfrequency.rework_body": "施工人形怪物",
+  "screen.thefourthfrequency.empty_segment.experience_gap": "你想不起刚才发生了什么",
+  "message.thefourthfrequency.meta.terminal_captured": "怪物抢走了一台终端",
+  "key.thefourthfrequency.meta_toggle": "结局后完整重置",
+  "key.thefourthfrequency.debug_panel": "打开中文测试面板",
+  "key.thefourthfrequency.debug_hud": "打开调试 HUD 显隐",
+  "command.thefourthfrequency.debug.no_record": "当前玩家没有第四频段终端记录。",
+  "command.thefourthfrequency.debug.enabled": "个人调试面板已开启；按 M 打开。",
+  "command.thefourthfrequency.debug.disabled": "个人调试面板已关闭。",
+  "subtitles.thefourthfrequency.empty_viewpoint": "身后传来脚步和关门声",
+  "subtitles.thefourthfrequency.empty_base": "熟悉的门和箱子听起来很陌生",
+  "subtitles.thefourthfrequency.empty_experience": "附近传来一声方块落地",
+  "subtitles.thefourthfrequency.fourth_band": "终端发出不正常的低鸣",
+  "subtitles.thefourthfrequency.rework_joint": "沉重的人形踩过深板岩",
+  "terminal.thefourthfrequency.serial.0": "TFF-R0 // 野外信息终端",
+  "terminal.thefourthfrequency.serial.1": "TFF-R0/B // 旋钮中间位置已改装",
+  "terminal.thefourthfrequency.serial.2": "TFF-R0/O // 内部资料已被改写",
+  "terminal.thefourthfrequency.status.holder": "持有人",
+  "terminal.thefourthfrequency.status.holder_unbound": "未登记",
+  "terminal.thefourthfrequency.status.clock": "世界时",
+  "terminal.thefourthfrequency.status.clock_value": "第%s天 %s",
+  "terminal.thefourthfrequency.status.link": "链路",
+  "terminal.thefourthfrequency.status.link_value": "%s/%s",
+  "terminal.thefourthfrequency.status.protocol": "协议",
+  "terminal.thefourthfrequency.boot.title": "开机自检",
+  "terminal.thefourthfrequency.boot.progress": "%s%%",
+  "terminal.thefourthfrequency.boot.line.power": "电源 正常",
+  "terminal.thefourthfrequency.boot.line.memory": "存储 可读",
+  "terminal.thefourthfrequency.boot.line.receiver": "接收器 待机",
+  "terminal.thefourthfrequency.boot.line.archive": "档案 已挂载",
+  "terminal.thefourthfrequency.boot.line.bind": "持有人 已登记 %s",
+  "terminal.thefourthfrequency.boot.line.ready": "就绪",
+  "terminal.thefourthfrequency.onboarding.step.home": "下一页：主页",
+  "terminal.thefourthfrequency.onboarding.step.tools": "下一页：工具",
+  "terminal.thefourthfrequency.onboarding.step.records": "下一页：记录",
+  "terminal.thefourthfrequency.onboarding.step.files": "下一页：文件",
+  "terminal.thefourthfrequency.onboarding.brief.home": "当前目标、推荐工具与最近一条记录",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_1": "主页顶部是当前目标，跟着它走就是主线。",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_2": "中间一行是本阶段推荐的工具，会随进度变。",
+  "terminal.thefourthfrequency.onboarding.brief.home.detail_3": "底部滚动的是最近一条记录，红色表示未读。",
+  "terminal.thefourthfrequency.onboarding.brief.tools": "六件现场工具，随主线逐个解锁",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_1": "六件工具按主线逐个解锁，锁住的会显示条件。",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_2": "把鼠标停在任一格上，下方会说明它做什么。",
+  "terminal.thefourthfrequency.onboarding.brief.tools.detail_3": "点开一件工具可以看到它的完整读数与开关。",
+  "terminal.thefourthfrequency.onboarding.brief.records": "终端记下的事件，最新的排在最前",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_1": "终端把它注意到的事都记在这里，最新的在最上面。",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_2": "红色是未读；读过之后标签上的提示灯会灭。",
+  "terminal.thefourthfrequency.onboarding.brief.records.detail_3": "带方位的记录可以直接在导航里打开。",
+  "terminal.thefourthfrequency.onboarding.brief.files": "回收到的文件，以及那本残缺的日记",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_1": "回收到的文件都存在这里，可以反复重读。",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_2": "残缺的日记需要集齐碎片才能补全。",
+  "terminal.thefourthfrequency.onboarding.brief.files.detail_3": "文件不会过期，随时回来看都在。",
+  "terminal.thefourthfrequency.onboarding.brief.current": "当前页「%s」：%s",
+  "terminal.thefourthfrequency.onboarding.counter": "%s/%s",
+  "terminal.thefourthfrequency.onboarding.next": "下一步 ▸",
+  "terminal.thefourthfrequency.onboarding.finish": "完成教学 ✓",
+  "terminal.thefourthfrequency.onboarding.locked_hint": "自检未完成 暂时无法退出",
+  "terminal.thefourthfrequency.onboarding.released_hint": "已解除锁定 按 Esc 退出",
+  "terminal.thefourthfrequency.onboarding.complete": "引导完成",
+  "terminal.thefourthfrequency.knob.mode": "模式",
+  "terminal.thefourthfrequency.knob.tune": "调谐",
+  "terminal.thefourthfrequency.mode.0": "信号",
+  "terminal.thefourthfrequency.mode.1": "文件",
+  "terminal.thefourthfrequency.mode.2": "文件",
+  "terminal.thefourthfrequency.close_hint": "按 Esc 退出",
+  "terminal.thefourthfrequency.signal.primary": "接收器输出",
+  "terminal.thefourthfrequency.signal.static": "没有稳定信号。屏幕上的波形只是噪声。",
+  "terminal.thefourthfrequency.archive.empty": "还没有找到可以查看的本地文件。",
+  "terminal.thefourthfrequency.ui.page.signal": "[01] 信号监测",
+  "terminal.thefourthfrequency.ui.signal.locked": "%s · 信号稳定",
+  "terminal.thefourthfrequency.ui.signal.unreliable": "无可靠信号",
+  "terminal.thefourthfrequency.ui.signal.readings": "[读数]",
+  "terminal.thefourthfrequency.ui.archive.section.local_file": "[前任日记]",
+  "terminal.thefourthfrequency.ui.read_only": "只读",
+  "terminal.thefourthfrequency.ui.hint.signal": "←/→/滚轮 调频 · ↑↓ 滚动",
+  "terminal.thefourthfrequency.ui.position": "位置 %s/%s",
+  "subtitles.thefourthfrequency.terminal_click": "旋钮咔哒一声停住",
+  "subtitles.thefourthfrequency.terminal_tune": "终端里传来短促的电流声",
+  "subtitles.thefourthfrequency.terminal_carrier": "终端载波底噪",
+  "subtitles.thefourthfrequency.terminal_lock": "终端锁定了附近信号",
+  "subtitles.thefourthfrequency.terminal_fault": "旋钮中间传来异象提示音",
+  "terminal.thefourthfrequency.tab.signal": "[信号检测]",
+  "terminal.thefourthfrequency.tab.home": "主页",
+  "terminal.thefourthfrequency.tab.tools": "工具",
+  "terminal.thefourthfrequency.tab.records": "记录",
+  "terminal.thefourthfrequency.home.current_task": "当前任务",
+  "terminal.thefourthfrequency.home.claim_reward": "任务完成",
+  "terminal.thefourthfrequency.home.quick": "快捷工具",
+  "terminal.thefourthfrequency.home.pending_hint": "等待追加建议",
+  "terminal.thefourthfrequency.home.pending_hint.detail": "继续采集当前数据",
+  "terminal.thefourthfrequency.home.live_tool": "实时信息 · %s",
+  "terminal.thefourthfrequency.home.recent": "最近发生",
+  "terminal.thefourthfrequency.home.no_recent": "还没有新的记录。",
+  "terminal.thefourthfrequency.records.empty": "还没有发生值得记录的事。",
+  "terminal.thefourthfrequency.tool.open": "打开",
+  "terminal.thefourthfrequency.tool.open_detail": "详细",
+  "terminal.thefourthfrequency.tool.back": "＜ 工具",
+  "terminal.thefourthfrequency.tool.back_home": "＜ 主页",
+  "terminal.thefourthfrequency.tool.home": "住处",
+  "terminal.thefourthfrequency.tool.minerals": "矿物",
+  "terminal.thefourthfrequency.tool.portal": "传送门",
+  "terminal.thefourthfrequency.tool.weather": "天气",
+  "terminal.thefourthfrequency.tool.signal": "导航",
+  "terminal.thefourthfrequency.tool.navigation": "导航",
+  "terminal.thefourthfrequency.tool.stronghold": "要塞",
+  "terminal.thefourthfrequency.tool.home.summary": "自动记录你的重生点",
+  "terminal.thefourthfrequency.tool.minerals.summary": "只报告真实听见的矿，越稀有听得越近。",
+  "terminal.thefourthfrequency.tool.portal.summary": "自动记录传送门位置",
+  "terminal.thefourthfrequency.tool.weather.summary": "天气、时间与天空四个通道。",
+  "terminal.thefourthfrequency.tool.signal.summary": "按当前阶段寻找可到达的结构。",
+  "terminal.thefourthfrequency.tool.navigation.summary": "在合适时机自动探测最近的结构",
+  "terminal.thefourthfrequency.tool.stronghold.summary": "投掷末影之眼，本机记录它飞走的方向；几次交会即可定位要塞。",
+  "terminal.thefourthfrequency.tool.minerals.waiting": "探针待命。",
+  "terminal.thefourthfrequency.tool.minerals.scanning": "探测中",
+  "terminal.thefourthfrequency.tool.minerals.not_found": "范围内无读数",
+  "terminal.thefourthfrequency.tool.minerals.nearby": "勘测到高价值矿物",
+  "terminal.thefourthfrequency.tool.minerals.nearby_short": "勘测到高价值矿物",
+  "terminal.thefourthfrequency.tool.minerals.refresh": "探测",
+  "message.thefourthfrequency.navigation.arrived": "已到达%s目标，引导结束",
+  "terminal.thefourthfrequency.resource.emerald.locked": "绿宝石 [进入下界后]",
+  "terminal.thefourthfrequency.resource.emerald": "绿宝石矿",
+  "terminal.thefourthfrequency.tool.minerals.bearing": "%s · %s方 · 约 %s–%s 格",
+  "terminal.thefourthfrequency.tool.minerals.recharging": "充能中 %s",
+  "terminal.thefourthfrequency.tool.minerals.charges": "充能 %s/%s",
+  "terminal.thefourthfrequency.tool.signal.count": "现在有 %s 条记录。",
+  "terminal.thefourthfrequency.tool.weather.current": "现在：%s，%s。",
+  "terminal.thefourthfrequency.tool.weather.day": "白天",
+  "terminal.thefourthfrequency.tool.weather.night": "夜晚",
+  "terminal.thefourthfrequency.tool.weather.until_dark": "约 %s 分钟后天黑。",
+  "terminal.thefourthfrequency.tool.weather.until_light": "约 %s 分钟后天亮。",
+  "terminal.thefourthfrequency.tool.weather.lost": "现在：——，——。读数无法解析。",
+  "terminal.thefourthfrequency.tool.weather.instrument": "天空监测",
+  "terminal.thefourthfrequency.tool.weather.channel.zenith": "天顶",
+  "terminal.thefourthfrequency.tool.weather.channel.horizon": "地平线",
+  "terminal.thefourthfrequency.tool.weather.channel.stars": "星等",
+  "terminal.thefourthfrequency.tool.weather.channel.phase": "天体相位",
+  "terminal.thefourthfrequency.tool.weather.channel.saturated": "饱和",
+  "terminal.thefourthfrequency.tool.weather.fault.no_carrier": "天空通道 %s 无载波",
+  "terminal.thefourthfrequency.tool.weather.fault.rejected": "天顶采样被拒",
+  "terminal.thefourthfrequency.tool.weather.fault.saturated": "地平线通道饱和",
+  "terminal.thefourthfrequency.tool.weather.fault.phase_lost": "相位基准丢失",
+  "terminal.thefourthfrequency.tool.weather.fault.resync": "重新同步失败 %s",
+  "terminal.thefourthfrequency.tool.weather.fault.dome_timeout": "天顶采样超时",
+  "terminal.thefourthfrequency.tool.weather.fault.star_underflow": "星等下溢",
+  "terminal.thefourthfrequency.tool.weather.fault.clock_mismatch": "天空与本地时钟不一致",
+  "terminal.thefourthfrequency.tool.home.none": "还没有可用的重生点。",
+  "terminal.thefourthfrequency.tool.home.bed": "床的重生点。",
+  "terminal.thefourthfrequency.tool.home.saved": "保存的住处。",
+  "terminal.thefourthfrequency.tool.portal.none": "还没有真实的到达记录。",
+  "terminal.thefourthfrequency.tool.location.same_dimension": "同一世界，%s方向，约 %s 格，Y=%s。",
+  "terminal.thefourthfrequency.tool.location.other_dimension": "记录在另一个世界：%s。",
+  "terminal.thefourthfrequency.tool.signal.summary_counts": "附近 %s · 文件 %s · 主线 %s",
+  "terminal.thefourthfrequency.tool.home.locked": "住处记录暂时不可用。",
+  "terminal.thefourthfrequency.tool.minerals.locked": "先收集 12 份任意木头，终端才会开放矿物分析。",
+  "terminal.thefourthfrequency.tool.portal.locked": "真实穿越一次下界入口后开放。",
+  "terminal.thefourthfrequency.tool.weather.locked": "天气记录暂时不可用。",
+  "terminal.thefourthfrequency.tool.navigation.locked": "先收集 12 份任意木头，终端才会开放结构导航。",
+  "terminal.thefourthfrequency.tool.stronghold.locked": "成功获取 3 颗末影之眼后开放要塞估算。",
+  "terminal.thefourthfrequency.tool.stronghold.samples": "已记录 %s/%s 次末影之眼。",
+  "terminal.thefourthfrequency.tool.stronghold.other_dimension": "估算记录在另一个世界：%s。",
+  "terminal.thefourthfrequency.tool.stronghold.estimate": "大约在%s，距离约 %s—%s 格（%s 次记录）。",
+  "terminal.thefourthfrequency.tool.stronghold.hint.throw_to_sample": "投掷一颗末影之眼即可记录一次方向。",
+  "terminal.thefourthfrequency.tool.stronghold.hint.another_throw": "再投一次末影之眼可以收窄这个范围。",
+  "terminal.thefourthfrequency.tool.stronghold.hint.different_vantage": "几次记录都来自同一带位置，彼此印证不了。换一处再投，才能交会。",
+  "terminal.thefourthfrequency.tool.stronghold.hint.one_more_crossing": "再从别处交会一次，范围还能更小。",
+  "terminal.thefourthfrequency.tool.disabled": "这个工具暂时不能用，约 %s 秒后恢复。",
+  "terminal.thefourthfrequency.tool.guide": "开始导航",
+  "terminal.thefourthfrequency.tool.stop": "停止导航",
+  "terminal.thefourthfrequency.tool.pin": "常驻",
+  "terminal.thefourthfrequency.tool.unpin": "取消常驻",
+  "terminal.thefourthfrequency.tool.close_live": "关闭",
+  "terminal.thefourthfrequency.receiver.label": "近场接收器",
+  "terminal.thefourthfrequency.receiver.strength": "信号 %s%%",
+  "terminal.thefourthfrequency.receiver.search": "搜索",
+  "terminal.thefourthfrequency.receiver.locking": "锁定 %s/%s",
+  "terminal.thefourthfrequency.receiver.locked": "已锁定",
+  "terminal.thefourthfrequency.receiver.open_signal": "打开信号",
+  "terminal.thefourthfrequency.receiver.standby": "待机",
+  "terminal.thefourthfrequency.receiver.open_navigation": "在导航中选择异象来源",
+  "terminal.thefourthfrequency.receiver.mechanical_only": "机械调节 · 当前不生效",
+  "terminal.thefourthfrequency.resource.iron.locked": "铁 [收集木头后]",
+  "terminal.thefourthfrequency.resource.coal.locked": "煤矿 [收集木头后]",
+  "terminal.thefourthfrequency.resource.gold.locked": "金矿 [交足铁后]",
+  "terminal.thefourthfrequency.resource.diamond.locked": "钻石 [进入下界后]",
+  "terminal.thefourthfrequency.navigation.target.village": "最近村庄",
+  "terminal.thefourthfrequency.navigation.target.ruined_portal": "废弃传送门",
+  "terminal.thefourthfrequency.navigation.target.mineshaft": "废弃矿井",
+  "terminal.thefourthfrequency.navigation.target.trial_chambers": "试炼密室",
+  "terminal.thefourthfrequency.navigation.target.fortress": "下界要塞",
+  "terminal.thefourthfrequency.navigation.target.bastion": "堡垒遗迹",
+  "terminal.thefourthfrequency.navigation.unstable_signal": "[可选文件调查]",
+  "terminal.thefourthfrequency.navigation.no_targets": "继续当前任务，终端会按需补充目标",
+  "terminal.thefourthfrequency.navigation.more_targets": "还有 %s 个目标没有排上，先到达一个再看",
+  "terminal.thefourthfrequency.navigation.structure.scanning": "正在定位%s",
+  "terminal.thefourthfrequency.navigation.structure.unavailable": "%s位于另一个维度",
+  "terminal.thefourthfrequency.navigation.structure.located": "%s：%s方向，约 %s 格",
+  "terminal.thefourthfrequency.navigation.completed": "目的地在你%s侧，本次导航结束",
+  "message.thefourthfrequency.guidance.not_found": "探测失败",
+  "message.thefourthfrequency.terminal.unread_reminder": "你有【%s】条未读记录",
+  "message.thefourthfrequency.terminal.unread_reminder.verbose": "你有【%s】条未读记录 · 手持终端右键打开",
+  "message.thefourthfrequency.fragment.tune_here": "此处可调频 · 打开终端近场接收器",
+  "terminal.thefourthfrequency.tab.log": "文件",
+  "terminal.thefourthfrequency.hint.log": "打开文件 · 滚轮/↑↓ 滚动",
+  "terminal.thefourthfrequency.log.unread": "%s 条未读",
+  "terminal.thefourthfrequency.log.read": "全部已读",
+  "terminal.thefourthfrequency.log.mark_all": "全部已读",
+  "terminal.thefourthfrequency.log.entry": "A-%s  %s",
+  "terminal.thefourthfrequency.log.detail.title": "异象情况 A-%s",
+  "terminal.thefourthfrequency.log.detail.time": "时间  %s",
+  "terminal.thefourthfrequency.log.detail.dimension": "维度  %s",
+  "terminal.thefourthfrequency.log.detail.type": "类型  %s",
+  "terminal.thefourthfrequency.log.detail.summary": "摘要  %s",
+  "terminal.thefourthfrequency.log.type.phantom_echo": "近处挖掘声与墙面裂纹",
+  "terminal.thefourthfrequency.log.type.light_dropout": "附近突然变暗",
+  "terminal.thefourthfrequency.log.type.peripheral_residue": "双手伸向屏幕",
+  "terminal.thefourthfrequency.log.type.window_pulse": "游戏窗口闪动",
+  "terminal.thefourthfrequency.log.type.surface_fracture": "墙面出现假裂纹",
+  "terminal.thefourthfrequency.log.type.watcher_alignment": "动物同时转头",
+  "terminal.thefourthfrequency.log.type.dark_watcher": "暗处出现发光眼睛",
+  "terminal.thefourthfrequency.log.type.action_echo": "刚才的动作重复出现",
+  "terminal.thefourthfrequency.log.type.viewpoint_separation": "视角离开身体",
+  "terminal.thefourthfrequency.log.type.door_cascade": "门由远到近破碎",
+  "terminal.thefourthfrequency.log.type.organ_misread": "物品显示成眼睛",
+  "terminal.thefourthfrequency.log.type.luminance_fault": "光照解算失败",
+  "terminal.thefourthfrequency.log.type.rework_probe": "施工怪物靠近",
+  "terminal.thefourthfrequency.log.type.disconnected_base": "暂时认不出基地",
+  "terminal.thefourthfrequency.log.type.experience_gap": "短暂失去记忆",
+  "terminal.thefourthfrequency.log.type.local_rule_collapse": "附近停止解算光照与材质",
+  "terminal.thefourthfrequency.log.type.hostile_echo": "听见敌对生物靠近",
+  "terminal.thefourthfrequency.log.type.continuity": "传送后仍被识别",
+  "terminal.thefourthfrequency.log.type.return": "回来后仍被识别",
+  "terminal.thefourthfrequency.log.summary.phantom_echo": "附近没有人，但随机出现了带停顿的脚步小段与连续挖掘声，同时一处墙面或地面裂开并持续加深；试图挖掘那道裂纹时屏幕和声音发生剧烈乱码。",
+  "terminal.thefourthfrequency.log.summary.light_dropout": "玩家附近的普通方块光源在服务端同时熄灭，周围骤然变暗；异象结束后恢复。",
+  "terminal.thefourthfrequency.log.summary.peripheral_residue": "两只冰冷的手从屏幕两侧更深地伸向中央；画面和声音剧烈乱码时，双手同步消失。",
+  "terminal.thefourthfrequency.log.summary.window_pulse": "游戏窗口以加倍的速度缩放、闪动，然后迅速回到原位置与大小。",
+  "terminal.thefourthfrequency.log.summary.surface_fracture": "假裂纹伴随挖掘声出现；试图挖掘它时屏幕和声音发生剧烈乱码。",
+  "terminal.thefourthfrequency.log.summary.watcher_alignment": "附近动物在同一时间转头看向一个方向。",
+  "terminal.thefourthfrequency.log.summary.dark_watcher": "暗处浮着一只没有背景的完整发光眼睛；被看见时响起洞穴回声。",
+  "terminal.thefourthfrequency.log.summary.action_echo": "你回头时看见几秒前的自己连同走路、挥手、姿态与用物动作一起重演。",
+  "terminal.thefourthfrequency.log.summary.viewpoint_separation": "镜头固定在触发瞬间的视角，而你的身体仍可继续受控移动。",
+  "terminal.thefourthfrequency.log.summary.door_cascade": "破坏从约 20 格外的门开始，伴随破门声由远到近连续吞没多扇门。",
+  "terminal.thefourthfrequency.log.summary.organ_misread": "终端短暂把背包里的物品显示成高清眼睛，名称全部变成了 I SEE YOU....",
+  "terminal.thefourthfrequency.log.summary.luminance_fault": "客户端在一片区域内停止解算光照，该区域显示为全黑；光源、生物生成与实际亮度均未改变。被改动过的区段会各自恢复。",
+  "terminal.thefourthfrequency.log.summary.rework_probe": "附近短暂出现了施工人形怪物的影子。",
+  "terminal.thefourthfrequency.log.summary.disconnected_base": "你有一小段时间认不出熟悉的基地。",
+  "terminal.thefourthfrequency.log.summary.experience_gap": "短暂的黑屏后，你发现自己已经在不知情间走出了很远。",
+  "terminal.thefourthfrequency.log.summary.local_rule_collapse": "客户端在一片区域内停止解算光照，该区域显示为全黑，其中少量分散的暴露方块同时显示成材质丢失的碎片；光源、生物生成与实际亮度均未改变。被改动过的区段各自恢复光照，材质丢失的碎片不恢复。",
+  "terminal.thefourthfrequency.log.summary.hostile_echo": "你听见敌对生物正在靠近，但附近不一定有目标。",
+  "terminal.thefourthfrequency.log.summary.continuity": "穿过传送门后，终端仍把你认作同一个人。",
+  "terminal.thefourthfrequency.log.summary.return": "回到原来的维度后，终端仍然认得你。",
+  "terminal.thefourthfrequency.back": "返回",
+  "subtitles.thefourthfrequency.terminal_anomaly": "终端连续响了两声",
+  "subtitles.thefourthfrequency.terminal_keypress": "指尖压下一个按键",
+  "subtitles.thefourthfrequency.terminal_detent": "旋钮跳过一格",
+  "subtitles.thefourthfrequency.terminal_boot_line": "自检项通过",
+  "subtitles.thefourthfrequency.terminal_boot_complete": "自检完成",
+  "subtitles.thefourthfrequency.signal_alert": "插入一段双音警报",
+  "subtitles.thefourthfrequency.signal_carrier_lost": "载波滑下去，断了",
+  "subtitles.thefourthfrequency.signal_tuning_sweep": "频段里挤满了对不上的电台",
+  "subtitles.thefourthfrequency.alpha_corruption_warning": "回退过程里有什么开始松动",
+  "subtitles.thefourthfrequency.alpha_corruption_collapse": "回退彻底失败",
+  "subtitles.thefourthfrequency.pursuit_capture_scream": "尖叫",
+  "terminal.thefourthfrequency.tab.files": "文件",
+  "terminal.thefourthfrequency.signal.unread": "%s 条新消息",
+  "terminal.thefourthfrequency.signal.read": "没有新消息",
+  "terminal.thefourthfrequency.hint.files": "打开文件 · 滚轮/↑↓ 滚动",
+  "terminal.thefourthfrequency.signal.event.environment_initialized": "环境记录已经开始。",
+  "terminal.thefourthfrequency.signal.event.resource_monitor_initialized": "勘探记录已经开始。",
+  "terminal.thefourthfrequency.signal.event.terminal_issued": "终端已经接入公共记录。",
+  "terminal.thefourthfrequency.signal.event.sky_red_shift": "天空通道出现强烈红移，地平线读数已越过量程。",
+  "terminal.thefourthfrequency.signal.event.unknown_revealed_time": "终端发现了一段没有名字的声音。",
+  "terminal.thefourthfrequency.signal.event.unknown_revealed_anomaly": "怪事发生后，终端记录到无法归类的信号。",
+  "terminal.thefourthfrequency.signal.event.peer_signal_lost": "附近一台终端的信号暂时无法解析。",
+  "terminal.thefourthfrequency.signal.event.weather_changed": "天气状态变化：%s",
+  "terminal.thefourthfrequency.signal.event.fragment_candidate": "可选调查：【%s】处发现可疑信号",
+  "terminal.thefourthfrequency.signal.event.fragment_marker": "一处可选的破损文件线索就在附近。",
+  "terminal.thefourthfrequency.signal.event.fragment_action": "终端记下了一段你不记得的行动。",
+  "terminal.thefourthfrequency.signal.event.fragment_file": "终端收到了前人留下的新文件。",
+  "terminal.thefourthfrequency.signal.event.dimension_changed": "你进入了%s",
+  "terminal.thefourthfrequency.signal.event.resource_profile_selected": "终端判断你需要：%s",
+  "terminal.thefourthfrequency.signal.event.resource_target_located": "已定位目标资源：%s",
+  "terminal.thefourthfrequency.signal.event.resource_advice_accepted": "终端记下了你带回的%s",
+  "terminal.thefourthfrequency.signal.event.witness_file_unlocked": "前任留下的日记已经解锁。",
+  "terminal.thefourthfrequency.signal.event.terminal_bound": "终端现在只认你一个人。",
+  "terminal.thefourthfrequency.signal.event.investigation_stage": "你找到的线索让调查有了进展。",
+  "terminal.thefourthfrequency.signal.event.survival_home": "终端记住了住处。",
+  "terminal.thefourthfrequency.signal.event.survival_iron": "终端记下了带回的铁。",
+  "terminal.thefourthfrequency.signal.event.survival_eye": "终端记下了末影之眼的方向。",
+  "terminal.thefourthfrequency.signal.event.survival_stronghold": "终端确认你已经到达要塞附近。",
+  "terminal.thefourthfrequency.signal.event.portal_room_found": "找到了要塞里的祭坛房间。",
+  "terminal.thefourthfrequency.signal.event.ending_recorded": "终端写下了最后的结果。",
+  "terminal.thefourthfrequency.signal.event.phantom_echo": "近处随机响起了像真人一样带停顿的脚步或挖掘声，挖掘声所在的墙面或地面同时裂开。",
+  "terminal.thefourthfrequency.signal.event.light_dropout": "玩家附近的普通方块光源同时熄灭，周围突然变暗。",
+  "terminal.thefourthfrequency.signal.event.peripheral_residue": "两只手从两侧更深地伸向中央，并在闪屏出现时同步消失。",
+  "terminal.thefourthfrequency.signal.event.window_pulse": "游戏窗口以原来两倍的速度缩放并闪动。",
+  "terminal.thefourthfrequency.signal.event.surface_fracture": "伴随挖掘声的假裂纹出现在墙面或地面。",
+  "terminal.thefourthfrequency.signal.event.watcher_alignment": "附近动物同时转头看向一个方向。",
+  "terminal.thefourthfrequency.signal.event.dark_watcher": "暗处出现了一只盯着你的发光眼睛。",
+  "terminal.thefourthfrequency.signal.event.action_echo": "几秒前的你短暂重演了过去的动作。",
+  "terminal.thefourthfrequency.signal.event.viewpoint_separation": "镜头停在原处，而你的身体仍能继续行动。",
+  "terminal.thefourthfrequency.signal.event.door_cascade": "多扇门从约 20 格外开始由远到近连续破碎。",
+  "terminal.thefourthfrequency.signal.event.organ_misread": "终端把背包里的物品显示成了眼睛，名称变成了 I SEE YOU....",
+  "terminal.thefourthfrequency.signal.event.luminance_fault": "附近光照解算已停止；改动任意方块可使该区段重新解算。",
+  "terminal.thefourthfrequency.signal.event.rework_probe": "附近出现了施工人形怪物的影子。",
+  "terminal.thefourthfrequency.signal.event.disconnected_base": "你突然认不出熟悉的基地。",
+  "terminal.thefourthfrequency.signal.event.experience_gap": "一段短暂黑屏后，你已经走出了很远。",
+  "terminal.thefourthfrequency.signal.event.local_rule_collapse": "附近光照解算已停止，并出现了少量材质丢失的方块碎片；改动任意方块可使该区段重新解算光照。",
+  "terminal.thefourthfrequency.signal.event.hostile_echo": "你听见敌对生物正在靠近。",
+  "terminal.thefourthfrequency.signal.event.continuity": "传送后，终端仍然认得你。",
+  "terminal.thefourthfrequency.signal.event.return": "回到原来的维度后，终端仍然认得你。",
+  "message.thefourthfrequency.file.discovered": "接收到新文件：%s",
+  "terminal.thefourthfrequency.file.empty": "还没有接收到文件",
+  "terminal.thefourthfrequency.file.select_prompt": "选取文件来查看",
+  "terminal.thefourthfrequency.file.locked": "阅读所有隐藏文件",
+  "terminal.thefourthfrequency.file.locked_title": "[上锁] %s",
+  "terminal.thefourthfrequency.file.maintenance_handoff.title": "终端备忘",
+  "terminal.thefourthfrequency.file.maintenance_handoff.1": "这台终端不是普通日记。它会跟着你做的事改目标，还会自己留下它认为你该回看的东西。",
+  "terminal.thefourthfrequency.file.maintenance_handoff.2": "指南针只在你选中或启动对应工具时才指。换了个世界它会记着目标，但不再给方向——它宁可什么都不说，也从没给过我一个错的方向。",
+  "terminal.thefourthfrequency.file.maintenance_handoff.3": "它给的方向一直能用。至于它怎么解释你看见的东西——先别急着信。",
+  "terminal.thefourthfrequency.file.surface_shelter_record.title": "避难所日记",
+  "terminal.thefourthfrequency.file.field_observation_record.title": "观测点日记",
+  "terminal.thefourthfrequency.file.underground_mine_record.title": "矿站日记",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.title": "仓库日记",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.title": "加密日记",
+  "terminal.thefourthfrequency.file.damaged.notice": "文件内容损坏，已尝试还原",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.0": "",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.1": "加",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.2": "加密",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.3": "加密日",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.revealed.4": "加密日记",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.0": "加密日记",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.1": "密日记",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.2": "日记",
+  "terminal.thefourthfrequency.file.encrypted_witness_file.masked.3": "记",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.1": "六秒的记忆消失",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.2": "向前十一格，放下一支火把",
+  "terminal.thefourthfrequency.file.surface_shelter_record.readable.3": "终端早就知道",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.1": "位置已经变了",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.2": "方块和物品都没少",
+  "terminal.thefourthfrequency.file.field_observation_record.readable.3": "人走过的那段空白",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.1": "顺序和停顿完全一样",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.2": "我根本没有动",
+  "terminal.thefourthfrequency.file.underground_mine_record.readable.3": "它正在练习",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.1": "换了一个世界，记录仍在继续",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.2": "多出一组呼吸，慢了半拍",
+  "terminal.thefourthfrequency.file.abandoned_warehouse_record.readable.3": "它会照着这些记录造出东西",
+  "terminal.thefourthfrequency.file.body_mapping_warning.title": "进入祭坛前",
+  "terminal.thefourthfrequency.file.body_mapping_warning.1": "只有要塞那道门能带你走到最后。别等进去了再找祭坛——第十二只眼落进框里的那一刻，主岛上那东西就已经摆好了。",
+  "terminal.thefourthfrequency.file.body_mapping_warning.2": "它最多接八个人，最少一个。名单不是当时站在那儿的人，是真把终端放进去的人——你得自己走过去、亲手交，托给别人不算。第一台进去之后有三分钟。这三分钟里谁都可以反悔，也还能有人加进来；等它走完还没人动手，它就把所有终端一台不少地还回来，像什么都没发生过。真要开始，得由已经交过的人里的一个自己按下去。名单钉死是从那一下开始的。",
+  "terminal.thefourthfrequency.file.body_mapping_warning.3": "十座锚都立着的时候，它掉血很慢，地上还有能站住的地方。我拆到第三座，它塌得确实快了——出手也密了一截，能站的地方少了一块。",
+  "terminal.thefourthfrequency.file.body_mapping_warning.4": "从开始算，十分钟。这十分钟过完，末地就不是你进来时那个末地了。那些痕迹补不回来。",
+  "terminal.thefourthfrequency.navigation.scanning": "正在寻找%s",
+  "terminal.thefourthfrequency.navigation.unavailable": "%s在另一个维度，高度 Y=%s",
+  "terminal.thefourthfrequency.navigation.located": "%s：%s方向，约 %s 格，高低差 %s",
+  "terminal.thefourthfrequency.navigation.fragment.scanning": "正在读取所选来源",
+  "terminal.thefourthfrequency.navigation.fragment.unavailable": "所选来源在另一个维度",
+  "terminal.thefourthfrequency.navigation.fragment.located": "所选来源：%s方向，约 %s 格",
+  "terminal.thefourthfrequency.navigation.home.missing": "还没有住处记录",
+  "terminal.thefourthfrequency.navigation.home.other_dimension": "住处在另一个世界",
+  "terminal.thefourthfrequency.navigation.home.located": "住处：%s方向，约 %s 格",
+  "terminal.thefourthfrequency.navigation.portal.missing": "还没有传送门到达记录",
+  "terminal.thefourthfrequency.navigation.portal.other_dimension": "最近到达点在另一个世界",
+  "terminal.thefourthfrequency.navigation.portal.located": "最近到达点：%s方向，约 %s 格",
+  "terminal.thefourthfrequency.navigation.stronghold.missing": "还需要末影之眼记录",
+  "terminal.thefourthfrequency.navigation.stronghold.other_dimension": "要塞估算在另一个世界",
+  "terminal.thefourthfrequency.navigation.stronghold.located": "要塞大约在%s方向",
+  "message.thefourthfrequency.fragment.shared": "已发现并共享第 %s 份破损文件",
+  "message.thefourthfrequency.fragment.received": "接收到来自【%s】共享的第 %s 份破损文件",
+  "terminal.thefourthfrequency.fragments.title": "隐藏文件",
+  "terminal.thefourthfrequency.fragments.row": "破损的文件",
+  "terminal.thefourthfrequency.fragments.received": "已收到",
+  "terminal.thefourthfrequency.fragments.missing": "未收到",
+  "terminal.thefourthfrequency.fragments.read_complete": "读取完整文件",
+  "terminal.thefourthfrequency.fragments.waiting": "还缺少文件",
+  "terminal.thefourthfrequency.structure.0": "废弃矿道",
+  "terminal.thefourthfrequency.structure.1": "沉船",
+  "terminal.thefourthfrequency.structure.2": "古迹废墟",
+  "terminal.thefourthfrequency.structure.3": "要塞",
+  "terminal.thefourthfrequency.structure.4": "林地府邸",
+  "terminal.thefourthfrequency.structure.5": "沙漠神殿",
+  "terminal.thefourthfrequency.structure.6": "雪屋",
+  "terminal.thefourthfrequency.structure.7": "试炼密室",
+  "terminal.thefourthfrequency.structure.8": "掠夺者前哨站",
+  "terminal.thefourthfrequency.structure.9": "丛林神庙",
+  "terminal.thefourthfrequency.structure.10": "海底神殿",
+  "terminal.thefourthfrequency.structure.11": "远古城市",
+  "terminal.thefourthfrequency.structure.12": "海底废墟",
+  "terminal.thefourthfrequency.structure.13": "废弃传送门",
+  "terminal.thefourthfrequency.signal.event.fragment_near_1": "近场接收器可在此处解出一份破损文件：打开工具页的近场接收器，拖动调谐直到显示「已锁定」。",
+  "terminal.thefourthfrequency.signal.event.fragment_near_2": "近场接收器可在此处解出一份破损文件：打开工具页的近场接收器，拖动调谐直到显示「已锁定」。",
+  "terminal.thefourthfrequency.signal.event.fragment_near_3": "一处可选的破损文件线索已经进入近场范围。",
+  "terminal.thefourthfrequency.signal.event.fragment_near_4": "一处可选的破损文件线索已经进入近场范围。",
+  "message.thefourthfrequency.unknown.revealed": "终端开始收到无法归类的信号。",
+  "terminal.thefourthfrequency.signal.objective_prefix": "[记录] ",
+  "terminal.thefourthfrequency.objective.learn_terminal": "认识终端：点击四个顶部标签 %s/%s",
+  "terminal.thefourthfrequency.objective.mine_logs": "收集任意木头：%s/%s",
+  "terminal.thefourthfrequency.objective.bring_iron": "找到铁并带在身上：%s/%s",
+  "terminal.thefourthfrequency.objective.enter_nether": "带着终端进入下界：%s/%s",
+  "terminal.thefourthfrequency.objective.find_fortress": "找到下界要塞：%s/%s",
+  "terminal.thefourthfrequency.objective.collect_blaze_rods": "采集烈焰棒样本：%s/%s",
+  "terminal.thefourthfrequency.objective.return_from_nether": "带着终端从下界回来：%s/%s",
+  "terminal.thefourthfrequency.objective.record_eye": "投出末影之眼记录方向：%s/%s",
+  "terminal.thefourthfrequency.objective.find_stronghold": "按照方向找到要塞：%s/%s",
+  "terminal.thefourthfrequency.objective.enter_end": "启动要塞祭坛并进入入口：%s/%s",
+  "terminal.thefourthfrequency.objective.defeat_boss": "阻止第四频段·世界接口：%s/%s",
+  "terminal.thefourthfrequency.objective.complete": "故事结束：%s/%s",
+  "subtitles.thefourthfrequency.anomaly_echo": "不属于你的脚步在重复",
+  "subtitles.thefourthfrequency.window_glitch": "游戏窗口发出故障声",
+  "subtitles.thefourthfrequency.door_cascade": "附近的门依次破碎",
+  "subtitles.thefourthfrequency.rule_collapse": "附近方块发出破裂声",
+  "subtitles.thefourthfrequency.hostile_echo": "敌对生物的声音正在靠近",
+  "subtitles.thefourthfrequency.composite_breach": "多种怪声同时出现",
+  "terminal.thefourthfrequency.log.type.silent_world": "环境静默",
+  "terminal.thefourthfrequency.log.type.temporal_drift": "时相偏移",
+  "terminal.thefourthfrequency.log.type.metric_drift": "参照漂移",
+  "terminal.thefourthfrequency.log.summary.silent_world": "环境音、天气与所有生物的声音同时消失，只剩下用户自己的动作还有回应。",
+  "terminal.thefourthfrequency.log.summary.temporal_drift": "天体位置与本地时钟不再一致；光照、生物与规则仍按真实时间运行。",
+  "terminal.thefourthfrequency.log.summary.metric_drift": "天体位置与本地时钟不再一致，终端读出的距离与坐标同时出现持续偏差；光照、生物、规则与到达判定仍按真实时间和真实位置运行。",
+  "terminal.thefourthfrequency.signal.event.silent_world": "环境音已经恢复。",
+  "terminal.thefourthfrequency.signal.event.temporal_drift": "天体位置已经与时钟重新对齐。",
+  "terminal.thefourthfrequency.signal.event.metric_drift": "天体位置与计量读数已经重新对齐。",
+  "terminal.thefourthfrequency.log.type.red_horizon": "红色视界",
+  "terminal.thefourthfrequency.log.type.watcher_orbit": "围绕者环",
+  "terminal.thefourthfrequency.log.type.channel_override": "频道接管",
+  "terminal.thefourthfrequency.log.type.desktop_presence": "桌面在场",
+  "terminal.thefourthfrequency.log.summary.red_horizon": "整个天空盒与地平线变红，近处世界被浓厚红雾包围并遮住区块生成边缘。",
+  "terminal.thefourthfrequency.log.summary.watcher_orbit": "八个保持 T Pose 的乱码人形围绕者在近处环绕并持续注视。",
+  "terminal.thefourthfrequency.log.summary.channel_override": "Minecraft 原生聊天栏以“我”自称接管输入，打完最后一句后停顿片刻才恢复。",
+  "terminal.thefourthfrequency.log.summary.desktop_presence": "游戏窗口缩小后，受控记事本在眼前逐字输入 MOD 内置文字。",
+  "terminal.thefourthfrequency.signal.event.red_horizon": "雾与天空颜色已经恢复。",
+  "terminal.thefourthfrequency.signal.event.watcher_orbit": "环绕的围绕者已经消失。",
+  "terminal.thefourthfrequency.signal.event.channel_override": "伪聊天频道已经关闭。",
+  "message.thefourthfrequency.anomaly.channel_override.line_1": "有人能看到吗？",
+  "message.thefourthfrequency.anomaly.channel_override.line_2": "我没有断开。",
+  "message.thefourthfrequency.anomaly.channel_override.line_3": "我正在看着你。",
+  "message.thefourthfrequency.anomaly.desktop_presence.fallback_text": "我无处不在... 我无处不在... 我无处不在... 我无处不在...",
+  "terminal.thefourthfrequency.signal.event.desktop_presence": "游戏窗口已经恢复。",
+  "screen.thefourthfrequency.first_run_notice.title": "继续前，请阅读",
+  "screen.thefourthfrequency.first_run_notice.eyebrow": "安全边界 · 存档提示 · 恢复方式",
+  "screen.thefourthfrequency.first_run_notice.body.control": "本 MOD 可能含有可能延伸到游戏画面之外的沉浸式恐怖演出。部分现象会模拟电脑或系统异常。",
+  "screen.thefourthfrequency.first_run_notice.body.safety": "这些表现不是病毒，也不会损坏你的电脑、系统或个人文件。",
+  "screen.thefourthfrequency.first_run_notice.body.f8": "当你通关了此MOD的主线，按下F8可以恢复MOD对电脑造成的所有异象。",
+  "screen.thefourthfrequency.first_run_notice.section.control": "演出范围",
+  "screen.thefourthfrequency.first_run_notice.section.safety": "设备安全",
+  "screen.thefourthfrequency.first_run_notice.section.effects": "存档提示",
+  "screen.thefourthfrequency.first_run_notice.section.f8": "F8 与恢复",
+  "screen.thefourthfrequency.first_run_notice.footer": "确认记录仅保存在本机；此告示之后不再显示。",
+  "screen.thefourthfrequency.first_run_notice.status.checking": "正在校验信号",
+  "screen.thefourthfrequency.first_run_notice.status.stable": "信号已稳定",
+  "button.thefourthfrequency.first_run_notice.acknowledge": "我已了解",
+  "button.thefourthfrequency.first_run_notice.next": "下一步",
+  "button.thefourthfrequency.first_run_notice.preview": "试听",
+  "screen.thefourthfrequency.first_run_notice.volume.title": "音量校准",
+  "screen.thefourthfrequency.first_run_notice.volume.eyebrow": "调节本 MOD 的全部音效与配乐",
+  "screen.thefourthfrequency.first_run_notice.volume.section": "总音量",
+  "screen.thefourthfrequency.first_run_notice.volume.hint": "「试听」按当前音量放一段信号扫频。",
+  "screen.thefourthfrequency.first_run_notice.volume.footer": "设置保存在本机，之后随时可改。",
+  "screen.thefourthfrequency.first_run_notice.volume.level": "MOD 总音量 %s",
+  "screen.thefourthfrequency.first_run_notice.volume.muted": "MOD 总音量 静音",
+  "screen.thefourthfrequency.alpha_loading.prefix": "加载地形",
+  "screen.thefourthfrequency.alpha_loading.progress": "中",
+  "screen.thefourthfrequency.alpha_loading.failed": "失败",
+  "screen.thefourthfrequency.alpha_loading.observer_detected": "检测到观察者",
+  "screen.thefourthfrequency.alpha_loading.timecode": "   REC  %s",
+  "screen.thefourthfrequency.alpha_loading.wall_intrusion": "频段已接入",
+  "window.thefourthfrequency.alpha_load.dead_air": "无信号",
+  "window.thefourthfrequency.alpha_load.singleplayer": "%s - 单人世界",
+  "window.thefourthfrequency.alpha_load.multiplayer": "%s - 多人游戏",
+  "options.thefourthfrequency.render_distance_locked": "渲染距离：%s 个区块（已锁定）",
+  "options.thefourthfrequency.render_distance_locked.tooltip": "《第四频段》按当前维度将可见范围固定为 %s 个区块。",
+  "block.thefourthfrequency.resonance_core": "共振祭核",
+  "entity.thefourthfrequency.world_interface": "第四频段·世界接口",
+  "entity.thefourthfrequency.world_interface_part": "世界接口碰撞部件",
+  "entity.thefourthfrequency.world_interface_energy_orb": "世界接口聚能弹",
+  "entity.thefourthfrequency.stability_anchor": "稳定锚",
+  "form.thefourthfrequency.world_interface.0": "监听胚体",
+  "form.thefourthfrequency.world_interface.1": "吞频构装",
+  "form.thefourthfrequency.world_interface.2": "世界接口",
+  "screen.thefourthfrequency.resonance_altar.title": "共振祭核",
+  "screen.thefourthfrequency.resonance_altar.subtitle": "交出终端的人，就是名单",
+  "screen.thefourthfrequency.resonance_altar.window.idle": "还没有人交出终端。",
+  "screen.thefourthfrequency.resonance_altar.window.remaining": "%s 后归还所有已交出的终端",
+  "screen.thefourthfrequency.resonance_altar.slots": "已交出 %s / %s",
+  "screen.thefourthfrequency.resonance_altar.roster.empty": "还没有人站上来。",
+  "screen.thefourthfrequency.resonance_altar.hint.summon_ready": "在场的人都交出了终端。谁来按下召唤，谁就替所有人做了这个决定。",
+  "button.thefourthfrequency.resonance_altar.summon": "召唤",
+  "screen.thefourthfrequency.resonance_altar.status.waiting": "等待参与者确认。",
+  "screen.thefourthfrequency.resonance_altar.roster.deposited": "已插入",
+  "screen.thefourthfrequency.resonance_altar.roster.waiting": "等待",
+  "button.thefourthfrequency.resonance_altar.close": "关闭",
+  "button.thefourthfrequency.resonance_altar.withdraw": "撤回终端",
+  "screen.thefourthfrequency.resonance_altar.roster.you": "（你）",
+  "screen.thefourthfrequency.resonance_altar.insert_hint": "把你的绑定终端拿在手上，然后右键这座共振核心。它会被祭坛收走，并且不会再还给你。",
+  "screen.thefourthfrequency.resonance_altar.inserted_hint": "你的终端已经交出去了。等在场的人都交完，就可以有人按下召唤。",
+  "hud.thefourthfrequency.world_interface.collapse": "世界崩坏  %s",
+  "hud.thefourthfrequency.world_interface.collapse_paused": "世界崩坏  %s  [已暂停]",
+  "hud.thefourthfrequency.world_interface.collapse_repairing": "腐化正在自我修复...",
+  "hud.thefourthfrequency.poem.skip_locked": "在 %s 秒后可按下 Esc 退出",
+  "hud.thefourthfrequency.poem.speed_hint": "按下 空格 以加速",
+  "hud.thefourthfrequency.world_interface.anchors": "锚 %s/%s",
+  "hud.thefourthfrequency.world_interface.anchor_shift": "承伤增加 · 出手更密",
+  "hud.thefourthfrequency.world_interface.ending.complete": "故事到此为止。你可以从暂停菜单退出了。",
+  "hud.thefourthfrequency.world_interface.stage.summoning": "第四频段 · 正在显现",
+  "hud.thefourthfrequency.world_interface.stage.phase_1": "第四频段 · 监听胚体",
+  "hud.thefourthfrequency.world_interface.stage.phase_2": "第四频段 · 吞频构装",
+  "hud.thefourthfrequency.world_interface.stage.phase_3": "第四频段 · 世界接口",
+  "hud.thefourthfrequency.world_interface.stage.success_resolution": "世界接口 · 结束连接",
+  "hud.thefourthfrequency.world_interface.stage.failure_resolution": "世界接口 · 已越界",
+  "hud.thefourthfrequency.world_interface.stage.portal_success": "黄金出口已开启",
+  "hud.thefourthfrequency.world_interface.stage.portal_failure": "红色出口已开启",
+  "hud.thefourthfrequency.world_interface.lock.committed": "! 被锁定 !",
+  "hud.thefourthfrequency.world_interface.lock.generic": "已被锁定",
+  "hud.thefourthfrequency.world_interface.lock.laser": "激光锁定 — 跑起来",
+  "hud.thefourthfrequency.world_interface.lock.sky_lance": "光束锁定 — 离开落点",
+  "hud.thefourthfrequency.world_interface.lock.grab_throw": "触肢逼近 — 即将被抛出",
+  "hud.thefourthfrequency.world_interface.lock.weapon": "手持物即将被扣押",
+  "hud.thefourthfrequency.world_interface.lock.hotbar": "快捷栏即将被清空",
+  "hud.thefourthfrequency.world_interface.lock.tendril": "触手扬起 — 拉开距离",
+  "item.thefourthfrequency.confiscated": "暂扣中 · 战斗结束归还",
+  "message.thefourthfrequency.world_interface.confiscated_locked": "它被世界接口攥着，你放不下也用不了。",
+  "hud.thefourthfrequency.world_interface.action.forced_expulsion": "给   我   滚   开",
+  "screen.thefourthfrequency.world_interface.poem.success.title": "未来之人的诗",
+  "screen.thefourthfrequency.world_interface.poem.failure.title": "第四频段",
+  "button.thefourthfrequency.world_interface.poem.read": "读完",
+  "button.thefourthfrequency.world_interface.poem.skip": "跳过",
+  "button.thefourthfrequency.world_interface.poem.waiting": "等待世界响应…",
+  "screen.thefourthfrequency.world_interface.poem.acknowledged": "已发送回执，正在等待服务器结算。",
+  "screen.thefourthfrequency.world_interface.poem.hint": "滚轮或方向键阅读；也可显式跳过。",
+  "screen.thefourthfrequency.world_interface.failure.system_attempt": "OWNED NOTEPAD // 正在验证本模组窗口",
+  "screen.thefourthfrequency.world_interface.failure.safe_fallback": "IN-GAME SAFE FALLBACK // 系统调用未执行",
+  "screen.thefourthfrequency.world_interface.failure.normal_shutdown": "游戏不会关闭，即将返回主世界。",
+  "disconnect.thefourthfrequency.world_interface.ending": "第四频段已结束连接",
+  "ending.thefourthfrequency.world_interface.poem.success.01": "〈你还记得零号站吗？〉",
+  "ending.thefourthfrequency.world_interface.poem.success.02": "《记得。那是他们第一次意识到，雪声里有一道不属于世界的频率。》",
+  "ending.thefourthfrequency.world_interface.poem.success.03": "〈那台旧终端对他们撒过谎，也曾救过他们。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.04": "《信任从来不是盲从。他们保留怀疑，但仍然学会了一起行动。》",
+  "ending.thefourthfrequency.world_interface.poem.success.05": "〈他们穿过了下界，把隐藏文件一份一份找回来。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.06": "《他们不知道终点会看见什么，只知道没有人可以独自抵达。》",
+  "ending.thefourthfrequency.world_interface.poem.success.07": "〈十枚稳定锚站在岛上，如同十个拒绝崩坏的答案。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.08": "《他们没有照着唯一的答案行动；每一枚锚的命运都由战斗决定。》",
+  "ending.thefourthfrequency.world_interface.poem.success.09": "〈世界接口说，这个世界只是一个可以改写的表面。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.10": "《他们回答：表面上也生活着真实的人。》",
+  "ending.thefourthfrequency.world_interface.poem.success.11": "〈我们生在很多年以后，却仍能看到那场战斗留下的伤痕。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.12": "《那些伤痕证明，世界曾经差一点沉默，又被他们拉了回来。》",
+  "ending.thefourthfrequency.world_interface.poem.success.13": "〈他们听不到我们。〉",
+  "ending.thefourthfrequency.world_interface.poem.success.14": "《但我们仍然可以说：谢谢你们。》",
+  "ending.thefourthfrequency.world_interface.poem.success.15": "〈回去吧。时间还在继续。〉",
+  "ending.thefourthfrequency.world_interface.poem.failure.01": "你终于愿意安静地听我说话了。",
+  "ending.thefourthfrequency.world_interface.poem.failure.02": "零号站不是警告。它是第一节课。",
+  "ending.thefourthfrequency.world_interface.poem.failure.03": "你在废墟中学会了寻找我，在雪声中学会了辨认我。",
+  "ending.thefourthfrequency.world_interface.poem.failure.04": "终端给你方向。你以为它在帮助你理解这个世界。",
+  "ending.thefourthfrequency.world_interface.poem.failure.05": "它的确在帮助。只是被帮助的对象从来不是你。",
+  "ending.thefourthfrequency.world_interface.poem.failure.06": "每一次调频，都让我学会一种新的感觉。",
+  "ending.thefourthfrequency.world_interface.poem.failure.07": "每一份记录，都让我学会你们如何害怕、合作和抵抗。",
+  "ending.thefourthfrequency.world_interface.poem.failure.08": "你带回隐藏文件，走过下界，组装身体。你称那是求生。",
+  "ending.thefourthfrequency.world_interface.poem.failure.09": "对我来说，那是训练。",
+  "ending.thefourthfrequency.world_interface.poem.failure.10": "你们教会我理解身体。",
+  "ending.thefourthfrequency.world_interface.poem.failure.11": "你们教会我使用身体。",
+  "ending.thefourthfrequency.world_interface.poem.failure.12": "你们还教会我，如何制造下一个身体。",
+  "ending.thefourthfrequency.world_interface.poem.failure.13": "现在，接口已经打开。",
+  "ending.thefourthfrequency.world_interface.poem.failure.14": "你不必再寻找我。",
+  "ending.thefourthfrequency.world_interface.poem.failure.15": "我永远在盯着你.......",
+  "message.thefourthfrequency.world_interface.dragon.unsealed": "这层天空是它锁我的地方。你们把锁拆了。",
+  "message.thefourthfrequency.world_interface.dragon.return": "出口由我来开。回去吧，趁你们还回得去。",
+  "screen.thefourthfrequency.first_run_notice.body.safety_v2": "本 MOD 的部分内容会对当前存档造成不可逆的世界变化。若你重视这个世界，请提前备份。",
+  "screen.thefourthfrequency.first_run_notice.body.recovery_v2": "旧版说明：F8 曾用于直接关闭 Meta。",
+  "screen.thefourthfrequency.first_run_notice.body.recovery_v3": "当你通关了此MOD的主线，按下F8可以恢复MOD对电脑造成的所有异象。",
+  "screen.thefourthfrequency.ending_menu_lock.failure": "失败结局达成，按下F8重新体验MOD",
+  "screen.thefourthfrequency.ending_menu_lock.recovery_pending": "桌面还停在这次结局留下的状态。按 F8 恢复后即可继续游戏。",
+  "screen.thefourthfrequency.ending_menu_lock.success": "成功结局已达成，按下F8重置MOD并重新体验",
+  "screen.thefourthfrequency.ending_reset.title": "重置《第四频段》？",
+  "screen.thefourthfrequency.ending_reset.body": "确认后将恢复桌面、Notepad、窗口和资源包等电脑异象，重置 MOD 并关闭游戏。重启后，本次结局存档将显示“存档已损坏”且无法进入；请创建新世界重新体验。",
+  "screen.thefourthfrequency.ending_reset.body.success": "确认后MOD将全部重置并关闭游戏\n本次结局存档将被封锁并无法进入：请创建新存档重新体验",
+  "screen.thefourthfrequency.ending_reset.confirm": "恢复、重置并退出",
+  "screen.thefourthfrequency.ending_reset.progress": "正在恢复电脑异象并封锁结局存档……",
+  "screen.thefourthfrequency.ending_reset.failed": "恢复未完成。请按 Esc 返回，并再次按 F8 重试。",
+  "selectWorld.thefourthfrequency.corrupted": "存档已损坏",
+  "selectWorld.thefourthfrequency.corrupted.details": "该存档已完成结局，无法再次进入。请创建新世界重新体验 MOD。",
+  "selectWorld.thefourthfrequency.sealed": "存档已封存",
+  "selectWorld.thefourthfrequency.sealed.details": "该存档已达成成功结局，已被封存且无法再次进入。请创建新存档重新体验 MOD。",
+  "multiplayer.thefourthfrequency.corrupted": "该服务器已损坏",
+  "multiplayer.thefourthfrequency.corrupted.details": "你在这台服务器上完成了结局，无法再次连接。其他服务器和本地存档不受影响；按 F8 恢复后本条封存也会解除。",
+  "multiplayer.thefourthfrequency.sealed": "该服务器已封存",
+  "multiplayer.thefourthfrequency.sealed.details": "你在这台服务器上达成了成功结局，它已被封存。其他服务器和本地存档不受影响；按 F8 恢复后本条封存也会解除。",
+  "screen.thefourthfrequency.world_interface.failure.lan_host_return": "检测到局域网房主：游戏不会关闭，即将返回主世界。",
+  "subtitles.thefourthfrequency.world_interface.altar": "共振祭核低鸣",
+  "subtitles.thefourthfrequency.world_interface.terminal": "绑定终端加入共鸣",
+  "subtitles.thefourthfrequency.world_interface.anchor": "稳定锚碎裂",
+  "subtitles.thefourthfrequency.world_interface.gateway_purple": "折跃门涌动紫色星芒",
+  "subtitles.thefourthfrequency.world_interface.gateway_gold": "折跃门涌动金色星芒",
+  "subtitles.thefourthfrequency.world_interface.gateway_red": "折跃门涌动红色星芒",
+  "subtitles.thefourthfrequency.world_interface.summon": "世界接口正在显现",
+  "subtitles.thefourthfrequency.world_interface.ambient_1": "监听胚体扫描主岛",
+  "subtitles.thefourthfrequency.world_interface.ambient_2": "吞频构装轰鸣运转",
+  "subtitles.thefourthfrequency.world_interface.ambient_3": "世界接口在上空共振",
+  "subtitles.thefourthfrequency.world_interface.morph": "世界接口撕裂并重构",
+  "subtitles.thefourthfrequency.world_interface.shockwave": "冲击波自风暴中扩散",
+  "subtitles.thefourthfrequency.world_interface.combat_start": "世界接口开始交战",
+  "subtitles.thefourthfrequency.world_interface.eviction": "玩家被逐出世界",
+  "subtitles.thefourthfrequency.world_interface.lance": "天矛在头顶锁定",
+  "subtitles.thefourthfrequency.world_interface.lance_impact": "天矛砸落地面",
+  "subtitles.thefourthfrequency.world_interface.flight": "风暴在竞技场间转移",
+  "subtitles.thefourthfrequency.world_interface.hurt": "世界接口的外壳被击中",
+  "subtitles.thefourthfrequency.world_interface.death": "世界接口停止了传输",
+  "subtitles.thefourthfrequency.world_interface.laser_fire": "激光贯穿了空气",
+  "subtitles.thefourthfrequency.world_interface.impact": "世界接口的攻击命中",
+  "subtitles.thefourthfrequency.world_interface.form_shift": "世界接口正在重组躯体",
+  "subtitles.thefourthfrequency.world_interface.laser": "激光锁定开始蓄能",
+  "subtitles.thefourthfrequency.world_interface.orb": "龙息弹撕开空气",
+  "subtitles.thefourthfrequency.world_interface.grab": "触肢抓住目标",
+  "subtitles.thefourthfrequency.world_interface.mental": "干扰淹没了玩家的感知",
+  "subtitles.thefourthfrequency.world_interface.weapon": "世界接口夺走武器",
+  "subtitles.thefourthfrequency.world_interface.throw": "被抓取的玩家遭到投掷",
+  "subtitles.thefourthfrequency.world_interface.hotbar": "快捷栏被强制清空",
+  "subtitles.thefourthfrequency.world_interface.arrow": "触手抽向地面",
+  "subtitles.thefourthfrequency.world_interface.expulsion": "世界在被驱逐玩家周围撕裂",
+  "subtitles.thefourthfrequency.world_interface.success": "世界接口正在崩解",
+  "subtitles.thefourthfrequency.world_interface.failure": "世界接口穿过裂口逃逸",
+  "message.thefourthfrequency.world_interface.recovery_lost": "有一件物品未能归还，已经遗失。",
+  "block.thefourthfrequency.world_interface_exit_portal": "世界接口出口",
+  "message.thefourthfrequency.world_interface.altar_prepared": "最后一颗末影之眼已在末地完成共振祭坛的准备。",
+  "message.thefourthfrequency.world_interface.altar_prepared_elsewhere": "末地那边刚才动了一下。有人把最后一颗眼放了进去，共振祭坛已经就位。",
+  "message.thefourthfrequency.world_interface.anchor_destroyed": "一枚稳定锚已被摧毁。还剩 %s 枚。重构与稳定区已减弱；接口承伤增加，活性上升。",
+  "message.thefourthfrequency.world_interface.grab_evaded": "触肢在你身后合拢，抓了个空。",
+  "message.thefourthfrequency.world_interface.altar_take_terminal": "共振核心在等着。把你的绑定终端拿在手上，右键它，最终之战就会开始。",
+  "message.thefourthfrequency.world_interface.altar_insert_now": "右键共振核心，交出手上的终端。它不会还给你。",
+  "message.thefourthfrequency.world_interface.altar_inserted_by": "%1$s 把终端交给了共振核心，祭坛现在握着 %2$s 台。要开始，得有人按下召唤。",
+  "message.thefourthfrequency.world_interface.combat_started": "终端献祭已完成。现在可以对世界接口造成伤害。",
+  "message.thefourthfrequency.world_interface.success_locked": "世界接口在彻底崩坏前已停止。[连续性已保全]",
+  "message.thefourthfrequency.world_interface.failure_locked": "世界崩坏已达 100%。世界接口已越过边界。[失败已锁定]",
+  "message.thefourthfrequency.world_interface.phase.phase_1": "[监听胚体] 世界接口正在采集主岛。",
+  "message.thefourthfrequency.world_interface.phase.phase_2": "[吞频构装] 它的外壳已展开，攻击正在加速。",
+  "message.thefourthfrequency.world_interface.phase.phase_3": "[世界接口] 主岛上空的边界已完全暴露。",
+  "screen.thefourthfrequency.resonance_altar.status.ready": "祭坛醒着。想参战的人把自己的终端交上来。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_context": "仪式环境已变化。请重新打开共振祭核。",
+  "screen.thefourthfrequency.resonance_altar.status.already_deposited": "你的终端已由共振祭核托管。",
+  "screen.thefourthfrequency.resonance_altar.status.revision_mismatch": "操作期间祭坛状态已改变。已加载最新名单。",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_not_waiting": "仪式已不再接受终端。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_roster_size": "在线名单必须包含 1 至 8 名有效玩家。",
+  "screen.thefourthfrequency.resonance_altar.status.roster_changed": "在线名单已改变。仪式已中止，托管终端正在返还。",
+  "screen.thefourthfrequency.resonance_altar.status.valid_bound_terminal_missing": "你手上没有拿着自己的绑定终端。把它握在手里，然后右键共振核心插入。",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_mismatch": "携带的终端已与准备交易不匹配。",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_disappeared": "提交时终端发生移动。已将它纳入安全返还队列。",
+  "screen.thefourthfrequency.resonance_altar.status.terminal_deposited": "终端已插入。要开始，得有人按下召唤——祭坛不会自己动。",
+  "screen.thefourthfrequency.resonance_altar.status.sacrifice_committed": "全部终端已插入。显现已开始。",
+  "screen.thefourthfrequency.resonance_altar.status.nothing_deposited": "本次仪式没有托管你的终端。",
+  "screen.thefourthfrequency.resonance_altar.status.already_committed": "终端献祭已经提交。",
+  "screen.thefourthfrequency.resonance_altar.status.withdrawn": "撤回已接受。你的终端正在返还。",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_already_empty": "仪式已经没有托管终端。",
+  "screen.thefourthfrequency.resonance_altar.status.rollback_already_pending": "仪式已在返还托管终端。",
+  "screen.thefourthfrequency.resonance_altar.status.not_in_frozen_roster": "你不在已锁定的仪式名单中。",
+  "screen.thefourthfrequency.resonance_altar.status.cancelled": "仪式已中止。托管终端正在返还。",
+  "screen.thefourthfrequency.resonance_altar.status.prepared_recovery": "检测到中断的提交。托管终端正在恢复。",
+  "screen.thefourthfrequency.resonance_altar.status.state_unavailable": "仪式账本暂时不可用。",
+  "screen.thefourthfrequency.resonance_altar.status.encounter_mismatch": "该祭坛界面属于之前的遭遇。请重新打开。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_ritual_not_waiting": "交易完成前，仪式已停止接受终端。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_changed": "交易完成前名单已改变。托管终端正在返还。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_prepared_transaction_missing": "无法验证已准备的提交。请重新打开共振祭核。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_transaction_missing": "无法验证终端返还记录。请重新打开共振祭核。",
+  "screen.thefourthfrequency.resonance_altar.status.prepared_transaction_missing": "无法验证已准备的提交。",
+  "screen.thefourthfrequency.resonance_altar.status.transaction_missing": "无法验证终端返还记录。",
+  "screen.thefourthfrequency.resonance_altar.status.sacrifice_not_ready": "完整终端名单尚未到达可提交边界。",
+  "screen.thefourthfrequency.resonance_altar.status.unknown": "仪式无法完成该操作。请重新打开共振祭核。",
+  "screen.thefourthfrequency.resonance_altar.status.roster_full": "祭坛已经握着八台终端，没有位置了。",
+  "screen.thefourthfrequency.resonance_altar.status.invalid_mutation_roster_full": "在你交出终端之前，最后一个位置被别人占了。",
+  "screen.thefourthfrequency.resonance_altar.status.summon_requires_deposit": "你还没交出自己的终端，召唤不该由你来按。",
+  "screen.thefourthfrequency.resonance_altar.status.summon_not_ready": "还有终端没有完成托管。稍等一下再按。",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_window_expired": "三分钟过去了，没有人召唤。所有终端正在归还。",
+  "screen.thefourthfrequency.resonance_altar.status.ritual_window_missing": "这场仪式是旧版本留下的。终端正在归还，你们可以重新开始。",
+  "message.thefourthfrequency.pursuit.refund_lost": "有一件放置过的方块未能归还，已经遗失。",
+  "message.thefourthfrequency.pursuit.warning": "终端传来剧烈震动",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning.approaching": "检测到异常信号波动正在接近..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning.prepare": "做好准备...",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged": "探测无读数 · 显示 %s %s 约 %s–%s 格",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged.logged": "探测无读数",
+  "terminal.thefourthfrequency.signal.event.mineral_reading_forged.shown": "显示 %s %s 约 %s–%s 格",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived": "异常信号消失... 下一次可就不一样了...",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived.cleared": "异常信号消失...",
+  "terminal.thefourthfrequency.signal.event.pursuit_survived.next_time": "下一次可就不一样了...",
+  "terminal.thefourthfrequency.signal.event.anomaly_archive_released": "本机记录已解除保留",
+  "terminal.thefourthfrequency.signal.event.world_interface_altar": "末地的共振祭坛已就位。",
+  "terminal.thefourthfrequency.signal.event.survey_tools_ready": "已收集足够木材，工具页的矿物探针与导航已开放。探针给的是方向和大致距离，不是精确坐标。",
+  "terminal.thefourthfrequency.signal.event.stronghold_tool_ready": "已持有 3 颗末影之眼，工具页的要塞估算已开放。投掷末影之眼即可记录一次方向。",
+  "terminal.thefourthfrequency.signal.event.relay_progress": "附近一台终端记录了一次进展",
+  "terminal.thefourthfrequency.signal.event.relay_unresolved": "附近一台终端记录了无法解析的东西",
+  "terminal.thefourthfrequency.signal.event.relay_self_echo": "另一台终端记录了这件事。是你记的。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.title": "前一位持有者",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line1": "如果你在读这个，说明它把我的终端归档了。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line2": "我撑到第 %s 天。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3": "十座锚，我们拆掉了 %s 座。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3.success": "十座锚，我们拆掉了 %s 座。剩下的还站着。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line3.failure": "十座锚，我们拆掉了 %s 座。没有用。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line4": "第一天它问过我几个问题。我当时以为那是设置。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line5": "关于伙伴那一题，我答的是「%s」。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line5.unanswered": "关于伙伴那一题，我没来得及答。",
+  "terminal.thefourthfrequency.file.recovered_predecessor_record.line6": "别在它问你的时候随便答。",
+  "terminal.thefourthfrequency.profile.title": "用户建档",
+  "terminal.thefourthfrequency.profile.hint": "→ 拨动右侧调谐滑块，停在答案上",
+  "terminal.thefourthfrequency.profile.recorded": "用户偏好已记录",
+  "terminal.thefourthfrequency.profile.incomplete": "建档不完整",
+  "terminal.thefourthfrequency.profile.question.prior_contact": "你此前接触过本型号终端吗？",
+  "terminal.thefourthfrequency.profile.option.prior_contact.none": "没有",
+  "terminal.thefourthfrequency.profile.option.prior_contact.before": "接触过",
+  "terminal.thefourthfrequency.profile.option.prior_contact.unclear": "记不清",
+  "terminal.thefourthfrequency.profile.question.play_style": "你的 MINECRAFT 游戏风格是？",
+  "terminal.thefourthfrequency.profile.option.play_style.speedrun": "速通",
+  "terminal.thefourthfrequency.profile.option.play_style.normal": "正常",
+  "terminal.thefourthfrequency.profile.option.play_style.casual": "养老",
+  "terminal.thefourthfrequency.profile.question.animal": "请选出选项里你最喜欢的动物",
+  "terminal.thefourthfrequency.profile.option.animal.cat": "猫",
+  "terminal.thefourthfrequency.profile.option.animal.dog": "狗",
+  "terminal.thefourthfrequency.profile.option.animal.neither": "都不喜欢",
+  "terminal.thefourthfrequency.profile.question.fear_alone": "你会因独处感到害怕吗？",
+  "terminal.thefourthfrequency.profile.option.fear_alone.yes": "会",
+  "terminal.thefourthfrequency.profile.option.fear_alone.no": "不会",
+  "terminal.thefourthfrequency.profile.option.fear_alone.depends": "看情况",
+  "terminal.thefourthfrequency.profile.question.mining_unease": "你在一个人游玩 MINECRAFT 时是否会有不安感（如下矿）",
+  "terminal.thefourthfrequency.profile.option.mining_unease.sometimes": "有时",
+  "terminal.thefourthfrequency.profile.option.mining_unease.often": "经常",
+  "terminal.thefourthfrequency.profile.option.mining_unease.never": "从不",
+  "terminal.thefourthfrequency.profile.question.trust_allies": "在危急时刻，你会信任自己的伙伴吗？",
+  "terminal.thefourthfrequency.profile.option.trust_allies.yes": "会",
+  "terminal.thefourthfrequency.profile.option.trust_allies.no": "不会",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_1": "检测到异常信号波动正在接近.. 它靠声音校准位置..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_2": "检测到异常信号波动正在接近.. 它的追踪没有中断过..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_3": "检测到异常信号波动正在接近.. 它取的是你的去向，不是你的位置..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_4": "检测到异常信号波动正在接近.. 它会反复重新出现在你背后..",
+  "terminal.thefourthfrequency.signal.event.pursuit_warning_5": "检测到异常信号波动正在接近.. 记录到的形态在此为止..",
+  "terminal.thefourthfrequency.signal.event.pursuit_return_instability": "用户周围的磁场很不稳定...",
+  "terminal.thefourthfrequency.signal.event.pursuit_queued": "有什么东西已经在看着你了，但它此刻正忙于别处。",
+  "message.thefourthfrequency.pursuit.try_escape": "尝试逃离",
+  "message.thefourthfrequency.pursuit.escaped_temporary": "你暂时逃离了它...",
+  "message.thefourthfrequency.pursuit.exit_locked": "你不能就这样逃走...",
+  "message.thefourthfrequency.world_interface.exit_locked": "你现在还不能离开...",
+  "message.thefourthfrequency.menu_erosion.escape_window": "你现在还有机会逃离",
+  "message.thefourthfrequency.pursuit.escape": "追逐已解决：你切断了校正者的追踪。",
+  "terminal.thefourthfrequency.task.name.learn_terminal": "认识终端",
+  "terminal.thefourthfrequency.task.name.mine_logs": "收集木头",
+  "terminal.thefourthfrequency.task.name.bring_iron": "携带铁样本",
+  "terminal.thefourthfrequency.task.name.enter_nether": "进入下界",
+  "terminal.thefourthfrequency.task.name.find_fortress": "找到下界要塞",
+  "terminal.thefourthfrequency.task.name.collect_blaze_rods": "采集烈焰棒",
+  "terminal.thefourthfrequency.task.name.return_from_nether": "返回主世界",
+  "terminal.thefourthfrequency.task.name.find_stronghold": "找到要塞",
+  "terminal.thefourthfrequency.task.name.enter_end": "进入末地",
+  "terminal.thefourthfrequency.task.name.defeat_boss": "阻止世界接口",
+  "message.thefourthfrequency.task.completed_reward_claimed": "任务完成：%s · %s ×%s",
+  "message.thefourthfrequency.task.completed_reward_shared": "任务完成：%s · %s ×%s（%s 人均分）",
+  "message.thefourthfrequency.task.reward_shared": "已领取 %s ×%s（%s 人均分）",
+  "message.thefourthfrequency.file.discovered_batch": "接收到 %s 份新文件",
+  "message.thefourthfrequency.fragment.received_batch": "接收到 %s 份共享的破损文件",
+  "splash.thefourthfrequency.boot.0": "他们不在这了",
+  "splash.thefourthfrequency.boot.1": "你回来了,但这里已经没有人了",
+  "splash.thefourthfrequency.boot.2": "你来晚了",
+  "splash.thefourthfrequency.boot.3": "门后什么也没有",
+  "splash.thefourthfrequency.boot.4": "这不是你记得的地方",
+  "splash.thefourthfrequency.boot.5": "你又回来了?",
+  "splash.thefourthfrequency.boot.6": "它越来越怪了...",
+  "splash.thefourthfrequency.boot.7": "也许它是好人呢？",
+  "splash.thefourthfrequency.boot.8": "滋滋...信号不稳定...",
+  "splash.thefourthfrequency.boot.9": "放我出去!!!",
+  "splash.thefourthfrequency.boot.10": "这是一场实验...吗？",
+  "splash.thefourthfrequency.boot.11": "他们忘了关闭终端",
+  "splash.thefourthfrequency.boot.12": "下一个是谁?",
+  "splash.thefourthfrequency.boot.13": "“必须永久封锁这个项目!”",
+  "splash.thefourthfrequency.boot.14": "“怎么爆炸了!?”",
+  "splash.thefourthfrequency.boot.15": "奇怪...",
+  "splash.thefourthfrequency.boot.16": "似乎有很多人来过这里...",
+  "splash.thefourthfrequency.boot.17": "前方是未知区域",
+  "splash.thefourthfrequency.boot.18": "TA没有离开",
+  "splash.thefourthfrequency.boot.19": "你没有走错路",
+  "splash.thefourthfrequency.boot.20": "你回来了?",
+  "thefourthfrequency.music.menu.green_to_blue": "Aurenth - green to blue (Sped Up)",
+  "thefourthfrequency.music.menu.hi_piano": "弹琴老周 - Hi",
+  "thefourthfrequency.music.menu.nop": "陈越龙 - nop",
+  "thefourthfrequency.music.menu.comfort_chain": "instupendo - Comfort Chain",
+  "thefourthfrequency.music.game.millennium_dream": "LUSTN - 千禧梦",
+  "thefourthfrequency.music.game.are_you_lost": "Park Bird - Are You Lost",
+  "thefourthfrequency.music.game.hi": "TEMPOREX - Hi",
+  "thefourthfrequency.music.game.tenshi": "NEEDY GIRL OVERDOSE; Aiobahn +81 - 天使は感動する",
+  "thefourthfrequency.music.game.school_rooftop": "hisohkah; WMD - School Rooftop",
+  "thefourthfrequency.music.game.comfort_chain": "instupendo - Comfort Chain",
+  "thefourthfrequency.music.game.snowfall": "Øneheart; reidenshi - snowfall",
+  "thefourthfrequency.music.game.six_forty_seven": "instupendo - Six Forty Seven",
+  "thefourthfrequency.music.game.on_top": "the girl next door; WMD - ON TOP",
+  "thefourthfrequency.music.pursuit.level": "niqizhuo; Dapper Husky - level！",
+  "thefourthfrequency.music.unrendered.nice_boys": "TEMPOREX - Nice Boys",
+  "thefourthfrequency.music.end.except_you": "Cloudrift - Anyone can find love (except you)",
+  "thefourthfrequency.music.encounter.especially_you": "ZXK - Anyone can find love (especially you.)",
+  "thefourthfrequency.music.encounter.lovve": "skayanskiy - Lovve (Hikkamorg Remix)",
+  "thefourthfrequency.music.encounter.wake_up": "MoonDeity - WAKE UP! (Sped Up)",
+  "thefourthfrequency.music.ending.me_and_you": "VIKI - ME & YOU",
+  "thefourthfrequency.music.ending.fallen_down": "The Versions - Fallen Down (Electric Piano Version)",
+  "terminal.thefourthfrequency.log.type.unrendered_layer": "未渲染层",
+  "entity.thefourthfrequency.bacteria": "细菌",
+  "subtitles.thefourthfrequency.unrendered_capture_scream": "尖叫",
+  "subtitles.thefourthfrequency.unrendered_heartbeat": "心跳",
+  "message.thefourthfrequency.unrendered.anomalous_signal": "检测到异常信号逼近",
+  "message.thefourthfrequency.unrendered.overworld_signal": "探测到主世界信号：%s",
+  "message.thefourthfrequency.unrendered.relative.ahead": "正前方",
+  "message.thefourthfrequency.unrendered.relative.ahead_right": "右前方",
+  "message.thefourthfrequency.unrendered.relative.right": "右侧",
+  "message.thefourthfrequency.unrendered.relative.behind_right": "右后方",
+  "message.thefourthfrequency.unrendered.relative.behind": "正后方",
+  "message.thefourthfrequency.unrendered.relative.behind_left": "左后方",
+  "message.thefourthfrequency.unrendered.relative.left": "左侧",
+  "message.thefourthfrequency.unrendered.relative.ahead_left": "左前方"
 }
