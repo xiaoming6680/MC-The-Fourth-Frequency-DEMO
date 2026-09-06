@@ -1063,6 +1063,108 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 		helper.succeed();
 	}
 
+	/**
+	 * A killing blow that lands after the collapse clock has run out does not win the fight.
+	 *
+	 * <p>{@code WorldInterfacePolicyTest} already pins the rule itself - {@code resolveTick(deadline,
+	 * true)} is FAILURE - but that is a pure function, and a pure function cannot say whether anybody
+	 * asks it in time. The rule is enforced at two separate call sites in the orchestration
+	 * ({@code EndBossEncounterService} checks it before applying damage, and again at the head of the
+	 * combat tick), and until now nothing covered either of them. Moving the check below the damage
+	 * application - which is what a refactor of this file would most plausibly do by accident - keeps
+	 * every existing test green and turns a loss into a win.
+	 *
+	 * <p>The clock is set paused and already at the deadline. The frozen roster member is an offline
+	 * UUID, so {@code reconcileClock} leaves it paused rather than restarting it from the game clock.
+	 */
+	@GameTest(setupTicks = 90, maxTicks = 40)
+	public void aKillingBlowAfterTheDeadlineLosesRatherThanWins(GameTestHelper helper) {
+		MinecraftServer server = helper.getLevel().getServer();
+		ServerLevel end = requireEnd(helper);
+		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		clearWorldInterface(data);
+		UUID encounterId = UUID.randomUUID();
+		WorldInterfaceEntity boss = null;
+		try {
+			WorldInterfaceState.Snapshot combat = committedCombat(server, encounterId, stateLayout(arena));
+			boss = ModEntities.WORLD_INTERFACE.create(end, EntitySpawnReason.EVENT);
+			if (boss == null) throw new AssertionError("Unable to create world-interface fixture");
+			boss.bindEncounter(encounterId);
+			boss.snapTo(arena.center().getX() + 0.5D, arena.center().getY() + 18.0D,
+					arena.center().getZ() + 0.5D, 0.0F, 0.0F);
+			helper.assertTrue(end.addFreshEntity(boss), "Boss fixture must enter the End");
+			WorldInterfaceEntity storedBoss = boss;
+			// One point of virtual health left and the clock exactly at the deadline: the next hit
+			// would be lethal, and the tie has to break as a loss.
+			combat = requireApplied(WorldInterfaceState.mutate(server, encounterId, combat.revision(),
+					state -> {
+						state.setBossUuid(storedBoss.getUUID());
+						state.setClock(WorldInterfacePolicy.COLLAPSE_DURATION_TICKS, -1L);
+						state.setVirtualHealth(600.0D, 1.0D);
+					}), "expired clock with a lethal hit pending");
+			helper.assertTrue(WorldInterfacePolicy.hasTimedOut(combat.activeTicks()),
+					"Fixture: the collapse clock must already have run out");
+
+			ServerPlayer attacker = helper.makeMockServerPlayerInLevel();
+			attacker.setGameMode(GameType.SURVIVAL);
+			attacker.teleportTo(end, arena.center().getX() + 4.5D, arena.center().getY() + 2.0D,
+					arena.center().getZ() + 0.5D, Set.of(), 0.0F, 0.0F, true);
+			helper.assertFalse(
+					boss.hurtServer(end, end.damageSources().playerAttack(attacker), 1000.0F),
+					"A hit landing past the deadline must be refused outright");
+
+			WorldInterfaceState.Snapshot after = WorldInterfaceState.snapshot(server);
+			helper.assertTrue(after.stage() == WorldInterfaceStage.FAILURE_RESOLUTION,
+					"An expired clock resolves as failure, not as the kill that arrived with it; was "
+							+ after.stage());
+			helper.assertTrue(after.virtualHealth() > 0.0D,
+					"Refused damage must not have reached the virtual health pool");
+		} finally {
+			if (boss != null) boss.discard();
+			clearWorldInterface(data);
+		}
+		helper.succeed();
+	}
+
+	/**
+	 * The same rule at the other call site: the combat tick itself, with nobody attacking.
+	 *
+	 * <p>A table that simply runs out of time has to lose without anything else happening, and that
+	 * decision is the first thing {@code tickCombat} does. Driven through {@code tickStart} rather
+	 * than by waiting, because the alternative is a game test that takes ten real minutes.
+	 */
+	@GameTest(setupTicks = 90, maxTicks = 40)
+	public void aCombatTickPastTheDeadlineResolvesAsFailureOnItsOwn(GameTestHelper helper)
+			throws ReflectiveOperationException {
+		MinecraftServer server = helper.getLevel().getServer();
+		ServerLevel end = requireEnd(helper);
+		EndBossArenaService.PreparedArena arena = EndBossArenaService.prepare(end);
+		FrequencyWorldData data = FrequencyWorldData.get(server);
+		clearWorldInterface(data);
+		UUID encounterId = UUID.randomUUID();
+		try {
+			WorldInterfaceState.Snapshot combat = committedCombat(server, encounterId, stateLayout(arena));
+			combat = requireApplied(WorldInterfaceState.mutate(server, encounterId, combat.revision(),
+					state -> state.setClock(WorldInterfacePolicy.COLLAPSE_DURATION_TICKS, -1L)),
+					"expired clock");
+			helper.assertTrue(combat.stage().isCombat(), "Fixture: the encounter must start in combat");
+
+			Method tickStart = EndBossEncounterService.class.getDeclaredMethod("tickStart", MinecraftServer.class);
+			tickStart.setAccessible(true);
+			tickStart.invoke(null, server);
+
+			WorldInterfaceState.Snapshot after = WorldInterfaceState.snapshot(server);
+			helper.assertTrue(after.stage() == WorldInterfaceStage.FAILURE_RESOLUTION,
+					"A combat tick past the collapse deadline must resolve as failure; was " + after.stage());
+			helper.assertTrue(after.runningSinceGameTime() < 0L,
+					"A resolved encounter must leave its clock stopped");
+		} finally {
+			clearWorldInterface(data);
+		}
+		helper.succeed();
+	}
+
 	private static WorldInterfaceState.Snapshot phaseThreeCombat(MinecraftServer server, UUID encounterId,
 			WorldInterfaceState.ArenaLayout layout) {
 		WorldInterfaceState.Snapshot snapshot = committedCombat(server, encounterId, layout);
