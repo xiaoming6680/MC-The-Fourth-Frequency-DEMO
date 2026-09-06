@@ -149,9 +149,19 @@ public final class TerminalRuntimeService {
 				applyTuning(player, view, value);
 			}
 			case TerminalControlPayload.REFRESH -> { if (value != 0) return; }
-			// No client sends this any more - the expandable signal-card feed that offered "set as
-			// bearing" was removed once it turned out nothing ever drew it. The handler stays so an
-			// older client on a newer server is still answered rather than silently ignored.
+			// This is live, and it is the records page's per-row "open navigation" shortcut.
+			//
+			// The comment here used to say the opposite - that nothing sent it any more and the
+			// handler survived only to answer old clients. That was true for exactly as long as the
+			// only sender was the expandable signal-card feed, which was removed once it turned out
+			// nothing ever drew it; it stopped being true when the records shortcut was rebuilt to
+			// aim at the lead on its own line. Left standing, it read as a licence to delete this
+			// case as legacy, which would silently make every "open navigation" on the records page
+			// do nothing - the exact bug the page has already had once.
+			//
+			// Sender: TerminalScreen.drawRecordNavigationShortcut. Pinned from both ends by
+			// ResourceContractTest, which requires the screen to send it and forbids that shortcut
+			// from falling back to SELECT_NEAREST_UNSTABLE.
 			case TerminalControlPayload.SELECT_FRAGMENT_TARGET -> {
 				if (value < 0 || value >= 12) return;
 				if (!FragmentInvestigationService.selectCandidate(player, value)) return;

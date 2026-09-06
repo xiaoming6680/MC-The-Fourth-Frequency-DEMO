@@ -93,9 +93,9 @@
 | 验证 | 结果 | 边界 |
 | --- | --- | --- |
 | `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | 通过 | 四个 source set 均可编译 |
-| 聚合 `unitTest` | **794/794 通过**（137 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
+| 聚合 `unitTest` | **796/796 通过**（138 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
 | 服务端 GameTest | **91/91 通过** | `All 91 required tests passed`。此前是 87，再往前是 80——`TerminalBackfillAndProfileGameTests` 从未写进 `src/gametest/resources/fabric.mod.json`，那 6 个测试一次也没跑过。现在由 `ResourceContractTest` 双向盯住注册表。新增 4 项来自 `PursuitRuntimeGameTests`：追逐此前有 10 个纯策略单测和 1 个只检查维度文件是否打包的 GameTest，退款账本与镜像放置规则两条玩家能感知的链路一条也没被覆盖 |
-| 完整（`all`）客户端 GameTest | **通过**（7 分 36 秒，退出码 0），产出 166 张截图 | 目录 18 项、覆盖 17 项：未渲染层按名字在 `AnomalyClientScenario.UNCOVERED` 中显式豁免。日志中 `unrendered_layer` 与六个镜像维度均正常加载并存盘，这是数据包三件套与生成器编解码器在真实运行时可用的**直接**证据。本轮它抓到两处：终端开屏会顶掉玩家自己打开的界面，以及 `terminal-3d` 里「没人开过终端就该静止」这条在自动开屏上线后不再成立的旧断言。**注意**：与另一个 Gradle／Minecraft 进程并行跑会争用 `build/run/clientGameTest`，表现为存档写不完加原生崩溃，看起来像主线断言失败 |
+| 完整（`all`）客户端 GameTest | **通过**（8 分 39 秒，退出码 0），产出 166 张截图 | 目录 18 项、覆盖 17 项：未渲染层按名字在 `AnomalyClientScenario.UNCOVERED` 中显式豁免。日志中 `unrendered_layer` 与六个镜像维度均正常加载并存盘，这是数据包三件套与生成器编解码器在真实运行时可用的**直接**证据。本轮它抓到两处：终端开屏会顶掉玩家自己打开的界面，以及 `terminal-3d` 里「没人开过终端就该静止」这条在自动开屏上线后不再成立的旧断言。**注意**：与另一个 Gradle／Minecraft 进程并行跑会争用 `build/run/clientGameTest`，表现为存档写不完加原生崩溃，看起来像主线断言失败 |
 | `notice-entry` 定向客户端 GameTest | **本轮未重跑**（上次通过 45 秒） | 它不在 `all` 里——`ClientGameTestSelection.runsNoticeEntry()` 只对这个套件为真，所以完整套件绿并不覆盖它。上次是在 `thefourthfrequency.mixins.json` 重排/重缩进之后单独复跑的，确认 7 条 common + 50 条 client mixin 全部解析——清单是 `defaultRequire: 1`，格式化打错一个名字就是 bootstrap 崩溃，而不是静默降级 |
 | 中英文语言 JSON | 各 **902** 个键，解析通过且键集合完全对称，`%s` 占位符数量逐键一致 | 当前资源树 |
 | 音频编码 | 仓库里全部 **211** 个 OGG（模组自有 140 个，其中音乐 21 个；随包的 Golden Days 资源包 71 个）逐个实测 `codec_name == vorbis` | 扩展名骗得过所有断言，编码不对时 Minecraft 只是静默不出声 |

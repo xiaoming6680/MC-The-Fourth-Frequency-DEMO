@@ -229,7 +229,8 @@ Trigger from the debug panel (the last row of the anomaly list). A refusal names
 | 3 | Initial terrain | Matches the source's 5×5 chunks and ±48 blocks; running past the initial range keeps loading newly copied chunks, **never turning back at 30 blocks** |
 | 4 | Outrunning the copy | Only a brief pause at the nearest safe position with the countdown paused; it resumes once chunks are ready |
 | 5 | Mining in the mirror | No blocks, experience or path-clearing durability loss; redstone, portals, containers, TNT, beds and fluid interactions are refused or sanitised |
-| 6 | Refunds | Place ordinary building blocks and end the pursuit: the item is refunded **exactly once**; a full inventory, a disconnect and a restart all still deliver it through the ledger |
+| 5a | **No respawn anchor reaches the mirror** | Put a respawn anchor in a Nether base and then get chased: that position in the mirror is **not a respawn anchor** (the test is on the block's type, not its registry name). In the same pass, confirm furniture like cauldrons and composters is still copied as itself |
+| 6 | Refunds | Place ordinary building blocks and end the pursuit: the item is refunded **exactly once**; a full inventory, a disconnect and a restart all still deliver it through the ledger. A block renamed on an anvil **comes back with its name**, and an unnamed one of the same type is refunded separately rather than merged into it |
 | 7 | Allowed source dimensions | The Overworld and Nether only; the End and modded dimensions must not trigger a real pursuit |
 | 8 | Visibility ordering | On a cross-dimension return the server **restores visibility before teleporting**. Using death or an admin teleport to remove the player from the mirror: the session releases the slot, settles refunds and restores visibility, and **must not drag the player back to the entry point** |
 
