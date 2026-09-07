@@ -1,0 +1,134 @@
+{
+  "status": "ai_candidate_briefs_not_generated",
+  "reference_release": "1.0.0-rc.3",
+  "provider_candidate": "ElevenLabs Sound Effects",
+  "ai_generated_audio_count": 0,
+  "cues": [
+    {
+      "event": "world_interface_roar_1",
+      "group": "boss_roar",
+      "target_seconds": 2.8,
+      "source_seconds": 4.0,
+      "loop": false,
+      "prompt": "Isolated creature sound effect, a colossal hollow-bodied predator takes one strained breath and releases a deep throaty bellow. Audible dry glottal flutter, chest cavity vibration and a little exhaled air; irregular living performance, with a distinct onset and natural exhausted finish. Close dry recording for game sound design. No music, no words, no cinematic trailer hit, no long room reverb.",
+      "foley_layer": "Separate wooden or metal structural groan, subordinate to the vocal body."
+    },
+    {
+      "event": "world_interface_roar_2",
+      "group": "boss_roar",
+      "target_seconds": 3.3,
+      "source_seconds": 4.5,
+      "loop": false,
+      "prompt": "One isolated enormous monster bellow, with a strained low throat and a second rough upper resonance pulsing out of time inside the same chest. Begins with an effortful inhalation, opens into an aggressive uneven vocal surge, ends with a broken breath. Organic, physically performed texture, strong midrange detail and immense size. Dry centered sound, no speech, no music, no trailer braam, no huge reverb.",
+      "foley_layer": "Brief tendon tension and structural cracking around the vocal surge."
+    },
+    {
+      "event": "world_interface_roar_3",
+      "group": "boss_roar",
+      "target_seconds": 4.1,
+      "source_seconds": 5.5,
+      "loop": false,
+      "prompt": "A single terrifying roar from a living creature the size of a building. Multiple connected throat cavities struggle against one breath: very low chest pressure, coarse voiced growl, tearing upper harmonics, then shuddering exhalation. The performance swells and breaks irregularly, with audible physical strain rather than a static drone. Dry isolated centered game sound effect. No words, no music, no orchestral hit, no stock dinosaur imitation, no long reverberation.",
+      "foley_layer": "Slow structural torsion plus a restrained broken-radio accent; preserve the living vocal identity."
+    },
+    {
+      "event": "world_interface_laser",
+      "group": "mouth_laser",
+      "target_seconds": 4.5,
+      "source_seconds": 5.0,
+      "loop": false,
+      "prompt": "Isolated sustained intake of a huge organic energy weapon inside a monster's mouth. Hollow inhalation and tight vibrating throat tissue gradually gather pressure, electrical filaments rattle faster and become brighter toward the end. Suspense from physical strain, a continuous controllable build. Stop before the shot: no discharge, explosion or impact. Dry centered sound, no music, no speech, no roomy echo.",
+      "foley_layer": "Sparse strained hinge or tendon detail; final rise is edited against the 4.5-second warning clock."
+    },
+    {
+      "event": "world_interface_laser_fire",
+      "group": "mouth_laser",
+      "target_seconds": 2.2,
+      "source_seconds": 2.5,
+      "loop": false,
+      "prompt": "One immediate opening blast of a monstrous mouth-mounted energy beam. A sharp tearing pressure release at the very start, a dense low chest thump, ragged electrical crackle and a short falling tail. Powerful organic and electrical texture, no wind-up and no repeated shots. Dry isolated centered sound effect, no music, no words, no long reverb.",
+      "foley_layer": "Short pressure transient only; keep the tail sparse underneath the separate beam loop."
+    },
+    {
+      "event": "world_interface_laser_loop",
+      "group": "mouth_laser",
+      "target_seconds": 2.8,
+      "source_seconds": 6.0,
+      "loop": true,
+      "prompt": "Continuous steady energy beam roaring through a huge living throat. Dense turbulent air, irregular organic throat vibration and thin sizzling electrical fibers, evolving subtly without changing overall intensity. Seamless sustained texture with no beginning, no ending, no pulses that sound like separate shots, no impacts. Dry centered sound for a positional game weapon, no music or voices.",
+      "foley_layer": "Sustain only; select a stable section and verify loop after Vorbis encoding."
+    },
+    {
+      "event": "world_interface_laser_impact",
+      "group": "mouth_laser",
+      "target_seconds": 0.8,
+      "source_seconds": 1.5,
+      "loop": false,
+      "prompt": "Single immediate intense energy strike against stone, a sharp mineral fracture followed by hot grit scattering and a brief fizz. Compact dense physical impact, crisp detail, no wind-up, no successive explosions. Isolated dry sound, no music, no voices, no long echo.",
+      "foley_layer": "Rock chip detail; keep separate from mouth-origin beam sound."
+    },
+    {
+      "event": "world_interface_laser_release",
+      "group": "mouth_laser",
+      "target_seconds": 0.7,
+      "source_seconds": 1.2,
+      "loop": false,
+      "prompt": "Short exhausted shutdown of an organic energy weapon: a rough throat exhalation, falling electrical sputter, two tiny residual crackles, then silence. Starts already decaying, no impact, no charging rise, no music or speech. Dry close isolated sound.",
+      "foley_layer": "Small residual breath; no extra low-frequency explosion."
+    },
+    {
+      "event": "world_interface_tendril",
+      "group": "tendril_strike",
+      "target_seconds": 1.5,
+      "source_seconds": 2.0,
+      "loop": false,
+      "prompt": "A massive fibrous tendon slowly pulled tight under extreme load: coarse leather-like stretching, braided fibers creaking, subtle damp internal movement, increasing strain. One preparatory movement only, no snap, no slam or impact yet. Tactile close dry sound, no music, no voice, no reverb.",
+      "foley_layer": "Rope or leather tension with sparse structural creak."
+    },
+    {
+      "event": "world_interface_tendril_strike",
+      "group": "tendril_strike",
+      "target_seconds": 1.1,
+      "source_seconds": 1.8,
+      "loop": false,
+      "prompt": "One gigantic heavy fibrous limb strikes a stone floor immediately. Dense blunt contact at the first instant, a brief wet leathery slap over deep body weight, stone fractures and a few chips bounce afterward. A physical creature impact, not an explosion. No wind-up, no repeated hits, no music, no voices, dry isolated centered sound.",
+      "foley_layer": "Separate stone debris after the primary contact, leaving space for recoil at +0.25 seconds."
+    },
+    {
+      "event": "world_interface_tendril_recover",
+      "group": "tendril_strike",
+      "target_seconds": 0.65,
+      "source_seconds": 1.2,
+      "loop": false,
+      "prompt": "A heavy rough leathery limb briefly scrapes across gritty stone and pulls free, fibrous tension relaxing with tiny grains falling. One short recoil movement, lower intensity than a strike, no impact or explosion. Close dry isolated sound, no music or voices.",
+      "foley_layer": "Grit scrape with tension release; no repeated slam."
+    },
+    {
+      "event": "him_presence",
+      "group": "him_presence",
+      "target_seconds": 1.15,
+      "source_seconds": 2.0,
+      "loop": false,
+      "prompt": "Extremely quiet close-miked foley of a motionless person making one tiny weight shift: coarse cotton clothing softly rubs once, a shoe sole barely twists, a faint unvoiced breath leaks out. Intimate, natural and restrained, almost silence. No footsteps sequence, no whispering words, no growl, no horror sting, no music, no wind or room ambience. Dry isolated recording.",
+      "foley_layer": "Cotton and small sole movement are primary; breath must remain barely perceptible."
+    },
+    {
+      "event": "terminal_raise",
+      "group": "terminal_handling",
+      "target_seconds": 0.55,
+      "source_seconds": 1.2,
+      "loop": false,
+      "prompt": "Close foley of lifting a small rugged handheld radio terminal out of cloth and opening its stiff short hinge: a soft fabric brush, brief metal-and-plastic hinge movement, one modest mechanical stop click. Compact object held in a hand, a single quick action. No power-up beeps, no sci-fi whoosh, no music, dry isolated recording.",
+      "foley_layer": "Time cloth, hinge and stop to the opening pose; avoid a heavy industrial-door scale."
+    },
+    {
+      "event": "terminal_lower",
+      "group": "terminal_handling",
+      "target_seconds": 0.45,
+      "source_seconds": 1.0,
+      "loop": false,
+      "prompt": "One quick close-miked action of closing and lowering a small rugged handheld radio terminal: a compact dull latch click followed by a short soft cloth brush. Tactile plastic-and-metal casing, restrained volume, no beep, no slam, no futuristic power-down tone, no music. Dry isolated foley.",
+      "foley_layer": "Latch then cloth; trim the source rather than forcing the whole recording into 0.45 seconds."
+    }
+  ]
+}
