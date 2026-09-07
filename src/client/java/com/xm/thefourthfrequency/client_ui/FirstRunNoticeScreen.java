@@ -76,8 +76,8 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final int SECTION_GAP = 4;
 	private static final float[] BODY_SCALE_STEPS = {0.82F, 0.78F, 0.74F, 0.70F, 0.66F};
 	private static final int IGNITION_TICKS = 4;
-	private static final int UNFOLD_TICKS = 8;
-	private static final int BLOOM_TICKS = 8;
+	private static final int UNFOLD_TICKS = 14;
+	private static final int BLOOM_TICKS = 12;
 	private static final int TUBE_LIT_TICK = IGNITION_TICKS + UNFOLD_TICKS;
 	private static final int POWER_ON_END_TICK = TUBE_LIT_TICK + BLOOM_TICKS;
 	/** One quiet fade reveals the page; controls become available as soon as it completes. */
@@ -109,8 +109,11 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final int GLASS_OPENING_BOTTOM_ASSET = 890;
 	private static final Identifier NOTICE_UI = Identifier.fromNamespaceAndPath(
 			TheFourthFrequency.MOD_ID, "textures/gui/notice/first_run_notice_terminal_shell.png");
+	private static final Identifier MOD_LOGO = Identifier.fromNamespaceAndPath(
+			TheFourthFrequency.MOD_ID, "textures/gui/notice/frequency_logo.png");
+	private static final int LOGO_TEXTURE_SIZE = 1254;
 
-	private static final int PAGE_TRANSITION_TICKS = 12;
+	private static final int PAGE_TRANSITION_TICKS = 20;
 	private int pageTransitionAge = -1;
 	private float copyOpacity = 1;
 	private int age;
@@ -245,15 +248,21 @@ public final class FirstRunNoticeScreen extends Screen {
 		graphics.fill(0, 0, width, height, SHELL_BACKDROP);
 	}
 
-	/** The glass gently lights up on the audio page without an intermediate loading graphic. */
+	/** A single flat logo lights up, briefly holds, and fades into the audio page. */
 	private void renderPowerOn(GuiGraphics graphics, float renderAge) {
 		NoticeLayout layout = layout();
 		renderGeneratedNoticeUi(graphics, layout);
 		GlassBounds glass = glassOpening(layout);
-		float reveal = smooth(renderAge / POWER_ON_END_TICK);
+		float reveal = smooth((renderAge - TUBE_LIT_TICK) / BLOOM_TICKS);
 		renderNoticeText(graphics, layout);
 		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
 				withAlpha(0x080E0C, Math.round((1 - reveal) * 255)));
+		int logoSize = Math.max(1, Math.min(96, Math.min(glass.width(), glass.height()) - 24));
+		int logoAlpha = Math.round(255 * smooth(renderAge / IGNITION_TICKS) * (1 - reveal));
+		graphics.blit(RenderPipelines.GUI_TEXTURED, MOD_LOGO,
+				glass.left() + (glass.width() - logoSize) / 2, glass.top() + (glass.height() - logoSize) / 2,
+				0.0F, 0.0F, logoSize, logoSize, LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE,
+				LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE, withAlpha(0xFFFFFF, logoAlpha));
 		drawGlassSurface(graphics, glass);
 	}
 
@@ -265,6 +274,8 @@ public final class FirstRunNoticeScreen extends Screen {
 		cover = cover * cover * (3 - 2 * cover);
 		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
 				withAlpha(0x080E0C, Math.round(cover * 255)));
+		AnalogBootGraphics.drawRetune(graphics, glass.left(), glass.top(),
+				glass.width(), glass.height(), time / PAGE_TRANSITION_TICKS, cover);
 	}
 
 	/**

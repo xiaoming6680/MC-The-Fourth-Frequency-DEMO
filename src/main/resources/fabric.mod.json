@@ -3,6 +3,7 @@
   "id": "thefourthfrequency",
   "version": "${version}",
   "name": "The Fourth Frequency",
+  "icon": "assets/thefourthfrequency/textures/gui/notice/frequency_logo.png",
   "description": "A survival horror narrative where trust itself becomes construction.",
   "authors": [
     "XIAOMING6680"

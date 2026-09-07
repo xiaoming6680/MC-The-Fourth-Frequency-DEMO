@@ -85,9 +85,9 @@ The device must be **the one Station Zero actually issued**: the server validate
 
 ## Current evidence
 
-The current simplified RC.6 startup revision uses `7810377` as its baseline and passed `build` (861 unit tests, 99 server GameTests and JAR verification) and the real `notice-entry` client suite in isolation. Startup now uses a one-second brightness fade and a 0.6-second page fade; the existing camera entry is retained. The suite checks bilingual layout, volume preview, transition gates, acknowledgement persistence and actual GPU filter application/cleanup. Terminal first-boot graphics and audio assets are unchanged.
+The opening now uses a simple CRT-green hexagonal logo shared with the mod icon, with a 30-tick fade/hold/fade and a restored 20-tick audio-to-disclosure frequency sweep. All 877 unit tests, the real `notice-entry` client suite, runnable JAR packaging and sources JAR packaging passed. The verifier checked 64 mixin classes and 22 Minecraft injection targets; the icon metadata path and packaged PNG bytes were checked. Actual opening and sweep captures are in the [logo record](../qa/audio_overhaul/logo-sweep.md).
 
-Only the affected startup client suite was rerun. The latest full `all` client and 242-file audio-decode passes belong to baseline `7810377`; see the [RC.6 historical record](../qa/audio_overhaul/rc6.md). This revision's screenshots and limits are in the [simplified-startup record](../qa/audio_overhaul/entry-simplified.md). PCL has the revised package with a verified hash. Other tasks' unfinished model, anomaly and desktop changes remain in the shared workspace and are excluded from this tested package. Manual listening in the PCL instance and real two-client acceptance remain outstanding.
+Tests and the installed package use the current shared workspace, including other tasks' existing changes; the Git commit includes only the logo, opening, sweep and related documentation. PCL matches the built JAR hash. The latest 102-server-test and desktop-window suite passes belong to the preceding observer revision and were not rerun here. The latest full all-client pass remains baseline `7810377`. Real multiplayer and multi-monitor/DPI manual acceptance remain outstanding.
 
 ## How the sharp tests are shaped
 
@@ -203,8 +203,8 @@ The manual flow for a candidate build is in the [Manual acceptance checklist](ac
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `thefourthfrequency-1.0.0-rc.6-sources.jar` | 52,424,151 | `0522C15369704538AEF60AE80879B862A906F07B776D8741D111A87A806636EE` |
-| `thefourthfrequency-1.0.0-rc.6.jar` | 52,986,041 | `33058A75680C71E09CF8FB16FE7715542ED8213B9AD9679B60F50EEE29D114C4` |
+| `thefourthfrequency-1.0.0-rc.6-sources.jar` | 54,734,122 | `0551769269E96BAEBF627B56F9F7779F724836E0551466A2DF0D45830EE23757` |
+| `thefourthfrequency-1.0.0-rc.6.jar` | 55,329,316 | `72773ADA51E974723C6203E7FC818B32614CEF56D061DFB842864B32FFA31567` |
 
 ## Still outstanding before release
 

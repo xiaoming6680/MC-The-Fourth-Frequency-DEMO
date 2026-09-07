@@ -1453,8 +1453,18 @@ final class ResourceContractTest {
 				"A post-power-on fade would light the tube on an empty screen again");
 		assertTrue(screen.contains("minecraft.getOverlay() != null) return"),
 				"A reload overlay must hold the entrance clock instead of running it out of sight");
-		assertFalse(screen.contains("AnalogBootGraphics."),
-				"Game startup stays a simple fade; diagnostic graphics belong to terminal first boot");
+		assertFalse(screen.contains("AnalogBootGraphics.drawCrtCalibration"),
+				"The opening uses the mod logo without the old graphical test card");
+		assertTrue(screen.contains("AnalogBootGraphics.drawRetune"),
+				"The audio-to-disclosure page transition retains its frequency sweep");
+		assertTrue(screen.contains("textures/gui/notice/frequency_logo.png"));
+		var logo = ImageIO.read(ASSETS.resolve("textures/gui/notice/frequency_logo.png").toFile());
+		assertEquals(logo.getWidth(), logo.getHeight(), "Mod icon must remain square");
+		assertTrue(logo.getColorModel().hasAlpha(), "Opening logo must composite without an opaque backdrop");
+		assertEquals(0, logo.getRGB(0, 0) >>> 24);
+		assertTrue(Files.readString(Path.of("src/main/resources/fabric.mod.json"))
+				.contains("\"icon\": \"assets/thefourthfrequency/textures/gui/notice/frequency_logo.png\""),
+				"The mod list and opening must use the same logo asset");
 		assertFalse(screen.contains("drawHeaderScope"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeOpening()"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeStable()"));
