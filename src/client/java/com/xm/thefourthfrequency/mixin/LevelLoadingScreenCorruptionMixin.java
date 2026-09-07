@@ -1,6 +1,5 @@
 package com.xm.thefourthfrequency.mixin;
 
-import com.xm.thefourthfrequency.audio.ModSounds;
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio;
 import com.xm.thefourthfrequency.client_ui.AlphaCorruptionRenderer;
@@ -15,7 +14,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.LevelLoadTracker;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.progress.ChunkLoadStatusView;
 import org.spongepowered.asm.mixin.Mixin;
@@ -69,13 +67,7 @@ public abstract class LevelLoadingScreenCorruptionMixin {
 		AlphaLoadSessionController.loadingScreenTick(thefourthfrequency$screenTicks);
 		Minecraft client = Minecraft.getInstance();
 		AlphaCorruptionAudio.tick(client, thefourthfrequency$screenTicks);
-		if (thefourthfrequency$screenTicks == AlphaLoadTimeline.GLITCH_START_TICK) {
-			client.getSoundManager().play(SimpleSoundInstance.forUI(
-					ModSounds.ALPHA_CORRUPTION_WARNING, 1.0F, 0.62F));
-		} else if (thefourthfrequency$screenTicks == AlphaLoadTimeline.FLOOD_START_TICK) {
-			client.getSoundManager().play(SimpleSoundInstance.forUI(
-					ModSounds.ALPHA_CORRUPTION_COLLAPSE, 1.0F, 0.96F));
-		}
+
 	}
 
 	@Inject(method = "tick", at = @At("TAIL"))

@@ -17,6 +17,31 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 	@Override public void runTest(ClientGameTestContext context) {
 		if (!ClientGameTestSelection.current().runsAudio()) return;
 		context.waitForScreen(TitleScreen.class);
+		context.runOnClient(client -> {
+			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.stopAll();
+			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.tick(client,
+					com.xm.thefourthfrequency.client_ui.AlphaLoadTimeline.GLITCH_START_TICK);
+		});
+		context.waitTicks(4);
+		context.runOnClient(client -> {
+			if (com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.playingForTesting(client)!=1)
+				throw new AssertionError("Opening warning failed to play");
+			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.tick(client,
+					com.xm.thefourthfrequency.client_ui.AlphaLoadTimeline.FLOOD_START_TICK);
+		});
+		context.waitTicks(4);
+		context.runOnClient(client -> {
+			if (com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.playingForTesting(client)!=1)
+				throw new AssertionError("Frozen buffer did not replace the warning");
+			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.tick(client,
+					com.xm.thefourthfrequency.client_ui.AlphaLoadTimeline.BLACKOUT_START_TICK);
+		});
+		context.waitTicks(4);
+		context.runOnClient(client -> {
+			if (com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.playingForTesting(client)!=0)
+				throw new AssertionError("Blackout retained frozen audio");
+			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.stopAll();
+		});
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
 			EntityVisualFixture.finishFirstBoot(context);
 			context.runOnClient(client -> {
@@ -30,6 +55,22 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 					resolved++;
 				}
 				if (resolved < 96) throw new AssertionError("Incomplete audio registry: " + resolved);
+				var engine = ((com.xm.thefourthfrequency.mixin.SoundManagerEngineAccessor)client.getSoundManager()).thefourthfrequency$soundEngine();
+				var sounds = ((com.xm.thefourthfrequency.mixin.SoundEngineStateAccessor)engine).thefourthfrequency$instanceToChannel();
+				int before = sounds.size();
+				int notices = com.xm.thefourthfrequency.client_ui.TerminalClientAudio.attentionPlaysForTesting();
+				com.xm.thefourthfrequency.client_ui.TerminalClientAudio.updatePanelStage(5);
+				for (int repeat = 0; repeat < 10; repeat++) {
+					for (int tone : new int[]{0,1,5,7,8})
+						com.xm.thefourthfrequency.client_ui.TerminalClientAudio.attention(tone);
+				}
+				if (sounds.size()!=before || notices!=com.xm.thefourthfrequency.client_ui.TerminalClientAudio.attentionPlaysForTesting())
+					throw new AssertionError("Passive guidance created audio playback");
+				if (sounds.keySet().stream().anyMatch(s -> s.getIdentifier().getPath().equals("terminal_carrier")))
+					throw new AssertionError("Reading the terminal started an idle sound bed");
+				if (!com.xm.thefourthfrequency.client_ui.TerminalClientAudio.audibleNotice(3)
+						|| !com.xm.thefourthfrequency.client_ui.TerminalClientAudio.audibleNotice(4))
+					throw new AssertionError("Actionable warnings were muted with passive guidance");
 			});
 			UUID id = world.getServer().computeOnServer(server -> {
 				var player = server.getPlayerList().getPlayers().getFirst();
@@ -38,7 +79,7 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 				if (boss == null) throw new AssertionError("Missing boss");
 				boss.setNoAi(true); boss.setNoGravity(true);
 				boss.snapTo(player.getX()+8,player.getY()+3,player.getZ(),0,0);
-				boss.showAction(WorldInterfaceProtocol.BossAction.LASER_SWEEP.wireId(),level.getGameTime(),130);
+				boss.showAction(WorldInterfaceProtocol.BossAction.LASER_SWEEP.wireId(),level.getGameTime(),WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
 				if (!level.addFreshEntity(boss)) throw new AssertionError("Boss spawn failed");
 				return boss.getUUID();
 			});
@@ -57,18 +98,46 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 			});
 			world.getServer().runOnServer(server -> {
 				var boss=(WorldInterfaceEntity)server.overworld().getEntityInAnyDimension(id);
-				boss.showAction(WorldInterfaceProtocol.BossAction.LASER_SWEEP.wireId(),boss.level().getGameTime()-90,130);
+				boss.showAction(1,boss.level().getGameTime()-60,WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
 			});
 			context.waitTicks(6); assertPlaying(context);
+			context.runOnClient(client -> {
+				float offset = EntitySoundscape.alignedMouthOffsetForTesting();
+				if (offset < 3.0F || offset >= 4.5F)
+					throw new AssertionError("Late warning restarted audio instead of seeking: " + offset);
+			});
+			world.getServer().runOnServer(server -> {
+				var boss=(WorldInterfaceEntity)server.overworld().getEntityInAnyDimension(id);
+				boss.setForm(2);
+				boss.showAction(WorldInterfaceProtocol.BossAction.LASER_SWEEP.wireId(),boss.level().getGameTime()-90,WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
+			});
+			context.waitTicks(6); assertPlaying(context);
+			context.runOnClient(client -> {
+				for (var entity : client.level.entitiesForRendering()) {
+					if (!entity.getUUID().equals(id)) continue;
+					var boss = (WorldInterfaceEntity) entity;
+					if (EntitySoundscape.mouthPositionForTesting().distanceTo(WorldInterfaceAnatomy.mouthOrigin(boss,1))>.8)
+						throw new AssertionError("Third-form beam sound used the inactive center mouth");
+				}
+			});
 			world.getServer().runOnServer(server -> ((WorldInterfaceEntity)server.overworld().getEntityInAnyDimension(id)).showAction(0,server.overworld().getGameTime(),0));
 			context.waitTicks(4);
 			context.runOnClient(client -> { if (EntitySoundscape.activeMouthsForTesting()!=0 || EntitySoundscape.playingMouthsForTesting(client)!=0) throw new AssertionError("Cancelled laser still playing"); });
 			world.getServer().runOnServer(server -> {
 				var boss=(WorldInterfaceEntity)server.overworld().getEntityInAnyDimension(id);
-				boss.showAction(1,boss.level().getGameTime()-90,130);
+				boss.showAction(1,boss.level().getGameTime()-90,WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
 			});
 			context.waitTicks(6); assertPlaying(context);
 			context.takeScreenshot("soundscape-live-laser");
+			world.getServer().runOnServer(server -> {
+				var boss=(WorldInterfaceEntity)server.overworld().getEntityInAnyDimension(id);
+				boss.showAction(1,boss.level().getGameTime()-WorldInterfaceAttackMotion.LASER_END_TICK,WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
+			});
+			context.waitTicks(4);
+			context.runOnClient(client -> {
+				if (EntitySoundscape.activeMouthsForTesting()!=0)
+					throw new AssertionError("Recovering jaw retained a live beam loop");
+			});
 		}
 		context.waitForScreen(TitleScreen.class);
 		context.runOnClient(client -> { if (EntitySoundscape.activeMouthsForTesting()!=0) throw new AssertionError("Disconnected world retained sound"); });

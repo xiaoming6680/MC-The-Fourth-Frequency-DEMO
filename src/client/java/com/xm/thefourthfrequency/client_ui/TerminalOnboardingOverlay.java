@@ -44,8 +44,7 @@ final class TerminalOnboardingOverlay {
 	private final String[] bootShown = new String[TerminalOnboardingPolicy.BOOT_LINE_COUNT];
 	private final int[] bootShownChars = new int[TerminalOnboardingPolicy.BOOT_LINE_COUNT];
 	private boolean bootTextReady;
-	/** How many self-test lines have already been sounded, so each is heard exactly once. */
-	private int bootLinesHeard;
+	private boolean bootCompletionHeard;
 
 	/**
 	 * Resolves the self-test lines once.
@@ -81,17 +80,10 @@ final class TerminalOnboardingOverlay {
 				TerminalVisualTheme.DARK_BORDER);
 
 		int visible = TerminalOnboardingPolicy.visibleBootLines(elapsedMillis);
-		// Each check answers as it lands. Driven off the line count rather than off a clock of its
-		// own, so the sound is on the frame the line appears however the boot was resumed, and the
-		// comparison is what keeps it to once per line instead of once per frame. The loop catches
-		// up if several lines became visible between two frames.
-		while (bootLinesHeard < visible) {
-			if (bootLinesHeard == TerminalOnboardingPolicy.BOOT_LINE_COUNT - 1) {
-				TerminalClientAudio.bootComplete();
-			} else {
-				TerminalClientAudio.bootLine(bootLinesHeard);
-			}
-			bootLinesHeard++;
+		// Text reveals are silent, including catch-up frames after a stall.
+		if (!bootCompletionHeard && visible == TerminalOnboardingPolicy.BOOT_LINE_COUNT) {
+			bootCompletionHeard = true;
+			TerminalClientAudio.bootComplete();
 		}
 		int y = body.top() + 28;
 		for (int line = 0; line < visible; line++) {

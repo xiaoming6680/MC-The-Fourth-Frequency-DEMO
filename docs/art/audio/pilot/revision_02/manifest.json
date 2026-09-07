@@ -1,0 +1,701 @@
+{
+  "status": "awaiting_listening_feedback",
+  "method": "CC0 sample editing; no AI generation",
+  "sources": {
+    "owlish": {
+      "author": "OwlishMedia",
+      "page": "https://opengameart.org/content/sound-effects-pack",
+      "download": "https://opengameart.org/sites/default/files/Owlish%20Media%20Sound%20Effects.zip",
+      "license": "CC0-1.0",
+      "sha256": "57d7059fe2c0ea5f47c7554ace22a538ea22ab40bfc0906b71aa259afffd3d18"
+    },
+    "kenney_scifi": {
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/sci-fi-sounds",
+      "download": "https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip",
+      "license": "CC0-1.0",
+      "sha256": "119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04"
+    },
+    "kenney": {
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/impact-sounds",
+      "download": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+      "license": "CC0-1.0",
+      "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8"
+    }
+  },
+  "events": {
+    "world_interface_laser": {
+      "duration_seconds": 4.5,
+      "true_peak_dbfs": -4.015833439776013,
+      "loop_seam": null,
+      "sha256": "31960eccf624968c329b974c3dd26e9e84a35481044f2368f9b2c8d93f228517",
+      "layers": [
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/engineCircular_002.ogg",
+          "sha256": "5f364bd42269e111df1d421fa2b45f0b2f0cc99a873ceae2d55b34898ad0d779",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8946263194084167,
+          "label": "capacitor",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.8,
+          "highpass_hz": 450,
+          "lowpass_hz": 7800,
+          "reversed": false,
+          "pressure_rise": false,
+          "progressive_playback_rate": [
+            0.55,
+            1.55
+          ],
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.03
+            ],
+            [
+              1,
+              0.13
+            ],
+            [
+              2.8,
+              0.38
+            ],
+            [
+              4,
+              0.8
+            ],
+            [
+              4.46,
+              1
+            ],
+            [
+              4.5,
+              0.35
+            ]
+          ]
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/spaceEngineLow_002.ogg",
+          "sha256": "3b1adf8645a40c35fcad25eee224c82c9836dc443102a9af5586eb22cbedabcc",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9028361439704895,
+          "label": "power_bank",
+          "slice_start_seconds": 0,
+          "slice_seconds": 4.6,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.4,
+          "highpass_hz": 60,
+          "lowpass_hz": 900,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.07
+            ],
+            [
+              2.5,
+              0.22
+            ],
+            [
+              4.4,
+              0.75
+            ],
+            [
+              4.5,
+              0.1
+            ]
+          ]
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/forceField_001.ogg",
+          "sha256": "5574e69dd04e5f59322c5ddffde5978f077b09170ae5e29cec0bd9901828cd90",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9007947444915771,
+          "label": "final_lock",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 1.8,
+          "offset_seconds": 3.95,
+          "gain": 0.2,
+          "highpass_hz": 1200,
+          "lowpass_hz": 8500,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    },
+    "world_interface_laser_fire": {
+      "duration_seconds": 2.2,
+      "true_peak_dbfs": -3.8349936041316877,
+      "loop_seam": null,
+      "sha256": "4ea20cb0547dbf7fd07c7193f1d68cba8f1fe1ea67a282b93a35b33bbd1ad275",
+      "layers": [
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/laserLarge_000.ogg",
+          "sha256": "a56d95794cd732d6c2d66ce488c14cf557fe526c282897c9a77675c2bd9b77e6",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8975624442100525,
+          "label": "arc_release",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.82,
+          "offset_seconds": 0,
+          "gain": 0.95,
+          "highpass_hz": 230,
+          "lowpass_hz": 10500,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/lowFrequency_explosion_001.ogg",
+          "sha256": "cdda50600a4928f2f1b8371224d53c171ac799c1cf2c30b11999508985250b3b",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9086759090423584,
+          "label": "pressure_front",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.85,
+          "offset_seconds": 0,
+          "gain": 0.54,
+          "highpass_hz": 35,
+          "lowpass_hz": 250,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/thrusterFire_001.ogg",
+          "sha256": "924636edc923fe4aab5829b69dc5dc1c5d659dec5739865434dabee752a3bb79",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9021978974342346,
+          "label": "ion_tail",
+          "slice_start_seconds": 0,
+          "slice_seconds": 1.5,
+          "speed": 1,
+          "offset_seconds": 0.02,
+          "gain": 0.3,
+          "highpass_hz": 900,
+          "lowpass_hz": 9000,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              1
+            ],
+            [
+              0.1,
+              0.6
+            ],
+            [
+              0.6,
+              0.15
+            ],
+            [
+              1.4,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    "world_interface_laser_loop": {
+      "duration_seconds": 2.8,
+      "true_peak_dbfs": -7.7719045097122095,
+      "loop_seam": 0.0007379418238997459,
+      "sha256": "060498af8e48bf9504dc0387a01a798872d2b0df7cf59a95e63804301eda854e",
+      "layers": [
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/thrusterFire_002.ogg",
+          "sha256": "5f7731c30196d73777d62eec7cb36a28bf63852e70244057b7625b888e71a3a8",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8956925272941589,
+          "label": "cutting_plasma",
+          "slice_start_seconds": 0.5,
+          "slice_seconds": 3.4,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.7,
+          "highpass_hz": 600,
+          "lowpass_hz": 10500,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/engineCircular_001.ogg",
+          "sha256": "e1df3a942842a24f7c4056db3177e8008edd73d4f3985fd95f55362bc85058bc",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.897243857383728,
+          "label": "focused_carrier",
+          "slice_start_seconds": 0.4,
+          "slice_seconds": 3.3,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.48,
+          "highpass_hz": 180,
+          "lowpass_hz": 4300,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/spaceEngineLow_001.ogg",
+          "sha256": "307dfd8fbfe7e6f2d59dec4de445cf02bd4fff86005803096b8c95e333836a70",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8996620178222656,
+          "label": "power_core",
+          "slice_start_seconds": 0.6,
+          "slice_seconds": 3.3,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.23,
+          "highpass_hz": 45,
+          "lowpass_hz": 300,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    },
+    "world_interface_laser_impact": {
+      "duration_seconds": 0.8,
+      "true_peak_dbfs": -3.9232624458706726,
+      "loop_seam": null,
+      "sha256": "f4ddcff951ca38fb3c21b7c5b7568f51d93183df0859b8572302ba63ca47aeaf",
+      "layers": [
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/explosionCrunch_000.ogg",
+          "sha256": "4b597d658d0ae101f0a030fbeea5fc3a4292ab85f017470a8254a8e7959cbd69",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8957973122596741,
+          "label": "fracture",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.72,
+          "highpass_hz": 180,
+          "lowpass_hz": 8500,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney",
+          "member": "Audio/impactMining_003.ogg",
+          "sha256": "4237fa2cd80364ad81cd0af44f67d7497f1c5edcc7bdb02cd22be2ba4580c83d",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8893235921859741,
+          "label": "hot_shards",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 1,
+          "offset_seconds": 0.025,
+          "gain": 0.35,
+          "highpass_hz": 1600,
+          "lowpass_hz": 14000,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    },
+    "world_interface_laser_release": {
+      "duration_seconds": 0.7,
+      "true_peak_dbfs": -4.053426860795206,
+      "loop_seam": null,
+      "sha256": "c59f1bad889ee092f9db600876ea057e650301b6c93203f1c898f2aa61cd8a51",
+      "layers": [
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/laserLarge_003.ogg",
+          "sha256": "3c7b3c9d856ee31fa1b92d29322f6ee472446627381595baeaba2af35c07135f",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8978714346885681,
+          "label": "power_tail",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.8,
+          "offset_seconds": 0,
+          "gain": 0.65,
+          "highpass_hz": 350,
+          "lowpass_hz": 7000,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.7
+            ],
+            [
+              0.15,
+              0.45
+            ],
+            [
+              0.65,
+              0
+            ]
+          ]
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/thrusterFire_002.ogg",
+          "sha256": "5f7731c30196d73777d62eec7cb36a28bf63852e70244057b7625b888e71a3a8",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8956925272941589,
+          "label": "spent_air",
+          "slice_start_seconds": 2,
+          "slice_seconds": 0.7,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.25,
+          "highpass_hz": 1000,
+          "lowpass_hz": 6000,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.7
+            ],
+            [
+              0.15,
+              0.5
+            ],
+            [
+              0.65,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    "world_interface_tendril": {
+      "duration_seconds": 1.6,
+      "true_peak_dbfs": -4.004777743977659,
+      "loop_seam": null,
+      "sha256": "048592e68cbb340cc849d75a4d6c126ec2d2f68465cb5dfd9b3a24a8850ce471",
+      "layers": [
+        {
+          "pack": "owlish",
+          "member": "Impacts/scrape2.wav",
+          "sha256": "923ab149cb912995bc140370f20c99275c92687a160c767a3d122261cf6a8821",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "PCM_16",
+          "source_peak": 0.154541015625,
+          "label": "structural_load",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.64,
+          "offset_seconds": 0,
+          "gain": 0.22,
+          "highpass_hz": 90,
+          "lowpass_hz": 2400,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.4
+            ],
+            [
+              0.6,
+              0.7
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/thrusterFire_000.ogg",
+          "sha256": "0fdc474d93f209debf1fc4ea77765a669dcb7676db31b4d8a0a509685bccf374",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8910497426986694,
+          "label": "displaced_air",
+          "slice_start_seconds": 1,
+          "slice_seconds": 0.85,
+          "speed": 0.75,
+          "offset_seconds": 0.48,
+          "gain": 0.9,
+          "highpass_hz": 65,
+          "lowpass_hz": 2100,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0
+            ],
+            [
+              0.25,
+              0.08
+            ],
+            [
+              0.65,
+              0.65
+            ],
+            [
+              0.93,
+              1
+            ],
+            [
+              1.12,
+              0.2
+            ]
+          ]
+        },
+        {
+          "pack": "owlish",
+          "member": "Cloth, Rustle/320138__owlstorm__blanket-movement-2.wav",
+          "sha256": "797e3917079898e11c8597721d9747cd619fc61a59fb9bfaf0e253b72d68d65b",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "PCM_16",
+          "source_peak": 0.20196533203125,
+          "label": "edge_whoosh",
+          "slice_start_seconds": 0.35,
+          "slice_seconds": 0.55,
+          "speed": 0.95,
+          "offset_seconds": 0.95,
+          "gain": 0.26,
+          "highpass_hz": 650,
+          "lowpass_hz": 6500,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    },
+    "world_interface_tendril_strike": {
+      "duration_seconds": 1.1,
+      "true_peak_dbfs": -3.908926436377476,
+      "loop_seam": null,
+      "sha256": "b8eefba7f3d750a885318706af3d5a02b854ad17e06bb05dbafd7f3f774dad0b",
+      "layers": [
+        {
+          "pack": "kenney",
+          "member": "Audio/impactWood_heavy_001.ogg",
+          "sha256": "f1b07a53ac10c615fff9ba470511fdeb722b5902e1a8520759fc20ad6f546015",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8981752395629883,
+          "label": "solid_contact",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.52,
+          "offset_seconds": 0,
+          "gain": 0.95,
+          "highpass_hz": 40,
+          "lowpass_hz": 4200,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/lowFrequency_explosion_000.ogg",
+          "sha256": "3cb48d86dab63140cfb9aaeea4d4a6846abaca5831d157d8adbec0490da26343",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9018810987472534,
+          "label": "ground_mass",
+          "slice_start_seconds": 0,
+          "slice_seconds": 1.15,
+          "speed": 1,
+          "offset_seconds": 0,
+          "gain": 0.68,
+          "highpass_hz": 28,
+          "lowpass_hz": 180,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.85
+            ],
+            [
+              0.07,
+              1
+            ],
+            [
+              0.4,
+              0.45
+            ],
+            [
+              1.1,
+              0
+            ]
+          ]
+        },
+        {
+          "pack": "kenney_scifi",
+          "member": "Audio/explosionCrunch_003.ogg",
+          "sha256": "8c7197bb3a1c504690319c3abe0e62a5423ee246dd70caab57963d0b7aa8144f",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.893328070640564,
+          "label": "stone_break",
+          "slice_start_seconds": 0,
+          "slice_seconds": 0.85,
+          "speed": 1,
+          "offset_seconds": 0.025,
+          "gain": 0.42,
+          "highpass_hz": 350,
+          "lowpass_hz": 6500,
+          "reversed": false,
+          "pressure_rise": false
+        },
+        {
+          "pack": "kenney",
+          "member": "Audio/impactMining_004.ogg",
+          "sha256": "8ca3a99d85d845751ad8ce7b40509da58263a62e48cde70e5a30b5ccef4c9a3b",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.9005687832832336,
+          "label": "falling_grit",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 1,
+          "offset_seconds": 0.16,
+          "gain": 0.22,
+          "highpass_hz": 1200,
+          "lowpass_hz": 9500,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    },
+    "world_interface_tendril_recover": {
+      "duration_seconds": 0.65,
+      "true_peak_dbfs": -3.7921735870110846,
+      "loop_seam": null,
+      "sha256": "54e6928a1793dcf5569a38d849170785c65729dc58423d8e3e0089f336b2e8e8",
+      "layers": [
+        {
+          "pack": "owlish",
+          "member": "Impacts/scrape2.wav",
+          "sha256": "923ab149cb912995bc140370f20c99275c92687a160c767a3d122261cf6a8821",
+          "source_rate": 44100,
+          "source_channels": 1,
+          "source_subtype": "PCM_16",
+          "source_peak": 0.154541015625,
+          "label": "weight_drag",
+          "slice_start_seconds": 0,
+          "slice_seconds": 0.85,
+          "speed": 1.05,
+          "offset_seconds": 0,
+          "gain": 0.9,
+          "highpass_hz": 70,
+          "lowpass_hz": 4200,
+          "reversed": false,
+          "pressure_rise": false,
+          "envelope_seconds_gain": [
+            [
+              0,
+              0.5
+            ],
+            [
+              0.15,
+              1
+            ],
+            [
+              0.5,
+              0.45
+            ],
+            [
+              0.65,
+              0
+            ]
+          ]
+        },
+        {
+          "pack": "kenney",
+          "member": "Audio/impactMining_002.ogg",
+          "sha256": "059558ec751115ca6b1441e00f0adc837c1a3eeb0a066b109e0fd879fc5d0b0c",
+          "source_rate": 44100,
+          "source_channels": 2,
+          "source_subtype": "VORBIS",
+          "source_peak": 0.8715246915817261,
+          "label": "rubble_drag",
+          "slice_start_seconds": 0,
+          "slice_seconds": null,
+          "speed": 0.85,
+          "offset_seconds": 0,
+          "gain": 0.22,
+          "highpass_hz": 450,
+          "lowpass_hz": 6000,
+          "reversed": false,
+          "pressure_rise": false
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "mouth_laser": {
+      "order": [
+        "previous_pilot",
+        "revision_02"
+      ],
+      "integrated_lufs": [
+        -21.98,
+        -22.0
+      ],
+      "note": "Equal-loudness near-field edit, not a game capture."
+    },
+    "tendril_strike": {
+      "order": [
+        "previous_pilot",
+        "revision_02"
+      ],
+      "integrated_lufs": [
+        -22.01,
+        -22.0
+      ],
+      "note": "Equal-loudness near-field edit, not a game capture."
+    }
+  }
+}

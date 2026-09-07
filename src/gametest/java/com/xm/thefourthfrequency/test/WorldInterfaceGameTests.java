@@ -784,6 +784,18 @@ public final class WorldInterfaceGameTests implements CustomTestMethodInvoker {
 							+ ", attackStatus=" + laserTick.status()
 							+ ", damageApplied=" + laserTick.replacementEnvelope()
 									.map(WorldInterfaceState.AttackEnvelope::damageApplied).orElse(false));
+			target.invulnerableTime = 0;
+			before = target.getHealth();
+			var recovery = WorldInterfaceAttackService.tick(end, boss, snapshot,
+					com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_END_TICK);
+			helper.assertTrue(target.getHealth() == before,
+					"The first recovery tick must not burn while the jaw closes");
+			helper.assertTrue(recovery.status() == WorldInterfaceAttackService.AttackStatus.CONTINUE,
+					"The attack must retain its animation envelope through recovery");
+			var finished = WorldInterfaceAttackService.tick(end, boss, snapshot,
+					com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_DURATION_TICKS);
+			helper.assertTrue(finished.status() == WorldInterfaceAttackService.AttackStatus.COMPLETE,
+					"The action must finish when the recovery pose reaches rest");
 			snapshot = cancelAndClearAttack(server, encounterId);
 
 			// 2: energy orb -- the core charges first, then a dedicated transient entity is spawned,

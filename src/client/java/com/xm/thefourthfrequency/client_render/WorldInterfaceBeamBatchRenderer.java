@@ -133,6 +133,9 @@ public final class WorldInterfaceBeamBatchRenderer {
 	 */
 	private static final List<Vec3> laserTrail = new ArrayList<>();
 	private static long lastLaserSampleTick = Long.MIN_VALUE;
+	private static long lastLaserActionStart = Long.MIN_VALUE;
+	private static Vec3 lastLaserEnd;
+	private static Vec3 lastLaserAimOrigin;
 	private static Vec3 lanceImpact;
 
 	private WorldInterfaceBeamBatchRenderer() {
@@ -152,6 +155,9 @@ public final class WorldInterfaceBeamBatchRenderer {
 		cachedScanEncounterId = null;
 		laserTrail.clear();
 		lastLaserSampleTick = Long.MIN_VALUE;
+		lastLaserActionStart = Long.MIN_VALUE;
+		lastLaserEnd = null;
+		lastLaserAimOrigin = null;
 		lanceImpact = null;
 	}
 
@@ -232,8 +238,9 @@ public final class WorldInterfaceBeamBatchRenderer {
 						float release = age-warning;
 						pressureRing(beams,socket,targetPoint.subtract(socket),release,18,mass*.9F,r,g,b);
 						if(action.action()==WorldInterfaceProtocol.BossAction.LASER_SWEEP) {
-							Vec3 end = laserEnd(level,boss,action,tick,partial);
-							Vec3 impact = groundUnder(level,WorldInterfacePhasePressure.swingAroundY(mouth,end,
+							// extractLaser has sampled (or frozen) this shot before atmospheric accents.
+							if (lastLaserEnd == null || lastLaserAimOrigin == null) continue;
+							Vec3 impact = groundUnder(level,WorldInterfacePhasePressure.swingAroundY(lastLaserAimOrigin,lastLaserEnd,
 									WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(),barrel)));
 							pressureRing(beams,impact.add(0,.17,0),new Vec3(0,1,0),release,55,11+boss.form()*3,r,g,b);
 							fractureSparks(beams,impact,release,life,r,g,b);
@@ -422,13 +429,24 @@ public final class WorldInterfaceBeamBatchRenderer {
 			List<Beam> beams, List<Halo> halos) {
 		BossActionS2C action = projection.action();
 		if (action == null || action.action() != WorldInterfaceProtocol.BossAction.LASER_SWEEP) return;
-		// Deliberately not Projection#actionActive: the envelope closes one tick after the sweep, and
-		// the afterglow is exactly the part a player looks at.
+		// Ground heat outlives emission and the body's recovery.
 		float age = gameTime - action.startTick() + partialTick;
 		if (age < 0.0F || age > LASER_FIRE_TICKS) return;
 
-		Vec3 primaryEnd = laserEnd(level, boss, action, gameTime, partialTick);
-		Vec3 aimOrigin = WorldInterfaceAnatomy.mouthOrigin(boss, 0, partialTick);
+		if (lastLaserActionStart != action.startTick()) {
+			lastLaserActionStart = action.startTick();
+			laserTrail.clear();
+			lastLaserSampleTick = Long.MIN_VALUE;
+			lastLaserEnd = null;
+			lastLaserAimOrigin = null;
+		}
+		boolean emitting = age < com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_END_TICK;
+		if (emitting || lastLaserEnd == null) {
+			lastLaserEnd = laserEnd(level, boss, action, gameTime, partialTick);
+			lastLaserAimOrigin = WorldInterfaceAnatomy.mouthOrigin(boss, 0, partialTick);
+		}
+		Vec3 primaryEnd = lastLaserEnd;
+		Vec3 aimOrigin = lastLaserAimOrigin;
 		int red = WorldInterfacePalette.red255(band);
 		int green = WorldInterfacePalette.green255(band);
 		int blue = WorldInterfacePalette.blue255(band);
@@ -488,6 +506,15 @@ public final class WorldInterfaceBeamBatchRenderer {
 				: Math.clamp(1.0F - (fired - sweep)
 						/ Math.max(1.0F, WorldInterfaceProtocol.LASER_AFTERGLOW_TICKS), 0.0F, 1.0F);
 		float flare = fired <= LASER_FLARE_TICKS ? 1.0F - fired / LASER_FLARE_TICKS : 0.0F;
+		if (fired >= sweep) {
+			// The mouth is closing now. Residual heat stays at the last contact point;
+			// it must not masquerade as a live shaft attached to the recovering jaw.
+			halos.add(new Halo(end.x, end.y, end.z, 2.4F * widthScale * fade,
+					255, 255, 255, Math.round(190 * fade)));
+			halos.add(new Halo(end.x, end.y, end.z, 6.0F * widthScale * fade,
+					red, green, blue, Math.round(110 * fade)));
+			return;
+		}
 		// A slow boil along the shaft, so a beam held for two seconds is alive rather than a
 		// static bar hanging in the air.
 		float boil = 0.90F + 0.10F * Mth.sin(age * 0.85F);

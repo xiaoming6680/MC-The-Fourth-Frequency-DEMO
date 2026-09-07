@@ -510,6 +510,8 @@ public final class WorldInterfaceRig {
 	 */
 	public static float actionCharge(int actionId, long actionAgeMillis) {
 		if (actionId <= 0 || actionAgeMillis < 0L) return -1.0F;
+		if (actionId == WorldInterfaceProtocol.BossAction.LASER_SWEEP.wireId())
+			return WorldInterfaceAttackMotion.laserCharge(actionAgeMillis);
 		long chargeMillis = switch(actionId) {
 			case 1 -> WorldInterfaceProtocol.LASER_WARNING_TICKS * 50L;
 			case 2 -> WorldInterfaceProtocol.ORB_WARNING_TICKS * 50L;
@@ -728,9 +730,10 @@ public final class WorldInterfaceRig {
 						float seconds = actionMillis / 1000.0F;
 						for (int strike = 0; strike < 3; strike++) {
 							if (limb != strike % WorldInterfaceAnatomy.tentacleCount(form)) continue;
-							float t = seconds - ((com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_WARNING_TICKS + com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_STRIKE_TELEGRAPH_TICKS + strike * com.xm.thefourthfrequency.networking.WorldInterfaceProtocol.TENDRIL_STRIKE_INTERVAL_TICKS) / 20.0F) - serial * 0.018F;
+							float t = seconds - WorldInterfaceAttackMotion.tendrilJointContactSeconds(strike,
+									serial, FLEX_JOINTS_PER_LINK * TENDRIL_LINK_SUFFIXES.length);
 							float snap = bell(t, -0.95F, -0.20F, 0.0F) * -0.13F
-									+ bell(t, -0.14F, 0.08F, 0.32F) * 0.24F
+									+ bell(t, -0.14F, 0.0F, 0.32F) * 0.24F
 									- bell(t, 0.25F, 0.5F, 0.85F) * 0.10F;
 							bend.xRot += snap * (0.40F + serial * 0.026F);
 						}

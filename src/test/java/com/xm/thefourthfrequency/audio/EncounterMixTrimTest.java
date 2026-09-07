@@ -68,7 +68,8 @@ final class EncounterMixTrimTest {
 	@Test
 	void everyAuthoredEncounterCuePassesThroughTheTrim() throws Exception {
 		String server = code(SERVER_MIXER);
-		assertTrue(body(server, "public static void playBounded(").contains(TRIM),
+		assertTrue(body(server, "public static void playBounded(").contains("Vec3.atCenterOf"));
+		assertTrue(body(server, "public static void playBounded(ServerLevel level, Vec3").contains(TRIM),
 				"the server's encounter cues must be mixed into the encounter's headroom");
 
 		String client = code(CLIENT_MIXER);

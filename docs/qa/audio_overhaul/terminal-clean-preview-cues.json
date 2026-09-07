@@ -1,0 +1,32 @@
+[
+  {
+    "seconds": 0,
+    "label": "打开",
+    "source": "device/terminal/raise/01"
+  },
+  {
+    "seconds": 0.67,
+    "label": "主动按键",
+    "source": "device/terminal/password/01"
+  },
+  {
+    "seconds": 1.21,
+    "label": "切页",
+    "source": "device/terminal/click/01"
+  },
+  {
+    "seconds": 1.81,
+    "label": "完成",
+    "source": "device/terminal/boot_complete/01"
+  },
+  {
+    "seconds": 2.56,
+    "label": "拒绝操作",
+    "source": "device/terminal/fault/01"
+  },
+  {
+    "seconds": 3.23,
+    "label": "收起",
+    "source": "device/terminal/lower/01"
+  }
+]

@@ -23,7 +23,9 @@ final class StormAttackMotionTest {
 		long fire=WorldInterfaceProtocol.LASER_WARNING_TICKS*50L;
 		assertTrue(WorldInterfaceRig.actionCharge(1,fire-500)>WorldInterfaceRig.actionCharge(1,2000));
 		assertEquals(1,WorldInterfaceRig.actionCharge(1,fire),1e-6);
-		assertTrue(WorldInterfaceRig.actionCharge(1,fire+400)>0);
-		assertEquals(-1,WorldInterfaceRig.actionCharge(1,fire+WorldInterfaceRig.ACTION_CHARGE_RELEASE_MILLIS));
+		long end = WorldInterfaceAttackMotion.LASER_END_TICK * 50L;
+		assertEquals(1,WorldInterfaceRig.actionCharge(1,end-1),1e-6);
+		assertTrue(WorldInterfaceRig.actionCharge(1,end+400)>0);
+		assertEquals(-1,WorldInterfaceRig.actionCharge(1,WorldInterfaceAttackMotion.LASER_DURATION_TICKS*50L));
 	}
 }

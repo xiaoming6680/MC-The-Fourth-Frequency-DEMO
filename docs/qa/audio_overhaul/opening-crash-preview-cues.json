@@ -1,0 +1,12 @@
+[
+  {
+    "seconds": 0,
+    "label": "提示音异常",
+    "source": "client/alpha_corruption/warning/01"
+  },
+  {
+    "seconds": 1.55,
+    "label": "音频缓冲卡住后切断",
+    "source": "client/alpha_corruption/collapse/01"
+  }
+]

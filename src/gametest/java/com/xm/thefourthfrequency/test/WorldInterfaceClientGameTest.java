@@ -82,6 +82,7 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 		if (!ClientGameTestSelection.current().runsWorldInterface()) return;
 		assertWireContract();
 		assertEndingSourceContracts();
+		assertLaserRecoveryGeometry();
 		context.waitForScreen(TitleScreen.class);
 		selectChineseLanguage(context);
 		context.runOnClient(client -> {
@@ -882,6 +883,32 @@ public final class WorldInterfaceClientGameTest implements FabricClientGameTest 
 					&& projection.poem().sequence() == sequence && projection.poem().outcome() == outcome
 					&& projection.poem().destroyedAnchors() == destroyedAnchors;
 		}, 160);
+	}
+
+	private static void assertLaserRecoveryGeometry() {
+		try {
+			var renderer = com.xm.thefourthfrequency.client_render.WorldInterfaceBeamBatchRenderer.class;
+			var method = renderer.getDeclaredMethod("extractLaserBarrel", WorldInterfaceEntity.class,
+					net.minecraft.world.phys.Vec3.class, net.minecraft.world.phys.Vec3.class,
+					BossActionS2C.class, float.class, double.class, float.class,
+					int.class, int.class, int.class, List.class, List.class);
+			method.setAccessible(true);
+			var beams = new ArrayList<>();
+			var halos = new ArrayList<>();
+			var origin = new net.minecraft.world.phys.Vec3(0, 15, 0);
+			var impact = new net.minecraft.world.phys.Vec3(20, 0, 0);
+			float cutoff = com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_END_TICK;
+			method.invoke(null, null, origin, impact, null, cutoff - .01F, 2.0D, 1.0F,
+					130, 60, 220, beams, halos);
+			if (beams.isEmpty()) throw new AssertionError("Live damage window lost its visible shaft");
+			beams.clear(); halos.clear();
+			method.invoke(null, null, origin, impact, null, cutoff, 2.0D, 1.0F,
+					130, 60, 220, beams, halos);
+			if (!beams.isEmpty() || halos.isEmpty())
+				throw new AssertionError("Recovery must retain ground heat without a live mouth shaft");
+		} catch (ReflectiveOperationException exception) {
+			throw new AssertionError("Could not exercise the actual beam extractor", exception);
+		}
 	}
 
 	private static void assertWireContract() {

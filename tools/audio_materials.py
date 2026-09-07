@@ -1,14 +1,50 @@
-"""Original, deterministic physical/spectral sound materials. No sampled or licensed audio.
+"""Original sound materials and edits of the first project opening cues.
 
 Dependencies: numpy, scipy. Voices are filtered pulse trains (no intelligible speech),
 foley is granular resonant noise. Durations/impact landmarks belong to the calling score.
 """
 from __future__ import annotations
 import hashlib
+from pathlib import Path
+from functools import lru_cache
 import numpy as np
 from scipy.signal import butter, sosfilt, iirpeak, lfilter
 
 RATE = 44100
+
+
+@lru_cache(maxsize=2)
+def opening_source(cue):
+    import soundfile as sf
+    path=Path(__file__).resolve().parents[1]/'docs/art/audio/opening/originals'/(cue+'.ogg')
+    x,rate=sf.read(path)
+    assert rate==RATE and x.ndim==1
+    return x
+
+
+def opening_feedback(name,duration,variant):
+    """Re-edit the first shipped opening cues; preserve their tone instead of synthesizing a new one."""
+    n=round(duration*RATE)
+    if name.endswith('warning'):
+        source=opening_source('warning')
+        start=round((.25+(variant-1)*.02)*RATE)
+        x=source[start:start+n].copy()
+        return (x*env(n,.015,.025)).astype(np.float32)
+    source=opening_source('collapse')
+    frame=round(.074*RATE)
+    start=round(.52*RATE)+(variant-1)*frame
+    held=source[start:start+frame].copy()
+    held-=held.mean()
+    edge=round(.001*RATE)
+    held[:edge]*=np.linspace(0,1,edge); held[-edge:]*=np.linspace(1,0,edge)
+    x=np.tile(held,int(np.ceil(n/frame)))[:n]
+    # Keep a piece of the original onset before the buffer catches.
+    lead=round(.28*RATE); transition=round(.016*RATE)
+    original=source[:lead].copy()
+    blend=np.linspace(0,1,transition)
+    original[-transition:]=original[-transition:]*(1-blend)+x[lead-transition:lead]*blend
+    x[:lead]=original
+    return (x*env(n,.008,.005)).astype(np.float32)
 
 
 def rng_for(name, variant):
@@ -85,7 +121,36 @@ def circular(x):
     return y
 
 
+def terminal_feedback(name, duration, variant, loop):
+    """Dry device feedback: no noise, distortion, sub hits or room tail."""
+    n = round(duration * RATE)
+    t = np.arange(n) / RATE
+    x = np.zeros(n)
+    if loop:
+        # Integer cycles preserve the loop join; this is only audible during dial input.
+        frequency = round(420 * duration) / duration
+        return (.8*np.sin(2*np.pi*frequency*t) + .12*np.sin(4*np.pi*frequency*t)).astype(np.float32)
+    def note(start, length, frequency, gain=1):
+        a = round(start*RATE); size = min(round(length*RATE), n-a)
+        if size <= 0: return
+        u = np.arange(size)/RATE
+        envelope = np.sin(np.pi*np.arange(size)/max(1,size-1))**2 * np.exp(-u*12)
+        x[a:a+size] += gain*envelope*(np.sin(2*np.pi*frequency*u)+.08*np.sin(4*np.pi*frequency*u))
+    frequencies = {'keypress':750,'click':610,'detent':480,'boot_line':820,
+                   'raise':460,'lower':390,'lock':700,'fault':350,'anomaly':520,'boot_complete':660}
+    key = name.removeprefix('terminal_')
+    frequency = frequencies.get(key,600)*(1+(variant-2)*.012)
+    note(0, min(duration,.11), frequency)
+    if key in ('boot_complete','lock'): note(duration*.48,min(.12,duration*.48),frequency*1.25,.65)
+    if key in ('fault','anomaly'): note(duration*.52,min(.12,duration*.46),frequency*.85,.55)
+    return x.astype(np.float32)
+
+
 def make(name, duration, variant=1, loop=False, channel=0):
+    if name.startswith('terminal_'):
+        return terminal_feedback(name,duration,variant,loop)
+    if name.startswith('alpha_corruption_'):
+        return opening_feedback(name,duration,variant)
     rng = rng_for(name, variant * 7 + channel)
     n = round(duration * RATE)
     t = np.arange(n) / RATE
@@ -123,34 +188,9 @@ def make(name, duration, variant=1, loop=False, channel=0):
         x = .45*np.sin(2*np.pi*853*t) + .45*np.sin(2*np.pi*960*t)
         x *= .78+.22*np.sin(t*7.1)**2
         x += .09*grain(n,rng,350,3300,28)
-    elif name.startswith("alpha_corruption_"):
-        x = .5*cavity(n,rng,79) + .45*grain(n,rng,180,6500,34)
-        if "collapse" in name:
-            length = int(RATE*(.021 + variant*.003))
-            buffer = x[:length]*np.hanning(length)
-            jam = np.tile(buffer,int(np.ceil(n/length)))[:n]
-            cross = np.clip((t-.24)/.18,0,1)
-            x = x*(1-cross)+jam*cross
-        elif variant%3==1: x *= (.25+.75*(np.sin(t*47)>0))
-        elif variant%3==2: x *= 1-.8*np.exp(-((t-duration*.52)/.1)**2)
-        else: x += .2*np.sin(2*np.pi*211*t)*np.exp(-t*3)
     elif "lock_search" in name or "dispossess" in name:
         freq = 880 if "search" in name else 310
         x = .75*np.sin(2*np.pi*freq*t) + .12*np.sin(2*np.pi*freq*1.501*t)
-    elif name.startswith("terminal_"):
-        if any(k in name for k in ("fault","anomaly")):
-            x = .42*grain(n,rng,300,7000,55) + .18*cavity(n,rng,93)
-        elif any(k in name for k in ("raise","lower","boot_complete")):
-            x = .55*grain(n,rng,120,3000,20)*np.sin(np.pi*t/duration)**2
-            at = int(n*.72)
-            x[at:] += .6*strike(n-at,rng,.35)
-            if "complete" in name: x += .16*np.sin(2*np.pi*(650*t+180*t*t))*np.exp(-t*4)
-        else:
-            mass = .24 if "keypress" in name else .4
-            x = .5*strike(n,rng,mass)*np.exp(-t*18)
-            at = min(n-1,int(.026*RATE))
-            x[at:] += .22*strike(n-at,rng,mass)*np.exp(-t[:n-at]*28)
-            if "boot_line" in name: x += .12*np.sin(2*np.pi*1170*t)*np.exp(-t*30)
     elif "heartbeat" in name:
         x = .75*strike(n,rng,1.3)*np.exp(-t*14)
         at = int(.23*RATE)

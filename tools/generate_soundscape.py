@@ -25,8 +25,8 @@ ASSETS = ROOT / 'src/main/resources/assets/thefourthfrequency'
 REPORT = ROOT / 'docs/art/audio/soundscape_manifest.json'
 # id: variants, duration, radius, Chinese subtitle, English subtitle
 ADDITIONS = {
-    'terminal_raise': (3,.55,16,'终端抬起','Terminal raised'),
-    'terminal_lower': (3,.45,16,'终端收起','Terminal lowered'),
+    'terminal_raise': (3,.22,16,'终端抬起','Terminal raised'),
+    'terminal_lower': (3,.18,16,'终端收起','Terminal lowered'),
     'lock_search': (1,.075,16,'信号正在锁定','Signal locking'),
     'dispossess': (1,.18,16,'信号正在抽离','Signal draining'),
     'watcher_vanish': (3,1.5,64,'空气短暂塌陷','Air briefly collapses'),
@@ -104,8 +104,8 @@ def specification(event, path):
         beds={'signal_carrier':11.65,'signal_static':14.05,'signal_tape_hiss':18.25,'signal_dead_air':19.6}
         return beds.get(event,20 if event=='unrendered_layer_ambience' else 8),True,2 if event in beds else 1
     durations = {'terminal_click':.15,'terminal_keypress':.09,'terminal_detent':.11,
-                 'terminal_boot_line':.14,'terminal_boot_complete':.58,'terminal_lock':.28,
-                 'terminal_fault':.6,'terminal_anomaly':1.8,'unrendered_heartbeat':1,
+                 'terminal_boot_line':.14,'terminal_boot_complete':.30,'terminal_lock':.16,
+                 'terminal_fault':.22,'terminal_anomaly':.40,'unrendered_heartbeat':1,
                  'signal_tuning_sweep':3,'unrendered_capture_scream':2.4,'pursuit_capture_scream':2.1,
                  'alpha_corruption_warning':1.1,'alpha_corruption_collapse':2.4}
     return durations.get(event,.65 if event.startswith('layer_') else 1.5),False,2 if event in ('signal_carrier_lost','signal_tuning_sweep') else 1
@@ -135,15 +135,21 @@ def measure(path, duration, loop, channels):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--verify-only',action='store_true')
+    parser.add_argument('--terminal-only',action='store_true',help='Rebuild terminal cues, retaining all other shipped audio')
+    parser.add_argument('--opening-only',action='store_true',help='Rebuild the opening warning and frozen-buffer cues')
     args=parser.parse_args()
     sounds=read(ASSETS/'sounds.json') if args.verify_only else configure()
     ffmpeg=Path(imageio_ffmpeg.get_ffmpeg_exe())
-    entries={}
+    partial=args.terminal_only or args.opening_only
+    if args.verify_only and partial: parser.error('Use --verify-only for the complete manifest')
+    entries=read(REPORT)['files'] if partial else {}
     for event,definition in sounds.items():
         if event.startswith('music_'): continue
+        if partial and not ((args.terminal_only and event.startswith('terminal_'))
+                            or (args.opening_only and event.startswith('alpha_corruption_'))): continue
         for i,entry in enumerate(definition['sounds'],1):
             path=(entry if isinstance(entry,str) else entry['name']).split(':',1)[1]
-            if path in entries: continue
+            if path in entries and not partial: continue
             duration,loop,channels=specification(event,path)
             file=ASSETS/'sounds'/f'{path}.ogg'
             if not args.verify_only:
@@ -158,9 +164,10 @@ def main():
                     tier={'terminal_carrier':-28,'signal_carrier':-24,'signal_static':-24,
                           'signal_tape_hiss':-24,'signal_dead_air':-32,'signal_alert':-6,
                           'signal_tuning_sweep':-9,'signal_carrier_lost':-9,
-                          'alpha_corruption_warning':-7,'alpha_corruption_collapse':-2,
+                          'alpha_corruption_warning':-13,'alpha_corruption_collapse':-12,
                           'pursuit_capture_scream':-2,'unrendered_capture_scream':-1.5}
                     tier['unrendered_heartbeat']=-14
+                    if event.startswith('terminal_'): tier[event] = -30 if loop else -14
                     target=10**(tier.get(event,-9 if loop else -4)/20)
                     data *= target/max(1e-9,float(np.max(np.abs(data))))
                 boss.encode_to_peak(data,file,True,target,ffmpeg)

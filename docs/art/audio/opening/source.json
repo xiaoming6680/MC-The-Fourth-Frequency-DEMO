@@ -1,0 +1,17 @@
+{
+  "source_commit": "c735e5b5263845821b263f14d90134cc0439290a",
+  "source_version": "Beta 0.2.1 (first committed opening cues)",
+  "method": "Edits of the first project OGG assets (originally procedurally authored), frozen into 74 ms repetitions; no added tone or noise layers",
+  "files": {
+    "warning": {
+      "git_path": "src/main/resources/assets/thefourthfrequency/sounds/client/alpha_corruption/warning.ogg",
+      "sha256": "29ea58d6e75620e986a03c19d06fb1026e9147aad4881eb2d4c4cfe034ef78f4",
+      "bytes": 35581
+    },
+    "collapse": {
+      "git_path": "src/main/resources/assets/thefourthfrequency/sounds/client/alpha_corruption/collapse.ogg",
+      "sha256": "1d013e51ebcd4854b49faa18ffd53c7ebbf2bdea69df088d93dfb935afb83278",
+      "bytes": 23577
+    }
+  }
+}

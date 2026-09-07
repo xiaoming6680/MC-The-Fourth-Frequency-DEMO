@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
 
@@ -130,11 +131,17 @@ public final class AudioService {
 	/** Plays an authored encounter cue while honoring the same configured peak-volume ceiling. */
 	public static void playBounded(ServerLevel level, BlockPos position, SoundEvent event,
 			SoundSource source, float relativeVolume, float pitch) {
+		playBounded(level, net.minecraft.world.phys.Vec3.atCenterOf(position), event, source, relativeVolume, pitch);
+	}
+
+	/** Moving emitters keep their actual socket position instead of snapping to block centres. */
+	public static void playBounded(ServerLevel level, Vec3 position, SoundEvent event,
+			SoundSource source, float relativeVolume, float pitch) {
 		float volume = (float) Math.clamp(RuntimeServices.config().meta().peakVolume()
 				* Math.clamp(relativeVolume, 0.0F, 1.0F) * ENCOUNTER_MIX_TRIM, 0.0D, 1.0D);
 		if (volume <= 0.0F) return;
 		countCue(event);
-		level.playSound(null, position, event, source, volume, Math.clamp(pitch, 0.5F, 2.0F));
+		level.playSound(null, position.x, position.y, position.z, event, source, volume, Math.clamp(pitch, 0.5F, 2.0F));
 	}
 
 	/**

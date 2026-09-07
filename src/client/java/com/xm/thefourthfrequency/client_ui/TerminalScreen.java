@@ -655,7 +655,7 @@ public final class TerminalScreen extends Screen {
 		// Idempotent: starts the carrier the first time and only retunes it afterwards. Driven from
 		// the tick rather than from init so that it follows the stage the server is currently
 		// reporting, and so there is no ordering question about whether a snapshot had arrived yet.
-		TerminalClientAudio.carrierOn(snapshot.visualStage());
+		TerminalClientAudio.updatePanelStage(snapshot.visualStage());
 		tickCompletionHold();
 		tickUnreadAcknowledgement();
 		TerminalClientAudio.tick();
@@ -918,9 +918,7 @@ public final class TerminalScreen extends Screen {
 		if (key != onboardingSceneKey) {
 			onboardingSceneKey = key;
 			onboardingSceneStartedAtMillis = renderNowMillis;
-			// One soft contact per step. The seam is quiet enough that without it a scene change can
-			// be missed entirely by a player who happened to be looking at the slider.
-			TerminalClientAudio.keypress();
+			// Step text appears silently; only the player's own input produces a contact cue.
 		}
 		return renderNowMillis - onboardingSceneStartedAtMillis;
 	}
@@ -3003,7 +3001,6 @@ public final class TerminalScreen extends Screen {
 	 */
 	@Override
 	public void removed() {
-		TerminalClientAudio.carrierOff();
 		super.removed();
 	}
 

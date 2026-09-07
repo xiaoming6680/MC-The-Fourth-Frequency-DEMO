@@ -828,6 +828,9 @@ public final class WorldInterfaceAttackService {
 	 */
 	private static boolean tickLaser(ServerLevel level, WorldInterfaceEntity boss,
 			AttackRuntime runtime, long elapsed) {
+		if (elapsed >= com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_END_TICK) {
+			return elapsed >= com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_DURATION_TICKS;
+		}
 		ServerPlayer target = onlineTarget(level, runtime, 0);
 		if (target != null) runtime.recordAim(target.getEyePosition());
 		if (elapsed < LASER_WARNING_TICKS) {
@@ -851,7 +854,8 @@ public final class WorldInterfaceAttackService {
 		if (sweptTicks == 0L) {
 			// One cue however many beams leave, because it is one shot. Two samples fired on the
 			// same tick from the same core is a doubled sample, not a bigger gun.
-			AudioService.playBounded(level, BlockPos.containing(start),
+			AudioService.playBounded(level, WorldInterfaceAnatomy.mouthOrigin(boss,
+					WorldInterfacePhasePressure.laserHead(boss.form(), 0)),
 					ModSounds.WORLD_INTERFACE_LASER_FIRE, SoundSource.HOSTILE, 1.0F, 1.0F);
 			runtime.damageApplied = true;
 		}
@@ -866,7 +870,7 @@ public final class WorldInterfaceAttackService {
 					WorldInterfacePhasePressure.laserBeamYawOffset(boss.form(), index)));
 			sweepBeam(level, boss, runtime, mouth, end, sweptTicks, index, burned);
 		}
-		return elapsed >= LASER_WARNING_TICKS + LASER_SWEEP_TICKS;
+		return false;
 	}
 
 	/**
@@ -1540,7 +1544,7 @@ public final class WorldInterfaceAttackService {
 		}
 		long sinceWarning = elapsed - TENDRIL_WARNING_TICKS;
 		long total = (long) TENDRIL_STRIKE_INTERVAL_TICKS * TENDRIL_STRIKE_COUNT;
-		if (sinceWarning >= total) return true;
+		if (sinceWarning >= total) return elapsed >= com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS;
 		long phase = sinceWarning % TENDRIL_STRIKE_INTERVAL_TICKS;
 
 		if (phase == 0L) {
@@ -1597,7 +1601,8 @@ public final class WorldInterfaceAttackService {
 			// carries the warning; the ticking is only there so it is noticed.
 			return false;
 		}
-		if (phase == TENDRIL_STRIKE_TELEGRAPH_TICKS + 5L) {
+		if (phase == TENDRIL_STRIKE_TELEGRAPH_TICKS
+				+ com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.TENDRIL_RECOVER_DELAY_TICKS) {
 			AudioService.playDetail(level, BlockPos.containing(impact),
 					ModSounds.WORLD_INTERFACE_TENDRIL_RECOVER, SoundSource.HOSTILE, 0.45F, 1.0F);
 		}
@@ -2396,15 +2401,14 @@ public final class WorldInterfaceAttackService {
 
 	private static int durationTicks(WorldInterfaceAction action) {
 		return switch (action) {
-			case LASER_SWEEP -> LASER_WARNING_TICKS + LASER_SWEEP_TICKS;
+			case LASER_SWEEP -> com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.LASER_DURATION_TICKS;
 			case ENERGY_ORB -> ORB_WARNING_TICKS + ORB_TRACKING_TICKS;
 			case SKY_LANCE -> SKY_LANCE_LOCK_TICKS + SKY_LANCE_CHARGE_TICKS + SKY_LANCE_STRIKE_TICKS;
 			case CHARGE_WEAPON_STEAL -> WEAPON_WARNING_TICKS + WEAPON_CUSTODY_TICKS + 1;
 			case GRAB_THROW -> GRAB_WARNING_TICKS + GRAB_LIFT_TICKS + THROW_WINDUP_TICKS
 					+ THROW_RELEASE_TICKS;
 			case GAZE_HOTBAR_CLEAR -> HOTBAR_WARNING_TICKS + HOTBAR_STEP_TICKS * HOTBAR_SLOTS + 1;
-			case TENDRIL_LASH -> TENDRIL_WARNING_TICKS
-					+ TENDRIL_STRIKE_INTERVAL_TICKS * TENDRIL_STRIKE_COUNT;
+			case TENDRIL_LASH -> com.xm.thefourthfrequency.entity.WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS;
 			case FORCED_EVICTION -> WorldInterfaceActionScheduler.FORCED_EVICTION_WARNING_TICKS + 1;
 		};
 	}

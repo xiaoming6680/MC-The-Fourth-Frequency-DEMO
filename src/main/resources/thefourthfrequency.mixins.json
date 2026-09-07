@@ -18,6 +18,7 @@
     "CameraShakeMixin",
     "CameraUnrenderedEntryMixin",
     "ChannelStateInvoker",
+    "ChannelSourceAccessor",
     "ConnectScreenEndingQuarantineMixin",
     "EntityDebugHighlightMixin",
     "FogRendererAnomalyMixin",

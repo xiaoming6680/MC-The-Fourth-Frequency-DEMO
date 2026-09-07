@@ -158,7 +158,7 @@ public final class TerminalNoticeHud {
 		pending.currentOffset = -SLIDE_IN_PIXELS;
 		ENTRIES.add(pending);
 		lastActivatedAt = now;
-		if (pending.tone != TerminalNoticePayload.TONE_NONE
+		if (TerminalClientAudio.audibleNotice(pending.tone)
 				&& now - lastAttentionAt >= ATTENTION_INTERVAL_MILLIS) {
 			lastAttentionAt = now;
 			TerminalClientAudio.attention(pending.tone);

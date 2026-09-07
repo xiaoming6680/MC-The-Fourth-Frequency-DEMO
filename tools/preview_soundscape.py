@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 import sys
+import argparse
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'build/tff-audio-tooling'))
 import numpy as np
@@ -10,9 +11,8 @@ import imageio_ffmpeg
 from generate_world_interface_audio import encode_via_ffmpeg, RATE
 
 SEQUENCE=[
- ('终端抬起','device/terminal/raise/01',.55),
- ('终端启动行','device/terminal/boot_line/01',.14),
- ('终端启动完成','device/terminal/boot_complete/01',.58),
+ ('终端抬起','device/terminal/raise/01',.22),
+ ('终端启动完成','device/terminal/boot_complete/01',.30),
  ('返工体一阶段','entity/rework_step_1/01',.48),
  ('返工体二阶段','entity/rework_step_2/01',.58),
  ('返工体三阶段','entity/rework_breath_3/01',2.4),
@@ -33,10 +33,26 @@ SEQUENCE=[
 ]
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    group=parser.add_mutually_exclusive_group()
+    group.add_argument('--terminal-only',action='store_true')
+    group.add_argument('--opening-only',action='store_true')
+    args=parser.parse_args()
     output=ROOT/'docs/qa/audio_overhaul'
     output.mkdir(parents=True,exist_ok=True)
     parts=[];marks=[];time=0
-    for label,path,seconds in SEQUENCE:
+    sequence=SEQUENCE
+    if args.terminal_only:
+        sequence=[('打开','device/terminal/raise/01',.22),
+                  ('主动按键','device/terminal/password/01',.09),
+                  ('切页','device/terminal/click/01',.15),
+                  ('完成','device/terminal/boot_complete/01',.30),
+                  ('拒绝操作','device/terminal/fault/01',.22),
+                  ('收起','device/terminal/lower/01',.18)]
+    if args.opening_only:
+        sequence=[('提示音异常','client/alpha_corruption/warning/01',1.1),
+                  ('音频缓冲卡住后切断','client/alpha_corruption/collapse/01',2.0)]
+    for label,path,seconds in sequence:
         data,rate=sf.read(ROOT/f'src/main/resources/assets/thefourthfrequency/sounds/{path}.ogg',always_2d=True)
         assert rate==RATE
         data=data[:round(seconds*RATE)]*.65
@@ -46,8 +62,9 @@ def main():
         marks.append({'seconds':round(time,2),'label':label,'source':path})
         parts.extend((data,np.zeros((int(.45*RATE),2))))
         time+=len(data)/RATE+.45
-    encode_via_ffmpeg(Path(imageio_ffmpeg.get_ffmpeg_exe()),np.concatenate(parts),output/'preview.ogg')
-    (output/'preview-cues.json').write_text(json.dumps(marks,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    name='opening-crash-preview' if args.opening_only else ('terminal-clean-preview' if args.terminal_only else 'preview')
+    encode_via_ffmpeg(Path(imageio_ffmpeg.get_ffmpeg_exe()),np.concatenate(parts),output/(name+'.ogg'))
+    (output/(name+'-cues.json')).write_text(json.dumps(marks,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(f'Preview: {time:.1f}s, {len(marks)} cues')
 
 if __name__=='__main__':main()

@@ -83,13 +83,7 @@ public final class ModSounds {
 	public static final SoundEvent LAYER_COMPARATOR_CLICK = register("layer_comparator_click", 32.0F);
 	public static final SoundEvent TERMINAL_CLICK = register("terminal_click");
 	public static final SoundEvent TERMINAL_TUNE = register("terminal_tune");
-	/**
-	 * The terminal's own noise floor, held for as long as the screen is open.
-	 *
-	 * <p>One asset, pitched by the client to say which anomaly stage the holder is on. The player is
-	 * not meant to hear it as information and almost certainly never will - it is there so that the
-	 * one time it stops while the terminal is still open, something is missing.
-	 */
+	/** Legacy sound identifier retained for resource-pack compatibility; no automatic playback. */
 	public static final SoundEvent TERMINAL_CARRIER = register("terminal_carrier");
 	public static final SoundEvent TERMINAL_LOCK = register("terminal_lock");
 	public static final SoundEvent TERMINAL_FAULT = register("terminal_fault");
@@ -98,20 +92,7 @@ public final class ModSounds {
 	public static final SoundEvent TERMINAL_KEYPRESS = register("terminal_keypress");
 	/** One notch of the tuning dial. The loop covers the sweep; this marks the discrete steps. */
 	public static final SoundEvent TERMINAL_DETENT = register("terminal_detent");
-	/**
-	 * One line of the power-on self test landing.
-	 *
-	 * <p>The boot sequence is the first thing the mod ever shows a player and it played in complete
-	 * silence, which made the one screen that is supposed to establish the terminal as a working
-	 * machine read as a title card. Five of these and the completion below give it a machine's own
-	 * cadence: something is being checked, and each check answers.
-	 *
-	 * <p>Drawn from the device's own recorded contacts rather than from a vanilla event. The first
-	 * pass borrowed a comparator click and a beacon chime, and those are sounds a player has spent
-	 * hundreds of hours learning to read as redstone and as a beacon - hearing them come out of the
-	 * terminal places it in the wrong world. The pitch ramp in {@code TerminalClientAudio} is what
-	 * keeps this from being indistinguishable from an ordinary click.
-	 */
+	/** Legacy sound identifier retained for resource-pack compatibility; no automatic playback. */
 	public static final SoundEvent TERMINAL_BOOT_LINE = register("terminal_boot_line");
 	/** The last line - the one that says it is ready. Deliberately not the same sound as the rest. */
 	public static final SoundEvent TERMINAL_BOOT_COMPLETE = register("terminal_boot_complete");

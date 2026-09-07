@@ -260,7 +260,12 @@ final class ResourceContractTest {
 				Path path = ASSETS.resolve("sounds/"
 						+ name.substring(name.indexOf(':') + 1) + ".ogg");
 				byte[] header = Files.readAllBytes(path);
-				assertTrue(header.length > 16_000, path.toString());
+				// Tonal cues compress much smaller than noise; size is not evidence of valid audio.
+				var entry = JsonParser.parseString(Files.readString(Path.of("docs/art/audio/soundscape_manifest.json")))
+						.getAsJsonObject().getAsJsonObject("files").getAsJsonObject(name.substring(name.indexOf(':') + 1));
+				assertEquals(entry.get("sha256").getAsString(), java.util.HexFormat.of().formatHex(
+						java.security.MessageDigest.getInstance("SHA-256").digest(header)), path.toString());
+				assertEquals(event.endsWith("warning") ? 1.1 : 2.4, entry.get("seconds").getAsDouble(), .001);
 				assertEquals('O', header[0]);
 				assertEquals('g', header[1]);
 				assertEquals('g', header[2]);
@@ -1604,15 +1609,22 @@ final class ResourceContractTest {
 		assertFalse(en.has(retired) || zh.has(retired) || screen.contains(retired),
 				"The audio page must stay a control with labels, not a page of copy");
 
-		// The audition has to be one of the mod's own recordings and long enough to judge a level
-		// against; a fifth-of-a-second lock tick was neither.
+		// The preview uses the clean device palette and cannot stack on repeated presses.
 		String audio = Files.readString(Path.of(
 				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalClientAudio.java"),
 				StandardCharsets.UTF_8);
-		assertTrue(audio.contains("volumePreviewInstance = SimpleSoundInstance.forUI(ModSounds.SIGNAL_TUNING_SWEEP"));
+		assertTrue(audio.contains("volumePreviewInstance = SimpleSoundInstance.forUI(ModSounds.TERMINAL_BOOT_COMPLETE"));
 		assertTrue(audio.contains("if (volumePreviewInstance != null) manager.stop(volumePreviewInstance)"),
 				"Repeated auditions must replace each other rather than stack into a peak");
-		assertTrue(Files.size(ASSETS.resolve("sounds/signal/tuning_sweep.ogg")) > 0L);
+		assertTrue(Files.size(ASSETS.resolve("sounds/device/terminal/boot_complete/01.ogg")) > 0L);
+		String onboarding = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalOnboardingOverlay.java"));
+		assertFalse(onboarding.contains("TerminalClientAudio.bootLine("), "Automatic text reveals must be silent");
+		String terminal = Files.readString(Path.of(
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"));
+		int transition = terminal.indexOf("private long onboardingTransitionMillis()");
+		assertFalse(terminal.substring(transition, terminal.indexOf("private void drawOnboarding(", transition))
+				.contains("TerminalClientAudio."), "Guidance scene changes must not sound like keypresses");
 	}
 
 	/**
@@ -2595,8 +2607,7 @@ final class ResourceContractTest {
 		assertTrue(packMixin.contains("unselected.removeIf"));
 		assertTrue(packMixin.contains("method = \"updateRepoSelectedList\""));
 		assertTrue(packMixin.contains("repository.getSelectedPacks()"));
-		assertTrue(loadingMixin.contains("ModSounds.ALPHA_CORRUPTION_WARNING"));
-		assertTrue(loadingMixin.contains("ModSounds.ALPHA_CORRUPTION_COLLAPSE"));
+		assertTrue(loadingMixin.contains("AlphaCorruptionAudio.tick(client, thefourthfrequency$screenTicks)"));
 		assertFalse(loadingMixin.contains("SimpleSoundInstance.forUI(ModSounds.TERMINAL_FAULT"));
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.copiedFailureLines"));
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.observerMessageVisible"));
@@ -2749,17 +2760,14 @@ final class ResourceContractTest {
 		// Every bed the corruption starts must be stoppable from both routes out of the loading
 		// screen. Multiplayer can lose the screen to a kick or timeout without onClose ever
 		// running, and a bed that survives that follows the player into the world.
-		assertTrue(corruptionAudio.contains("looping = true"));
-		assertTrue(corruptionAudio.contains("SoundSource.MASTER"));
-		assertTrue(corruptionAudio.contains("ModSounds.SIGNAL_TAPE_HISS"));
-		assertTrue(corruptionAudio.contains("ModSounds.SIGNAL_STATIC"));
-		assertTrue(corruptionAudio.contains("ModSounds.SIGNAL_DEAD_AIR"));
-		assertTrue(corruptionAudio.contains("ModSounds.SIGNAL_CARRIER_LOST"));
-		assertTrue(corruptionAudio.contains("private void fadeOut()"));
-		// Released with a tail, never cut: a hard edge marks the frame the sequence ended on.
+		assertTrue(corruptionAudio.contains("ModSounds.ALPHA_CORRUPTION_WARNING"));
+		assertTrue(corruptionAudio.contains("ModSounds.ALPHA_CORRUPTION_COLLAPSE"));
+		assertFalse(corruptionAudio.contains("ModSounds.SIGNAL_TAPE_HISS"));
+		assertFalse(corruptionAudio.contains("ModSounds.SIGNAL_STATIC"));
+		assertTrue(corruptionAudio.contains("screenTicks >= AlphaLoadTimeline.BLACKOUT_START_TICK"));
+		assertTrue(corruptionAudio.contains("stopVoices(client)"));
+		// Screen exits use the same immediate cutoff as the frozen frame going black.
 		assertTrue(loadingMixin.contains("AlphaCorruptionAudio.fadeOutAll()"));
-		assertFalse(loadingMixin.contains("AlphaCorruptionAudio.stopAll()"),
-				"Entering the world must fade the beds out, not cut them");
 		assertTrue(controller.substring(controller.indexOf("private static void end(Minecraft"))
 						.contains("AlphaCorruptionAudio.fadeOutAll()"),
 				"The multiplayer disconnect path must silence the corruption beds");

@@ -46,8 +46,8 @@ public final class WorldInterfaceClips {
 	// two seconds after its lock, the grabs carry before they land, and the lance falls at 2.0s -
 	// keeping the clips on those clocks is what makes the body read as driving the attack rather
 	// than as playing over it.
-	public static final WorldInterfaceClip LASER_AIM = headAim(6.5F, 58.0F);
-	public static final WorldInterfaceClip LASER_APERTURE = jawOpen(6.5F, WorldInterfaceProtocol.LASER_WARNING_TICKS / 20.0F, 46.0F);
+	public static final WorldInterfaceClip LASER_AIM = laserAim();
+	public static final WorldInterfaceClip LASER_APERTURE = laserAperture();
 	public static final WorldInterfaceClip ORB_CHARGE = coreCharge(8.0F, WorldInterfaceProtocol.ORB_WARNING_TICKS / 20.0F, 16.0F);
 	public static final WorldInterfaceClip ORB_RELEASE = headLunge(8.0F, WorldInterfaceProtocol.ORB_WARNING_TICKS / 20.0F, 1.12);
 	public static final WorldInterfaceClip LANCE_FOCUS = headHold(5.5F, 3.0F, -38.0F);
@@ -59,8 +59,8 @@ public final class WorldInterfaceClips {
 			-118.0F, true);
 	public static final WorldInterfaceClip HOTBAR_GAZE = headHold(6.65F, 3.0F, 96.0F);
 	public static final WorldInterfaceClip HOTBAR_PURGE = flankSweep(6.65F, 3.0F);
-	public static final WorldInterfaceClip TENDRIL_REAR = tendrilRear(9.0F, WorldInterfaceProtocol.TENDRIL_WARNING_TICKS / 20.0F);
-	public static final WorldInterfaceClip TENDRIL_LASH = tendrilFlurry(9.0F,
+	public static final WorldInterfaceClip TENDRIL_REAR = tendrilRear(WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS / 20.0F, WorldInterfaceProtocol.TENDRIL_WARNING_TICKS / 20.0F);
+	public static final WorldInterfaceClip TENDRIL_LASH = tendrilFlurry(WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS / 20.0F,
 			(WorldInterfaceProtocol.TENDRIL_WARNING_TICKS + WorldInterfaceProtocol.TENDRIL_STRIKE_TELEGRAPH_TICKS) / 20.0F,
 			WorldInterfaceProtocol.TENDRIL_STRIKE_INTERVAL_TICKS / 20.0F, WorldInterfaceProtocol.TENDRIL_STRIKE_COUNT);
 	public static final WorldInterfaceClip EVICTION_CORRUPTION = headHold(6.0F, 2.0F, 180.0F);
@@ -85,9 +85,7 @@ public final class WorldInterfaceClips {
 	// that was supposed to say "that blow had mass behind it" said "the model changed". The shape and
 	// the overshoot are kept exactly; only the legs are opened out to a quarter of a second or more,
 	// which is the shortest interval a body this wide can travel in and still be seen travelling.
-	public static final WorldInterfaceClip LASER_RECOVER = WorldInterfaceClip.builder(6.5F)
-			.addAnimation("storm_body", rotation(0.0F, 0, 0, 0, 5.60F, 0, 0, 0,
-					5.86F, 14, -9, 0, 6.16F, -5, 3, 0, 6.5F, 0, 0, 0)).build();
+	public static final WorldInterfaceClip LASER_RECOVER = laserRecoil();
 	public static final WorldInterfaceClip ORB_RECOVER = WorldInterfaceClip.builder(8.0F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 2.0F, 0, 0, 0,
 					2.30F, -12, 0, 0, 2.65F, 5, 0, 0, 3.30F, 0, 0, 0, 8.0F, 0, 0, 0)).build();
@@ -103,9 +101,9 @@ public final class WorldInterfaceClips {
 	public static final WorldInterfaceClip HOTBAR_RECOVER = WorldInterfaceClip.builder(6.65F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 6.50F, -20, 0, 0,
 					6.56F, 9, 0, 0, 6.61F, -4, 0, 0, 6.65F, 0, 0, 0)).build();
-	public static final WorldInterfaceClip TENDRIL_RECOVER = WorldInterfaceClip.builder(9.0F)
+	public static final WorldInterfaceClip TENDRIL_RECOVER = WorldInterfaceClip.builder(WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS / 20.0F)
 			.addAnimation("center_jaw", rotation(0.0F, 0, 0, 0, 3.85F, -22, 0, 0,
-					4.50F, -8, 0, 0, 6.10F, -22, 0, 0, 6.75F, -8, 0, 0, 8.35F, -22, 0, 0, 9.0F, 0, 0, 0)).build();
+					4.50F, -8, 0, 0, 6.10F, -22, 0, 0, 6.75F, -8, 0, 0, 8.35F, -22, 0, 0, WorldInterfaceAttackMotion.TENDRIL_DURATION_TICKS / 20.0F, 0, 0, 0)).build();
 	public static final WorldInterfaceClip EXPULSION_RECOVER = WorldInterfaceClip.builder(6.0F)
 			.addAnimation("center_neck_b", rotation(0.0F, 0, 0, 0, 3.30F, 0, 0, 0,
 					4.10F, 0, -46, 0, 5.10F, 0, 18, 0, 6.0F, 0, 0, 0)).build();
@@ -204,39 +202,6 @@ public final class WorldInterfaceClips {
 	}
 
 	/**
-	 * All three heads turn onto the shot, the centre one leading and the flanks trailing.
-	 *
-	 * <p>This is what {@code eyeAim} used to do with a disc on the chest. Aiming with the heads
-	 * means the direction the attack is coming from is legible from the part of the model the
-	 * player is already watching.
-	 */
-	private static WorldInterfaceClip headAim(float seconds, float yaw) {
-		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(seconds);
-		for (int head = 0; head < HEADS.length; head++) {
-			float lead = head == 0 ? 1.0F : 0.66F;
-			float delay = head == 0 ? 0.0F : 0.22F;
-			// The wind-back is reached, not started from.
-			//
-			// This frame used to sit at zero seconds, which meant the necks were already a third of
-			// the way <em>against</em> the aim on the tick the action was published - twenty degrees
-			// of centre neck appearing between one frame and the next, with nothing before it. The
-			// anticipation is the best beat in the clip and it was being spent as a pop; given its own
-			// fifth of a second to arrive in, it reads as the head drawing back before it commits.
-			float anticipation = Math.min(0.45F, seconds * 0.10F);
-			builder.addAnimation(HEADS[head] + "_neck_a", rotation(
-					0.0F, 0, 0, 0,
-					anticipation, 0, -yaw * 0.35F * lead, 0,
-					seconds * 0.55F + delay, 0, yaw * lead, 0,
-					seconds, 0, 0, 0));
-			builder.addAnimation(HEADS[head] + "_skull", rotation(
-					0.0F, 0, 0, 0,
-					seconds * 0.55F + delay, -8, yaw * 0.32F * lead, 0,
-					seconds, 0, 0, 0));
-		}
-		return builder.build();
-	}
-
-	/**
 	 * Degrees per second a bone is allowed to travel while it unwinds back to neutral.
 	 *
 	 * <p><b>This number is the difference between a large thing moving and a large thing blinking.</b>
@@ -297,6 +262,41 @@ public final class WorldInterfaceClips {
 						openDegrees * 0.88F, 0, 0,
 						seconds, 0, 0, 0));
 		return builder.build();
+	}
+
+	private static WorldInterfaceClip laserAim() {
+		float fire = WorldInterfaceAttackMotion.LASER_FIRE_TICK / 20.0F;
+		float end = WorldInterfaceAttackMotion.LASER_END_TICK / 20.0F;
+		float done = WorldInterfaceAttackMotion.LASER_DURATION_TICKS / 20.0F;
+		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(done);
+		for (int head = 0; head < HEADS.length; head++) {
+			float lead = head == 0 ? 1 : .66F;
+			builder.addAnimation(HEADS[head] + "_neck_a", rotation(0,0,0,0,
+					.45F,0,-20*lead,0, fire,0,58*lead,0,
+					end,0,58*lead,0, done,0,0,0));
+			builder.addAnimation(HEADS[head] + "_skull", rotation(0,0,0,0,
+					fire,-8,18*lead,0, end,-8,18*lead,0, done,0,0,0));
+		}
+		return builder.build();
+	}
+
+	private static WorldInterfaceClip laserAperture() {
+		float fire = WorldInterfaceAttackMotion.LASER_FIRE_TICK / 20.0F;
+		float end = WorldInterfaceAttackMotion.LASER_END_TICK / 20.0F;
+		float done = WorldInterfaceAttackMotion.LASER_DURATION_TICKS / 20.0F;
+		WorldInterfaceClip.Builder builder = WorldInterfaceClip.builder(done);
+		for (String head : HEADS) builder.addAnimation(head + "_jaw", rotation(0,0,0,0,
+				fire,46,0,0, end,46,0,0, done,0,0,0));
+		return builder.build();
+	}
+
+	private static WorldInterfaceClip laserRecoil() {
+		float fire = WorldInterfaceAttackMotion.LASER_FIRE_TICK / 20.0F;
+		float end = WorldInterfaceAttackMotion.LASER_END_TICK / 20.0F;
+		float done = WorldInterfaceAttackMotion.LASER_DURATION_TICKS / 20.0F;
+		return WorldInterfaceClip.builder(done).addAnimation("storm_body", rotation(0,0,0,0,
+				fire,0,0,0, fire+.25F,-5,0,0, fire+.65F,-2,0,0,
+				end,-2,0,0, end+.3F,3,0,0, done,0,0,0)).build();
 	}
 
 	private static WorldInterfaceClip coreCharge(float seconds, float chargeSeconds, float yaw) {
