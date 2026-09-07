@@ -85,11 +85,9 @@ The device must be **the one Station Zero actually issued**: the server validate
 
 ## Current evidence
 
-RC.6 passed the complete build, 861 unit tests, 99 server GameTests, the full `all` client suite, and the separate `notice-entry` suite in an isolated validation checkout. That checkout uses `3c77e8e` plus only this startup/audio change. Other tasks' unfinished anomaly, model and desktop changes in the shared workspace are excluded from this package.
+The current simplified RC.6 startup revision uses `7810377` as its baseline and passed `build` (861 unit tests, 99 server GameTests and JAR verification) and the real `notice-entry` client suite in isolation. Startup now uses a one-second brightness fade and a 0.6-second page fade; the existing camera entry is retained. The suite checks bilingual layout, volume preview, transition gates, acknowledgement persistence and actual GPU filter application/cleanup. Terminal first-boot graphics and audio assets are unchanged.
 
-The startup suite retained nine runtime screenshots and checked actual GPU lens-filter application and cleanup. Audio checks covered initial playback, tickable sounds, refresh, mute and both ambience-bed categories. All 242 non-music files passed complete decoding, level, loop-seam and preserved-source hash checks. The final JAR verifier checked 60 mixin classes and 22 Minecraft injection targets. RC.6 is installed in PCL with a matching SHA-256; RC.5 was moved into a local workspace archive.
-
-See the [RC.6 record](../qa/audio_overhaul/rc6.md) for visuals, levels and validation limits. No manual listening session in the PCL instance or real two-client multiplayer acceptance was performed this round; those items remain below. RC.5 results remain [archived](../qa/audio_overhaul/rc5.md).
+Only the affected startup client suite was rerun. The latest full `all` client and 242-file audio-decode passes belong to baseline `7810377`; see the [RC.6 historical record](../qa/audio_overhaul/rc6.md). This revision's screenshots and limits are in the [simplified-startup record](../qa/audio_overhaul/entry-simplified.md). PCL has the revised package with a verified hash. Other tasks' unfinished model, anomaly and desktop changes remain in the shared workspace and are excluded from this tested package. Manual listening in the PCL instance and real two-client acceptance remain outstanding.
 
 ## How the sharp tests are shaped
 
@@ -205,8 +203,8 @@ The manual flow for a candidate build is in the [Manual acceptance checklist](ac
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `thefourthfrequency-1.0.0-rc.6-sources.jar` | 52,424,296 | `5957721DF1E1A08AFC56A9A1ED5B63DF2475154C3A6334007CCF92DE50F175E2` |
-| `thefourthfrequency-1.0.0-rc.6.jar` | 52,986,250 | `076528CC7C942153DB48DBCD954F7ECDD19016E0670C3C6460543B7F8226EE1D` |
+| `thefourthfrequency-1.0.0-rc.6-sources.jar` | 52,424,151 | `0522C15369704538AEF60AE80879B862A906F07B776D8741D111A87A806636EE` |
+| `thefourthfrequency-1.0.0-rc.6.jar` | 52,986,041 | `33058A75680C71E09CF8FB16FE7715542ED8213B9AD9679B60F50EEE29D114C4` |
 
 ## Still outstanding before release
 

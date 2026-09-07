@@ -57,11 +57,11 @@ Per-frame cost: the CRT layer plus structural decoration is about **105 quads/fr
 
 RC.6 removes the four-line check on every terminal open, including its policy, renderer and obsolete tests. Ordinary opens show the selected page immediately; clicks and Escape need no self-test skip.
 
-Three period-device animations share `AnalogBootGraphics`: a monochrome CRT test card and scanning beam for game startup, six banks of memory lamps plus a persistent scope trace for terminal first boot, and raster recovery between audio and disclosure pages. Rotating cubes and spatial loading diagrams are absent.
+Game startup uses a single brightness and text fade, with a brief fade between audio and disclosure pages. Test cards and scanning transitions are removed from startup. Terminal first boot keeps its six banks of memory lamps and persistent scope trace in `AnalogBootGraphics`.
 
 The first terminal boot still follows `TerminalOnboardingPolicy`: six checks over roughly 3.12 seconds before fading into the profile. Text stays silent with one quiet completion cue. Each animation adds about 160–180 basic primitives per frame only while that short presentation runs.
 
-`FirstRunNoticeScreen` owns game audio calibration and disclosure. The intro lasts roughly three seconds; pages use a 20-tick transition, swapping at the midpoint with disabled controls. Resource reload pauses the clock; rebuilding widgets or changing language cannot bypass acknowledgement.
+`FirstRunNoticeScreen` owns game audio calibration and disclosure. The intro lasts roughly one second; pages use a 12-tick (0.6-second) transition, swapping at the midpoint with disabled controls. Resource reload pauses the clock; rebuilding widgets or changing language cannot bypass acknowledgement.
 
 Confirmation starts a 64-tick (3.2-second) camera move into Minecraft running inside the terminal. Disclosure fades, the menu appears behind the glass and grows as the solid frame moves out of view. Five gentle focus/glass filter steps, scanlines and reflections then recede. Motion starts and ends at zero speed, with the last menu frame matching the real title screen. Filter requests expire each frame.
 

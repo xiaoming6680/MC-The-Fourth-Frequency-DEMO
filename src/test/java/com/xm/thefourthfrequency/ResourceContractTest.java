@@ -1448,13 +1448,13 @@ final class ResourceContractTest {
 			assertTrue(screen.contains(surface), surface);
 		}
 		assertTrue(screen.contains("NOTICE_READY_TICK = POWER_ON_END_TICK"),
-				"The raster sweep is the reveal, so no separate fade may follow the power-on");
+				"The page must be ready when the single entrance fade ends");
 		assertFalse(screen.contains("NOTICE_REVEAL_TICKS"),
 				"A post-power-on fade would light the tube on an empty screen again");
 		assertTrue(screen.contains("minecraft.getOverlay() != null) return"),
 				"A reload overlay must hold the entrance clock instead of running it out of sight");
-		assertTrue(screen.contains("AnalogBootGraphics.drawCrtCalibration"),
-				"The game entry uses a period television test card");
+		assertFalse(screen.contains("AnalogBootGraphics."),
+				"Game startup stays a simple fade; diagnostic graphics belong to terminal first boot");
 		assertFalse(screen.contains("drawHeaderScope"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeOpening()"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeStable()"));

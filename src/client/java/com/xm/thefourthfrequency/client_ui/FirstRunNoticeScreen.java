@@ -26,7 +26,7 @@ import static com.xm.thefourthfrequency.client_ui.FirstRunNoticePalette.withAlph
 
 /** Mandatory first-launch disclosure mounted inside a complete metal terminal shell. */
 public final class FirstRunNoticeScreen extends Screen {
-	/** The three strokes of a cathode tube coming up: strike, unfold, settle. */
+	/** The existing power-on phases share one continuous brightness fade. */
 	public enum EntrancePhase {
 		IGNITION,
 		UNFOLD,
@@ -50,7 +50,7 @@ public final class FirstRunNoticeScreen extends Screen {
 	 * ever hear from this mod arrives at whatever level the file happened to say.</p>
 	 *
 	 * <p>Both pages are drawn on the same glass by the same grid; only the content and the button at
-	 * the bottom change. The power-on sweep therefore reveals the audio page, which is correct - it
+	 * the bottom change. The power-on fade therefore reveals the audio page, which is correct - it
 	 * is the first page, and the tube is not lighting up twice.</p>
 	 */
 	public enum Page {
@@ -75,12 +75,12 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final int NORMAL_LINE_HEIGHT = 9;
 	private static final int SECTION_GAP = 4;
 	private static final float[] BODY_SCALE_STEPS = {0.82F, 0.78F, 0.74F, 0.70F, 0.66F};
-	private static final int IGNITION_TICKS = 6;
-	private static final int UNFOLD_TICKS = 30;
-	private static final int BLOOM_TICKS = 24;
+	private static final int IGNITION_TICKS = 4;
+	private static final int UNFOLD_TICKS = 8;
+	private static final int BLOOM_TICKS = 8;
 	private static final int TUBE_LIT_TICK = IGNITION_TICKS + UNFOLD_TICKS;
 	private static final int POWER_ON_END_TICK = TUBE_LIT_TICK + BLOOM_TICKS;
-	/** The raster sweep is the reveal, so the copy is finished the moment the tube settles. */
+	/** One quiet fade reveals the page; controls become available as soon as it completes. */
 	private static final int NOTICE_READY_TICK = POWER_ON_END_TICK;
 	private static final int PHOSPHOR_FLOOR_ALPHA = 14;
 	private static final int SCANLINE_PITCH = 2;
@@ -110,7 +110,7 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final Identifier NOTICE_UI = Identifier.fromNamespaceAndPath(
 			TheFourthFrequency.MOD_ID, "textures/gui/notice/first_run_notice_terminal_shell.png");
 
-	private static final int PAGE_TRANSITION_TICKS = 20;
+	private static final int PAGE_TRANSITION_TICKS = 12;
 	private int pageTransitionAge = -1;
 	private float copyOpacity = 1;
 	private int age;
@@ -245,20 +245,15 @@ public final class FirstRunNoticeScreen extends Screen {
 		graphics.fill(0, 0, width, height, SHELL_BACKDROP);
 	}
 
-	/** A recorded calibration: geometry converges before the readable controls arrive. */
+	/** The glass gently lights up on the audio page without an intermediate loading graphic. */
 	private void renderPowerOn(GuiGraphics graphics, float renderAge) {
 		NoticeLayout layout = layout();
 		renderGeneratedNoticeUi(graphics, layout);
 		GlassBounds glass = glassOpening(layout);
-		float arrival = Math.clamp(renderAge / IGNITION_TICKS, 0, 1);
-		float reveal = Math.clamp((renderAge - TUBE_LIT_TICK) / BLOOM_TICKS, 0, 1);
-		reveal = reveal * reveal * (3 - 2 * reveal);
+		float reveal = smooth(renderAge / POWER_ON_END_TICK);
 		renderNoticeText(graphics, layout);
 		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
 				withAlpha(0x080E0C, Math.round((1 - reveal) * 255)));
-		AnalogBootGraphics.drawCrtCalibration(graphics, glass.left() + 12, glass.top() + 8,
-				glass.width() - 24, glass.height() - 16, renderAge / 20D,
-				Math.min(1, renderAge / TUBE_LIT_TICK), arrival * (1 - reveal));
 		drawGlassSurface(graphics, glass);
 	}
 
@@ -270,8 +265,6 @@ public final class FirstRunNoticeScreen extends Screen {
 		cover = cover * cover * (3 - 2 * cover);
 		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
 				withAlpha(0x080E0C, Math.round(cover * 255)));
-		AnalogBootGraphics.drawRetune(graphics, glass.left(), glass.top(),
-				glass.width(), glass.height(), time / PAGE_TRANSITION_TICKS, cover);
 	}
 
 	/**
