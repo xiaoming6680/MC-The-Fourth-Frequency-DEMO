@@ -48,6 +48,15 @@ public abstract class AbstractSoundInstanceRotationMixin {
 	@Shadow protected RandomSource random;
 
 	@Inject(method = "resolve", at = @At("RETURN"))
+	private void thefourthfrequency$varyFoley(SoundManager manager,
+			CallbackInfoReturnable<WeighedSoundEvents> callback) {
+		if (!TheFourthFrequency.MOD_ID.equals(identifier.getNamespace()) || identifier.getPath().startsWith("music_")) return;
+		var events=callback.getReturnValue();
+		if(events!=null && sound!=null && random!=null)
+			sound=com.xm.thefourthfrequency.client_ui.SoundVariation.select(identifier.getPath(),sound,events,random);
+	}
+
+	@Inject(method = "resolve", at = @At("RETURN"))
 	private void thefourthfrequency$rotateScoreTrack(SoundManager manager,
 			CallbackInfoReturnable<WeighedSoundEvents> callback) {
 		if (!TheFourthFrequency.MOD_ID.equals(identifier.getNamespace())

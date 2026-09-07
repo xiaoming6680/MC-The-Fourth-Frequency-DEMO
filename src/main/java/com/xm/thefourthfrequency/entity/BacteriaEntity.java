@@ -190,7 +190,7 @@ public final class BacteriaEntity extends Monster {
 		return false;
 	}
 
-	/** Silent by design: the layer's ambience is the only bed, and footsteps would give range away. */
+	/** Suppress vanilla sounds; the client owns the heartbeat and restrained near-field foot friction. */
 	@Override
 	public boolean isSilent() {
 		return true;

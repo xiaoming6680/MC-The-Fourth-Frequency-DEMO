@@ -362,7 +362,7 @@ def clientAnomaly = providers.gradleProperty("tffAnomaly").orElse("")
 tasks.named("runClientGameTest") {
 	doFirst {
 		def suite = clientTestSuite.get().trim().toLowerCase(Locale.ROOT)
-		def allowed = ["all", "default", "mainline", "tools-ui", "notice-entry", "alpha-relaunch", "anomalies", "anomaly-meta-smoke", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d", "screen-filters"]
+		def allowed = ["all", "default", "mainline", "tools-ui", "notice-entry", "alpha-relaunch", "anomalies", "anomaly-meta-smoke", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d", "screen-filters", "audio"]
 		if (!allowed.contains(suite)) throw new GradleException("Unknown -PtffClientTestSuite=${suite}")
 		def anomaly = clientAnomaly.get().trim()
 		if (!anomaly.isEmpty() && suite != "anomalies")
@@ -392,7 +392,7 @@ tasks.named("runClientGameTest") {
 	// terminal-3d joins them because it stages the shell by writing the player's inventory from the
 	// client - six forms and an off-hand torch - which is exactly the kind of write the
 	// synchronizer refuses.
-	if (["all", "default", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d"]
+	if (["all", "default", "rework-forms", "watcher-model", "horror-entities", "world-interface", "terminal-3d", "audio"]
 			.contains(clientTestSuite.get().trim().toLowerCase(Locale.ROOT))) {
 		jvmArgs "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
 	}

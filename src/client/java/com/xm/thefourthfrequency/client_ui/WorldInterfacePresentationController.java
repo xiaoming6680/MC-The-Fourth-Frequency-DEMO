@@ -800,7 +800,20 @@ public final class WorldInterfacePresentationController {
 			// arrives at the same level wherever the player stands, for the whole length of a phase,
 			// which is precisely the shape of thing that buries a track rather than punching through it.
 			volume = (float) Math.clamp(RuntimeServices.config().meta().peakVolume()
-					* relativeVolume * envelope * sway * AudioService.ENCOUNTER_MIX_TRIM, 0.0D, 1.0D);
+					* relativeVolume * envelope * sway * AudioService.ENCOUNTER_MIX_TRIM
+					* warningDuck(), 0.0D, 1.0D);
+		}
+
+		private float duck = 1.0F;
+		private float warningDuck() {
+			Minecraft client = Minecraft.getInstance();
+			var projection = WorldInterfaceClientState.snapshot();
+			var action = projection.action();
+			boolean warning = client.level != null && action != null
+					&& projection.actionActive(client.level.getGameTime())
+					&& client.level.getGameTime() - action.startTick() < WorldInterfaceProtocol.lockWarningTicks(action.action());
+			duck += ((warning ? .52F : 1.0F) - duck) * (warning ? .22F : .06F);
+			return duck;
 		}
 	}
 }

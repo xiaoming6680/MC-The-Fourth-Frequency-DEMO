@@ -7,6 +7,31 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 
 public final class ModSounds {
+	public static final SoundEvent TERMINAL_RAISE = register("terminal_raise");
+	public static final SoundEvent TERMINAL_LOWER = register("terminal_lower");
+	public static final SoundEvent LOCK_SEARCH = register("lock_search");
+	public static final SoundEvent DISPOSSESS = register("dispossess");
+	public static final SoundEvent WATCHER_VANISH = register("watcher_vanish", 64.0F);
+	public static final SoundEvent HIM_PRESENCE = register("him_presence", 32.0F);
+	public static final SoundEvent BACTERIA_SKITTER = register("bacteria_skitter", 18.0F);
+	public static final SoundEvent REWORK_STEP_1 = register("rework_step_1", 32.0F);
+	public static final SoundEvent REWORK_STEP_2 = register("rework_step_2", 32.0F);
+	public static final SoundEvent REWORK_STEP_3 = register("rework_step_3", 40.0F);
+	public static final SoundEvent REWORK_BREATH_1 = register("rework_breath_1", 24.0F);
+	public static final SoundEvent REWORK_BREATH_2 = register("rework_breath_2", 24.0F);
+	public static final SoundEvent REWORK_BREATH_3 = register("rework_breath_3", 32.0F);
+	public static final SoundEvent REWORK_HURT = register("rework_hurt", 32.0F);
+	public static final SoundEvent REWORK_DEATH = register("rework_death", 40.0F);
+	public static final SoundEvent WORLD_INTERFACE_LASER_LOOP = register("world_interface_laser_loop", 96.0F);
+	public static final SoundEvent WORLD_INTERFACE_LASER_RELEASE = register("world_interface_laser_release", 96.0F);
+	public static final SoundEvent WORLD_INTERFACE_LASER_IMPACT = register("world_interface_laser_impact", 72.0F);
+	public static final SoundEvent WORLD_INTERFACE_BLAST = register("world_interface_blast", 72.0F);
+	public static final SoundEvent WORLD_INTERFACE_TENDRIL = register("world_interface_tendril", 64.0F);
+	public static final SoundEvent WORLD_INTERFACE_TENDRIL_STRIKE = register("world_interface_tendril_strike", 96.0F);
+	public static final SoundEvent WORLD_INTERFACE_TENDRIL_RECOVER = register("world_interface_tendril_recover", 64.0F);
+	public static final SoundEvent WORLD_INTERFACE_ROAR_1 = register("world_interface_roar_1", 128.0F);
+	public static final SoundEvent WORLD_INTERFACE_ROAR_2 = register("world_interface_roar_2", 128.0F);
+	public static final SoundEvent WORLD_INTERFACE_ROAR_3 = register("world_interface_roar_3", 128.0F);
 	/** The whole End arena hears it: summon and phase morph change the rules for everyone. */
 	private static final float ARENA_RANGE = 96.0F;
 	/** Wider still, because the encounter resolving is not something anyone should miss. */
@@ -36,26 +61,26 @@ public final class ModSounds {
 	 */
 	private static final float BODY_RANGE = 96.0F;
 
-	public static final SoundEvent EMPTY_VIEWPOINT = register("empty_viewpoint");
-	public static final SoundEvent EMPTY_BASE = register("empty_base");
-	public static final SoundEvent EMPTY_EXPERIENCE = register("empty_experience");
-	public static final SoundEvent FOURTH_BAND = register("fourth_band");
+	public static final SoundEvent EMPTY_VIEWPOINT = register("empty_viewpoint", 32.0F);
+	public static final SoundEvent EMPTY_BASE = register("empty_base", 32.0F);
+	public static final SoundEvent EMPTY_EXPERIENCE = register("empty_experience", 32.0F);
+	public static final SoundEvent FOURTH_BAND = register("fourth_band", 32.0F);
 	public static final SoundEvent REWORK_JOINT = register("rework_joint");
-	public static final SoundEvent ANOMALY_ECHO = register("anomaly_echo");
-	public static final SoundEvent WINDOW_GLITCH = register("window_glitch");
-	public static final SoundEvent DOOR_CASCADE = register("door_cascade");
-	public static final SoundEvent RULE_COLLAPSE = register("rule_collapse");
-	// Subtitle-less second layers for the narrative cues. They redirect to vanilla events, but
+	public static final SoundEvent ANOMALY_ECHO = register("anomaly_echo", 32.0F);
+	public static final SoundEvent WINDOW_GLITCH = register("window_glitch", 32.0F);
+	public static final SoundEvent DOOR_CASCADE = register("door_cascade", 32.0F);
+	public static final SoundEvent RULE_COLLAPSE = register("rule_collapse", 32.0F);
+	// Subtitle-less second layers for the narrative cues. They have their own generated recordings and
 	// they must be played through mod ids rather than the vanilla SoundEvent constants: playing
 	// SoundEvents.STONE_STEP directly makes the client print vanilla's own "Footsteps" subtitle
 	// underneath the authored one, which tells a captioned player the thing they just heard was
 	// ordinary. Owning the id lets the layer stay silent in the subtitle list.
-	public static final SoundEvent LAYER_STONE_STEP = register("layer_stone_step");
-	public static final SoundEvent LAYER_WOODEN_DOOR_CLOSE = register("layer_wooden_door_close");
-	public static final SoundEvent LAYER_CHEST_CLOSE = register("layer_chest_close");
-	public static final SoundEvent LAYER_BEACON_DEACTIVATE = register("layer_beacon_deactivate");
-	public static final SoundEvent LAYER_DEEPSLATE_BREAK = register("layer_deepslate_break");
-	public static final SoundEvent LAYER_COMPARATOR_CLICK = register("layer_comparator_click");
+	public static final SoundEvent LAYER_STONE_STEP = register("layer_stone_step", 32.0F);
+	public static final SoundEvent LAYER_WOODEN_DOOR_CLOSE = register("layer_wooden_door_close", 32.0F);
+	public static final SoundEvent LAYER_CHEST_CLOSE = register("layer_chest_close", 32.0F);
+	public static final SoundEvent LAYER_BEACON_DEACTIVATE = register("layer_beacon_deactivate", 32.0F);
+	public static final SoundEvent LAYER_DEEPSLATE_BREAK = register("layer_deepslate_break", 32.0F);
+	public static final SoundEvent LAYER_COMPARATOR_CLICK = register("layer_comparator_click", 32.0F);
 	public static final SoundEvent TERMINAL_CLICK = register("terminal_click");
 	public static final SoundEvent TERMINAL_TUNE = register("terminal_tune");
 	/**
@@ -231,22 +256,9 @@ public final class ModSounds {
 	 * rather than over it. The scream is its opposite: one shot, into a screen that has already gone
 	 * black, at the instant the entity reaches them.
 	 *
-	 * <p>They ship at -20.1 LUFS and -5.0 LUFS, and the fifteen decibels between them are the point.
-	 * Both numbers moved twice before they landed, in opposite directions, and neither could have
-	 * been reasoned to:
-	 *
-	 * <ul>
-	 * <li>The ambience went -43 (scaled by the BGM importer's fraction, effectively silence) and then
-	 *     -20.1, aligned by measurement. That is a reference level rather than a mix: what it plays
-	 *     at is {@code UnrenderedLayerClient.AMBIENCE_VOLUME}, currently 0.11 - about -39 LUFS in
-	 *     play - because a bed that is correct for one listen is too loud for six minutes of it, and
-	 *     the trim belongs beside the playback where one place owns it.</li>
-	 * <li>The scream went -27.3 (untouched master), then -12 (aligned with {@code signal_alert}),
-	 *     then past both of the cues that were supposed to bound it: it is louder than
-	 *     {@code alpha_corruption_collapse} (-9.2 LUFS) and than the pursuit's own scream (-7.8).
-	 *     It is the loudest thing in the mod on purpose - the last sound before the layer takes the
-	 *     player - and nothing else is allowed to reach this tier.</li>
-	 * </ul>
+	 * <p>Original procedural material in RC.3. Decoded levels live in
+	 * docs/art/audio/soundscape_manifest.json; playback owns the relative mix.
+
 	 */
 	public static final SoundEvent UNRENDERED_LAYER_AMBIENCE = register("unrendered_layer_ambience");
 	public static final SoundEvent UNRENDERED_CAPTURE_SCREAM = register("unrendered_capture_scream");
@@ -260,10 +272,8 @@ public final class ModSounds {
 	 * the whole way in, so distance is something the player hears rather than something they are
 	 * told.
 	 *
-	 * <p>It does not contradict {@code BacteriaEntity.isSilent()}. That refusal is about footsteps
-	 * and hurt sounds, which would leak the entity's exact range for free every time it moved; this
-	 * is one authored cue at one known radius, played by the client off the entity's tracked
-	 * position, and its whole job is to be located.
+	 * <p>The client adds quiet foot friction inside 18 blocks. Vanilla movement/hurt
+	 * sounds stay suppressed; the 64-block heartbeat remains the distant locator.
 	 */
 	public static final SoundEvent UNRENDERED_HEARTBEAT = register("unrendered_heartbeat", LANDMARK_RANGE);
 	public static final SoundEvent MUSIC_ENDING_FAILURE = register("music_ending_failure");

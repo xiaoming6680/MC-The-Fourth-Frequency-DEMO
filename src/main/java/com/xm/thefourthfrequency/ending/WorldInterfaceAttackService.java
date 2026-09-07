@@ -26,7 +26,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.Entity;
@@ -120,7 +119,6 @@ public final class WorldInterfaceAttackService {
 	/** One limb coming down. Local, and there are three of them a flurry. */
 	private static final double TENDRIL_SHAKE_RADIUS = 34.0D;
 	/** Ticks between the ticking that counts a lash down. */
-	private static final long TENDRIL_TELEGRAPH_CUE_INTERVAL = 8L;
 	/** The limb's descent, drawn from the core to the mark: how wide, how finely, how jagged. */
 	private static final double TENDRIL_TRACE_RADIUS = 1.5D;
 	private static final int TENDRIL_TRACE_SAMPLES = 26;
@@ -936,7 +934,7 @@ public final class WorldInterfaceAttackService {
 		// explosion samples and twenty camera impulses in two seconds. Both are throttled to one
 		// source now - see WorldInterfaceBlastService for why the mixer, and not just the mix, cares.
 		if (WorldInterfaceBlastService.allows(level, WorldInterfaceBlastService.SOURCE_LASER)) {
-			AudioService.playBounded(level, impact, ModSounds.WORLD_INTERFACE_LASER_FIRE,
+			AudioService.playDetail(level, impact, ModSounds.WORLD_INTERFACE_LASER_IMPACT,
 					SoundSource.HOSTILE, 0.55F, 1.18F);
 			// The contact detonates, so it sounds like a detonation: vanilla's own explosion, the
 			// one every player already reads as "that just blew a hole in something".
@@ -947,8 +945,8 @@ public final class WorldInterfaceAttackService {
 			// to the one that was recorded, which the rest of this fight is built on.
 			float scatter = 1.0F
 					+ ((mix(impact.asLong()) >>> 40) / (float) 0xFFFFFF * 2.0F - 1.0F) * 0.16F;
-			AudioService.playWithReach(level, impact, SoundEvents.GENERIC_EXPLODE.value(),
-					SoundSource.HOSTILE, 0.75F, scatter, AudioService.BLAST_REACH_BLOCKS);
+			AudioService.playDetail(level, impact, ModSounds.WORLD_INTERFACE_BLAST,
+				SoundSource.HOSTILE, 0.75F, scatter);
 			WorldInterfaceBlastService.emit(level, runtime.encounterId, end,
 					LASER_CONTACT_SHAKE_RADIUS, WorldInterfaceProtocol.BlastGrade.MEDIUM);
 		}
@@ -1124,7 +1122,7 @@ public final class WorldInterfaceAttackService {
 			chargeMouth(level, boss, elapsed, ORB_WARNING_TICKS, 0);
 			// The charge's own voice, which used to live inside chargeMouth and now cannot: the laser
 			// shares those particles and must not share this cue.
-			if (elapsed == 0L || elapsed % 8L == 0L) {
+			if (elapsed == 0L) {
 				float progress = elapsed / (float) ORB_WARNING_TICKS;
 				AudioService.playBounded(level, BlockPos.containing(WorldInterfaceAnatomy.mouthOrigin(boss, 0)),
 						ModSounds.WORLD_INTERFACE_ORB, SoundSource.HOSTILE,
@@ -1326,8 +1324,8 @@ public final class WorldInterfaceAttackService {
 			// And the mark it leaves burned into the floor, written rather than drawn.
 			WorldInterfaceVfx.runeCircle(level, impact.add(0.0D, 0.15D, 0.0D),
 					lanceRadius * 1.8D, 0.0D, 44);
-			AudioService.playWithReach(level, impactPos, SoundEvents.GENERIC_EXPLODE.value(),
-					SoundSource.HOSTILE, 1.0F, 0.82F, AudioService.BLAST_REACH_BLOCKS);
+			AudioService.playDetail(level, impactPos, ModSounds.WORLD_INTERFACE_BLAST,
+				SoundSource.HOSTILE, 1.0F, 0.82F);
 			craterAt(level, boss, runtime, impact, SKY_LANCE_SCAR_RADIUS, SKY_LANCE_SCAR_EDITS);
 			corruptAround(level, runtime, impactPos);
 			// Only the third form is large enough for this to read as reach rather than coincidence.
@@ -1567,8 +1565,8 @@ public final class WorldInterfaceAttackService {
 			if (struck != null) runtime.struckThisFlurry.add(struck.getUUID());
 			runtime.tendrilImpact = struck != null ? groundUnder(level, struck.position())
 					: groundUnder(level, boss.position().add(boss.getLookAngle().scale(12.0D)));
-			AudioService.playBounded(level, BlockPos.containing(runtime.tendrilImpact),
-					ModSounds.WORLD_INTERFACE_ARROW, SoundSource.HOSTILE, 0.7F, 1.35F);
+			AudioService.playBounded(level, BlockPos.containing(WorldInterfaceAnatomy.coreOrigin(boss)),
+					ModSounds.WORLD_INTERFACE_TENDRIL, SoundSource.HOSTILE, 0.7F, 1.0F);
 		}
 		if (runtime.tendrilImpact == null) return false;
 		Vec3 impact = runtime.tendrilImpact;
@@ -1597,14 +1595,15 @@ public final class WorldInterfaceAttackService {
 			// what the third phase's volley lane produces - was twenty-four samples in a second and a
 			// half, on top of everything else the fight is playing. The mark on the ground is what
 			// carries the warning; the ticking is only there so it is noticed.
-			if (phase % TENDRIL_TELEGRAPH_CUE_INTERVAL == 0L) {
-				AudioService.playBounded(level, BlockPos.containing(impact),
-						ModSounds.WORLD_INTERFACE_IMPACT, SoundSource.HOSTILE,
-						0.32F, 1.35F + charge * 0.35F);
-			}
 			return false;
 		}
+		if (phase == TENDRIL_STRIKE_TELEGRAPH_TICKS + 5L) {
+			AudioService.playDetail(level, BlockPos.containing(impact),
+					ModSounds.WORLD_INTERFACE_TENDRIL_RECOVER, SoundSource.HOSTILE, 0.45F, 1.0F);
+		}
 		if (phase == TENDRIL_STRIKE_TELEGRAPH_TICKS) {
+			AudioService.playBounded(level, BlockPos.containing(impact),
+					ModSounds.WORLD_INTERFACE_TENDRIL_STRIKE, SoundSource.HOSTILE, 0.9F, 1.0F);
 			runtime.cursor++;
 			runtime.damageApplied = true;
 			double reachSqr = TENDRIL_REACH * TENDRIL_REACH;
@@ -1641,8 +1640,6 @@ public final class WorldInterfaceAttackService {
 			// each of them the lance's whole blast would flatten the difference between them.
 			WorldInterfaceVfx.detonation(level, impact.add(0.0D, 0.3D, 0.0D), TENDRIL_REACH * 0.7D, 2);
 			craterAt(level, boss, runtime, impact, TENDRIL_SCAR_RADIUS, TENDRIL_SCAR_EDITS);
-			playActionCue(level, BlockPos.containing(impact), runtime.action,
-					0.95F, 0.86F + runtime.cursor * 0.09F);
 			// On the landing frame. The client used to shake every thirty ticks off the action clock,
 			// which lines up with none of the three landings - they fall at the warning plus a
 			// telegraph, every forty-five ticks - so the camera was shaking to its own rhythm while
@@ -1836,7 +1833,7 @@ public final class WorldInterfaceAttackService {
 			long elapsed, int warningTicks) {
 		if (target == null) return;
 		float progress = Math.clamp(elapsed / (float) Math.max(1, warningTicks), 0.0F, 1.0F);
-		if (elapsed == 0L) {
+		if (elapsed == 0L && runtime.action != WorldInterfaceAction.LASER_SWEEP) {
 			AudioService.playBounded(level, target.blockPosition(), sound(runtime.action),
 					SoundSource.HOSTILE, 0.85F, 0.9F);
 		}
@@ -1901,7 +1898,7 @@ public final class WorldInterfaceAttackService {
 					elapsed * 0.16D, 0.0D);
 		}
 
-		if (progress >= 0.6F && elapsed % 4L == 0L) {
+		if (progress >= 0.6F && elapsed % 12L == 0L) {
 			AudioService.playBounded(level, target.blockPosition(), ModSounds.WORLD_INTERFACE_IMPACT,
 					SoundSource.HOSTILE, 0.30F, 1.45F + progress * 0.35F);
 			// The last stretch, marked above the player's head rather than through it: high enough
@@ -2370,7 +2367,7 @@ public final class WorldInterfaceAttackService {
 		level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(),
 				player.getY() + player.getBbHeight() * 0.6D, player.getZ(),
 				Math.round(12.0F + amount * 2.5F), 0.36D, 0.52D, 0.36D, 0.15D);
-		AudioService.playBounded(level, player.blockPosition(), ModSounds.WORLD_INTERFACE_IMPACT,
+		AudioService.playDetail(level, player.blockPosition(), ModSounds.WORLD_INTERFACE_IMPACT,
 				SoundSource.HOSTILE, 0.85F, 1.06F - 0.02F * Math.min(amount, 14.0F));
 	}
 
@@ -2459,6 +2456,8 @@ public final class WorldInterfaceAttackService {
 	 */
 	private static void playActionCue(ServerLevel level, BlockPos position,
 			WorldInterfaceAction action, float volume, float pitch) {
+		// This charge is a cancellable sound attached to the tracked mouth on each client.
+		if (action == WorldInterfaceAction.LASER_SWEEP) return;
 		long scatter = mix(position.asLong() ^ (long) action.ordinal() * 0x9E3779B97F4A7C15L
 				^ level.getGameTime() * 0xC2B2AE3D27D4EB4FL);
 		float jittered = pitch * (1.0F + ((scatter >>> 40) / (float) 0xFFFFFF * 2.0F - 1.0F) * 0.045F);
@@ -2476,7 +2475,7 @@ public final class WorldInterfaceAttackService {
 			case CHARGE_WEAPON_STEAL -> ModSounds.WORLD_INTERFACE_WEAPON;
 			case GRAB_THROW -> ModSounds.WORLD_INTERFACE_THROW;
 			case GAZE_HOTBAR_CLEAR -> ModSounds.WORLD_INTERFACE_HOTBAR;
-			case TENDRIL_LASH -> ModSounds.WORLD_INTERFACE_ARROW;
+			case TENDRIL_LASH -> ModSounds.WORLD_INTERFACE_TENDRIL;
 			case FORCED_EVICTION -> ModSounds.WORLD_INTERFACE_EXPULSION;
 		};
 	}

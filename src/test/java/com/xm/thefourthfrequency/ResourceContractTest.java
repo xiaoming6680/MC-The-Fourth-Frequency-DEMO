@@ -243,21 +243,6 @@ final class ResourceContractTest {
 	void alphaLoadingCorruptionUsesDedicatedNonLoopingOggCues() throws Exception {
 		JsonObject sounds = JsonParser.parseString(Files.readString(ASSETS.resolve("sounds.json"),
 				StandardCharsets.UTF_8)).getAsJsonObject();
-		String generator = Files.readString(Path.of("tools/generate_alpha_corruption_audio.py"),
-				StandardCharsets.UTF_8);
-		assertTrue(generator.contains("79.0 * time"));
-		assertTrue(generator.contains("211.0 * time"));
-		assertTrue(generator.contains("COLLAPSE_PEAK = 10 ** (-1.5 / 20.0)"));
-		assertTrue(generator.contains("311.0 * index / buffer_samples"));
-		assertFalse(generator.contains("+ time * 170.0"),
-				"The full-screen failure cue must not rise in pitch before its stuck buffer");
-		// Each variant is a different *kind* of hang rather than the same one re-rolled, which
-		// is the whole reason a set exists: the pursuit freeze replays these every five ticks
-		// and a repeated sample stops being a machine failing and becomes a recognisable effect.
-		for (String recipe : new String[]{"def warning_relay_chatter(", "def warning_tape_dip(",
-				"def collapse_driver_stall(", "def collapse_bit_decay("}) {
-			assertTrue(generator.contains(recipe), recipe);
-		}
 		for (String event : new String[]{"alpha_corruption_warning", "alpha_corruption_collapse"}) {
 			assertTrue(sounds.has(event), event);
 			// These two are events, not ambience: one warns that the downgrade is coming apart
@@ -288,16 +273,16 @@ final class ResourceContractTest {
 	void analogHorrorSignalBedsArePresentLoopableAndUnsubtitled() throws Exception {
 		JsonObject sounds = JsonParser.parseString(Files.readString(ASSETS.resolve("sounds.json"),
 				StandardCharsets.UTF_8)).getAsJsonObject();
-		String generator = Files.readString(Path.of("tools/generate_signal_bed_audio.py"),
-				StandardCharsets.UTF_8);
-		// The two-tone attention signal borrows its authority from the real Emergency Alert
-		// System frequencies; retuning them would quietly discard that association.
-		assertTrue(generator.contains("853.0 * time"));
-		assertTrue(generator.contains("960.0 * time"));
-		// Beds must stay far below the event sounds or they stop being deniable.
-		assertTrue(generator.contains("BED_PEAK = 10 ** (-24.0 / 20.0)"));
-		assertTrue(generator.contains("def seamless("),
-				"loop beds depend on the head/tail cross-fade to wrap without a click");
+		String generator = Files.readString(Path.of("tools/audio_materials.py"), StandardCharsets.UTF_8);
+		assertTrue(generator.contains("853*t") && generator.contains("960*t"), "Alert identity must retain its two tones");
+		var measured = JsonParser.parseString(Files.readString(Path.of("docs/art/audio/soundscape_manifest.json"))).getAsJsonObject().getAsJsonObject("files");
+		for (var entry : measured.entrySet()) {
+			var cue = entry.getValue().getAsJsonObject();
+			if (entry.getKey().startsWith("signal/") && cue.get("loop").getAsBoolean()) {
+				assertTrue(cue.get("peakDbfs").getAsDouble() <= -23.5, entry.getKey());
+				assertTrue(cue.get("seam").getAsDouble() < .035, entry.getKey());
+			}
+		}
 
 		// Only the continuous beds stay uncaptioned. Deniability is a property of something that
 		// is always there - a subtitle would confirm the hiss is real, which is the one thing it
@@ -1037,8 +1022,8 @@ final class ResourceContractTest {
 		assertTrue(metaFallback.contains("TerminalNoticeHud.enqueue("));
 		assertFalse(metaFallback.contains("displayClientMessage("));
 		assertTrue(commonNetworking.contains("TerminalNoticePayload.TYPE"));
-		assertTrue(audio.contains("UI_TOAST_CHALLENGE_COMPLETE"));
-		assertTrue(audio.contains("NOTE_BLOCK_CHIME"));
+		assertTrue(audio.contains("play(ModSounds.TERMINAL_BOOT_COMPLETE, 1.0F, 0.62F)"));
+		assertTrue(audio.contains("play(ModSounds.TERMINAL_LOCK, 1.08F, 0.48F)"));
 		assertTrue(hud.contains("case TerminalNoticePayload.TONE_TASK_COMPLETE -> TASK_BACKGROUND"),
 				"Task completion notices must use the dedicated green background");
 		assertTrue(hud.contains("case TerminalNoticePayload.TONE_DENIED -> DENIED_BACKGROUND"),

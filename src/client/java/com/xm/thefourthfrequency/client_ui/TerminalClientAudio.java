@@ -163,7 +163,7 @@ public final class TerminalClientAudio {
 	 */
 	public static void noticeOpening() {
 		noticeOpeningPlays++;
-		play(ModSounds.TERMINAL_FAULT, 0.44F, 0.52F);
+		play(ModSounds.TERMINAL_RAISE, 0.9F, 0.42F);
 	}
 
 	/**
@@ -173,7 +173,7 @@ public final class TerminalClientAudio {
 	 */
 	public static void noticeStable() {
 		noticeStablePlays++;
-		play(ModSounds.TERMINAL_LOCK, 0.62F, 0.58F);
+		play(ModSounds.TERMINAL_BOOT_COMPLETE, 1.0F, 0.46F);
 	}
 
 	/**
@@ -211,7 +211,7 @@ public final class TerminalClientAudio {
 		if (tone == TerminalNoticePayload.TONE_PURSUIT_WARNING) {
 			play(ModSounds.TERMINAL_ANOMALY, 0.72F, 0.66F);
 		} else if (tone == TerminalNoticePayload.TONE_TASK_COMPLETE) {
-			play(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0F, 0.92F);
+			play(ModSounds.TERMINAL_BOOT_COMPLETE, 1.0F, 0.62F);
 		} else if (tone == TerminalNoticePayload.TONE_DENIED) {
 			// A refusal is a dull short fault, never the chime that reads as progress.
 			play(ModSounds.TERMINAL_FAULT, 0.88F, 0.34F);
@@ -224,7 +224,7 @@ public final class TerminalClientAudio {
 			// The dragon is the only friendly voice in the finale, so it does not share the boss cues.
 			play(SoundEvents.ENDER_DRAGON_AMBIENT, 1.25F, 0.34F);
 		} else {
-			play(SoundEvents.NOTE_BLOCK_CHIME.value(), 1.18F, 0.84F);
+			play(ModSounds.TERMINAL_LOCK, 1.08F, 0.48F);
 		}
 	}
 

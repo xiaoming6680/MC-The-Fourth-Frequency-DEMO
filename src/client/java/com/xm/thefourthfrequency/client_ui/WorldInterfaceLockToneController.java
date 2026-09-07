@@ -4,7 +4,8 @@ import com.xm.thefourthfrequency.networking.BossActionS2C;
 import com.xm.thefourthfrequency.networking.WorldInterfaceProtocol;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
+import com.xm.thefourthfrequency.audio.ModSounds;
+import com.xm.thefourthfrequency.bootstrap.RuntimeServices;
 import net.minecraft.util.Mth;
 
 import java.util.UUID;
@@ -101,7 +102,7 @@ public final class WorldInterfaceLockToneController {
 		// electronic tone this is imitating. Unwrapped from its holder because only the plain
 		// SoundEvent overload of forUI takes a volume, and the volume ramp is half the cue.
 		client.getSoundManager().play(SimpleSoundInstance.forUI(
-				SoundEvents.NOTE_BLOCK_BIT.value(), pitch, volume));
+				ModSounds.LOCK_SEARCH, pitch, volume * master()));
 	}
 
 	/**
@@ -120,10 +121,12 @@ public final class WorldInterfaceLockToneController {
 	private static void playDispossessionCue(Minecraft client, long now, float progress) {
 		if (lastToneTick != Long.MIN_VALUE && now - lastToneTick < DISPOSSESSION_INTERVAL_TICKS) return;
 		lastToneTick = now;
-		client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BASS.value(),
+		client.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.DISPOSSESS,
 				Mth.lerp(progress, DISPOSSESSION_START_PITCH, DISPOSSESSION_END_PITCH),
-				DISPOSSESSION_VOLUME));
+				DISPOSSESSION_VOLUME * master()));
 	}
+
+	private static float master() { return (float) Math.clamp(RuntimeServices.config().meta().peakVolume(), 0.0D, 1.0D); }
 
 	public static void reset() {
 		trackedEncounterId = null;

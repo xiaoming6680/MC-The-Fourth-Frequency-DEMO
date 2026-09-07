@@ -12,6 +12,37 @@ public final class AudioService {
 	private AudioService() {
 	}
 
+	private static final Map<ServerLevel, SoundDetailBudget> DETAIL_BUDGETS = new java.util.WeakHashMap<>();
+	static {
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			DETAIL_BUDGETS.clear();
+			AudioService.BOUNDED_CUES.set(0L);
+			AudioService.BOUNDED_CUES_BY_EVENT.clear();
+		});
+	}
+
+	/** Spatial decorative accents are bounded separately, so they cannot consume warning beats. */
+	public static void playDetail(ServerLevel level, BlockPos position, SoundEvent event,
+			SoundSource source, float volume, float pitch) {
+		String voice = event.location() + ":" + (position.getX() >> 3) + ":"
+				+ (position.getY() >> 3) + ":" + (position.getZ() >> 3);
+		if (DETAIL_BUDGETS.computeIfAbsent(level, ignored -> new SoundDetailBudget(16))
+				.admit(level.getGameTime(), voice, 6)) {
+			playBounded(level, position, event, source, volume, pitch);
+		}
+	}
+
+	/** A private sighting must never disclose itself to other players through a sound packet. */
+	public static void playForPlayer(net.minecraft.server.level.ServerPlayer player,
+			net.minecraft.world.phys.Vec3 position, SoundEvent event, SoundSource source, float relativeVolume) {
+		float volume = (float) Math.clamp(RuntimeServices.config().meta().peakVolume()
+				* relativeVolume, 0.0D, 1.0D);
+		if (volume <= 0.0F) return;
+		player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+				net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(event),
+				source, position.x, position.y, position.z, volume, 1.0F, player.getRandom().nextLong()));
+	}
+
 	/**
 	 * Plays a narrative cue as the two authored layers it was always meant to be.
 	 *

@@ -6,7 +6,7 @@ import java.util.Optional;
 
 /** Strict parser for the Gradle-to-client-GameTest selection contract. */
 public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
-	public enum Suite { ALL, MAINLINE, TOOLS_UI, NOTICE_ENTRY, ALPHA_RELAUNCH, ANOMALIES, ANOMALY_META_SMOKE, REWORK_FORMS, WATCHER_MODEL, HORROR_ENTITIES, WORLD_INTERFACE, TERMINAL_HANDHELD, SCREEN_FILTERS }
+	public enum Suite { ALL, MAINLINE, TOOLS_UI, NOTICE_ENTRY, ALPHA_RELAUNCH, ANOMALIES, ANOMALY_META_SMOKE, REWORK_FORMS, WATCHER_MODEL, HORROR_ENTITIES, WORLD_INTERFACE, TERMINAL_HANDHELD, SCREEN_FILTERS, AUDIO }
 
 	public ClientGameTestSelection {
 		anomalyId = anomalyId == null ? Optional.empty() : anomalyId;
@@ -35,6 +35,7 @@ public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
 			case "world-interface" -> Suite.WORLD_INTERFACE;
 			case "terminal-3d" -> Suite.TERMINAL_HANDHELD;
 			case "screen-filters" -> Suite.SCREEN_FILTERS;
+			case "audio" -> Suite.AUDIO;
 			default -> throw new IllegalArgumentException("Unknown client test suite: " + suiteValue);
 		};
 		String normalized = anomalyValue == null ? "" : anomalyValue.trim();
@@ -42,6 +43,7 @@ public record ClientGameTestSelection(Suite suite, Optional<String> anomalyId) {
 	}
 
 	public boolean runsMainline() { return suite == Suite.ALL || suite == Suite.MAINLINE || suite == Suite.TOOLS_UI; }
+	public boolean runsAudio() { return suite == Suite.ALL || suite == Suite.AUDIO; }
 	public boolean runsToolsUi() { return suite == Suite.ALL || suite == Suite.TOOLS_UI; }
 
 	/**

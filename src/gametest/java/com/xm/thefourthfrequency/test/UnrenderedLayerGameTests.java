@@ -176,7 +176,9 @@ public final class UnrenderedLayerGameTests implements CustomTestMethodInvoker {
 	@GameTest(maxTicks = 140)
 	public void theBacteriaSpeedLandsBetweenSprintingAndSprintJumping(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
-		BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0));
+		// This 20-block track exceeds the default empty template. Keep it above the other
+		// simultaneously running fixtures, which can otherwise replace its floor or block the path.
+		BlockPos origin = helper.absolutePos(new BlockPos(0, 91, 0));
 		// A short flat run. Terminal velocity arrives inside twenty ticks, so this needs to be long
 		// enough not to end in a wall before the sampling window, not long enough to cross the
 		// spacing GameTest leaves between structures.
@@ -189,7 +191,7 @@ public final class UnrenderedLayerGameTests implements CustomTestMethodInvoker {
 			}
 		}
 
-		Zombie vehicle = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(0, 1, 0));
+		Zombie vehicle = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(0, 91, 0));
 		// removeFreeWill strips the goals but leaves navigation and the move control, which is
 		// exactly the path a pathfinding mob uses and the one being measured.
 		vehicle.setPersistenceRequired();
@@ -217,7 +219,7 @@ public final class UnrenderedLayerGameTests implements CustomTestMethodInvoker {
 		helper.runAtTickTime(SAMPLE_TO_TICK + 2, () -> {
 			double blocksPerSecond = peakPerTick[0] * 20.0D;
 			if (blocksPerSecond < MIN_BLOCKS_PER_SECOND || blocksPerSecond > MAX_BLOCKS_PER_SECOND) {
-				throw new AssertionError(String.format(
+				helper.assertTrue(false, String.format(
 						"BacteriaEntity.MOVEMENT_SPEED = %.4f measures %.2f blocks/s, outside the "
 								+ "%.1f-%.1f band it has to sit in (sprint is 5.61, sprint-jump about "
 								+ "7.1). Retune the constant from this figure.",

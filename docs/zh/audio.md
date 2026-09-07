@@ -121,9 +121,9 @@ Minecraft 没有播放列表。`sounds.json` 里一个事件带多条 `sounds` �
 | 声源 | 通道 | 音量 / 半径 | 说明 |
 |---|---|---|---|
 | `music/unrendered/nice_boys.ogg` | `MUSIC` | 入库 **−23 LUFS**，播放再乘 **0.45** | **这一层曾经刻意不放配乐**（`select` 直接返回 null），理由是「从没为任何人配过乐的地方不该听起来像被配过乐」。现在放的不是为这层写的曲子，而是从常规游戏轮换里搬过来的那一首：玩家认得它，而认得它的地方不该是这里。**它是细菌的配乐而不是房间的**，所以等实体出现才起播；也压在底噪与心跳之下，因为那两条才是玩家用来判断位置的信息 |
-| `layer_ambience.ogg`（20 秒循环） | `AMBIENT` | 播放音量 **0.11**（文件是 −20.1 LUFS 参考电平） | **与信号床相反**：信号床属于「传输」，刻意要在环境静默异象下存活；这段底噪**就是**玩家所在的世界本身 |
-| `heartbeat.ogg`（1 秒，一记心跳） | `HOSTILE` | 入库 **−22.2 LUFS**；播放音量按距离 0.35→1.0 | **随距离变速又变响**：64 格外约每 30 Tick 一下，贴身 7 Tick 一下。两条曲线同向是刻意的——只变响会读成「我听力变好了」，只变快会读成计时器，一起才读成有东西在靠近。素材 1 秒长，最急促时略微重叠，那正是最后几米该有的慌乱而不是节拍器加速。<br>**曾经是一个恒定的循环实例**：循环可以移动、可以淡入淡出，但没法让它跳得更快，而越近越急正是心跳的全部意义。改成按距离排期的离散单发，播在**实体位置**上，方向仍交给引擎衰减与声像。<br>素材原本只有 −34.2 LUFS，叠上距离衰减实际等于没有 |
-| `capture_scream.ogg` | 客户端 UI 播放（`SimpleSoundInstance.forUI`） | —— | **不是**服务端定位音：它必须跨过返回传送那一帧，而定位音在客户端换维度的瞬间就被丢弃 |
+| `layer_ambience.ogg`（20 秒循环） | `AMBIENT` | 播放音量 0.11 | 原创合成环境底噪，解码测量见 soundscape_manifest.json |
+| `heartbeat.ogg`（1 秒） | `HOSTILE` | 按距离 0.35→1.0 | 定位在细菌身上，64 格半径，每 30→7 Tick 一次；近场足音单独播放 |
+| `capture_scream.ogg` | UI | 捕获转场 | 私人单次音效跨返回传送继续播放；测量见 soundscape_manifest.json |
 
 ## 末地的雷
 
@@ -158,19 +158,25 @@ Minecraft 没有播放列表。`sounds.json` 里一个事件带多条 `sounds` �
 
 比例始终相对无损母带，响度目标也始终相对母带的实测值，**所以重新导入不会叠加**。详见[美术与资产管线](art-pipeline.md)。
 
-### 音效不适用这条规则
+### RC.3 音效重置
 
-音效本来就轻，必须**先实测再对齐到仓库参考值**：
+全套 96 个非音乐事件、242 个 Ogg Vorbis 文件由 `tools/generate_soundscape.py` 生成；没有引入第三方录音。`tools/audio_materials.py` 提供共振腔、颗粒摩擦、结构撞击、故障缓冲和广播材质。七个旧音频生成/重制脚本已移除，避免重新覆盖资产。
 
-| 文件 | 母带 | 入库 | 对齐依据 |
-|---|---|---|---|
-| `unrendered/layer_ambience.ogg` | −31.5 LUFS | **−20.1 LUFS / 峰值 −7.8 dBFS**（参考电平，实际播放再乘 0.11） | 常驻六分钟且是唯一声源 |
-| `unrendered/capture_scream.ogg` | −27.3 LUFS | **−5.0 LUFS / 峰值 −0.2 dBFS** | **全模组最响的一条，刻意如此。** 它比 `alpha_corruption_collapse`（−9.2 LUFS）和追逐的尖叫（−7.8 LUFS）都高，因为它是这层把人带走之前玩家听到的最后一个声音，别的 cue 一律不许摸到这一档 |
-| `client/pursuit/capture_scream.ogg` | −12.3 LUFS（入库前） | **−7.8 LUFS / 峰值 −0.1 dBFS** | 全模组第二响。没有找到它的无损母带，因此是在既有 ogg 上再编码一代——对一段三秒的强信号可接受，但若日后母带出现应从母带重做 |
-| `unrendered/heartbeat.ogg` | 合成 | **−34.3 LUFS / 峰值 −14 dBFS** | 由 `tools/generate_unrendered_audio.py` 直接合成到位，不走 loudnorm |
+音乐曲目、播放事件和既有 BGM 音量保持不变。音效按用途保留不同电平：信号底噪峰值约 −24 dBFS、空载 −32、终端载波 −28、细菌心跳 −14；普通交互约 −4、BOSS 动作约 −3。极短瞬态的峰值不代表整体响度，播放处仍有分类增益与主音量。
 
-**环境床只有一个旋钮，而且不在文件里。** 文件固定在 −20 LUFS 参考电平，全部混音由 `UnrenderedLayerClient.AMBIENCE_VOLUME` 承担（当前 0.11，实际约 −39 LUFS）。这条规则是踩出来的：曾经有两次互相看不见的调整，一次压文件、一次压常量，两个衰减相乘直接把这段床压没了。信号床用的也是同一种做法——混音写在播放旁边的相对音量里，不烘进素材。
+所有实际编码文件均重新解码，验证 Vorbis、44.1 kHz、时长、有限数值、直流偏移、四倍过采样真峰值和循环接缝。准确测量与 SHA-256 见 [完整声音清单](../art/audio/soundscape_manifest.json)。旧录音的 LUFS 不再描述本轮资产。
 
-录制素材的 LRA 都在 1.5 LU 以下，所以用 `loudnorm ... linear=true` 只做纯增益平移。
+- 激光蓄力 90 Tick（4.5 秒），持续释放 40 Tick；声音跟随模型主嘴挂点，取消、离场、死亡、切世界及断线停止。双束共用一次发射的主体声音，命中点独立发声。
+- 触手预警、击地和回收分别在服务端真实攻击阶段触发；装饰撞击按声音/空间网格限频，每世界每 Tick 最多 16 个，关键预警和落地绕过装饰预算。
+- 返工体和细菌足音使用与渲染相同的行走周期；只处理最近 16 个装饰实体，每客户端每 Tick 最多 6 个足音/呼吸。细菌足音限 18 格，原有 64 格心跳仍承担远距离定位。
+- Watcher 的退场和 HIM 的稀疏衣料声只发给各自观察者。HIM 在消失时保留安静；终端操作和目标锁定提示保持个人声音。
+- 终端抬起、放下、启动行、启动完成有独立素材，反向操作停止上一段机械声；事件变体避免连续重复。危险预警期间 BOSS 常驻底噪缓降，音乐音量不改。
 
-> **入库前必须 `ffprobe` 验编码。** 源素材可能扩展名和容器都是 Ogg 而**里面的流是 FLAC**——Minecraft 只解 Ogg Vorbis，直接放进资源目录会**静默不出声**，没有报错、没有日志，`OggS` 页头魔数检查也照样通过。
+```text
+python -m pip install --target build/tff-audio-tooling -r tools/audio-requirements.txt
+python tools/generate_soundscape.py
+python tools/generate_soundscape.py --verify-only
+gradlew.bat runClientGameTest -PtffClientTestSuite=audio
+```
+
+自动化验证可证明资源与运行行为，不能代替耳机/音箱下的主观听感和多人实战评审。试听与验收记录见 [音效重置 QA](../qa/audio_overhaul/README.md)。

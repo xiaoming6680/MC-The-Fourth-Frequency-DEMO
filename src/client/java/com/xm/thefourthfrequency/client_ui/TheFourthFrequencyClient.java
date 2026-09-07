@@ -84,6 +84,7 @@ public final class TheFourthFrequencyClient implements ClientModInitializer {
 		TerminalNoticeHud.initialize();
 		WorldInterfaceClientNetworking.initialize();
 		WorldInterfacePresentationController.initialize();
+		EntitySoundscape.initialize();
 		WorldInterfaceHud.initialize();
 		AmbientAnomalyClient.initialize();
 		AnomalyPresentationController.initialize();

@@ -64,7 +64,7 @@ public final class BacteriaModel extends EntityModel<BacteriaRenderState> {
 	 * <p>Tied to {@code walkAnimationPos} rather than to elapsed time, so this stays correct if the
 	 * speed attribute moves again: the legs are counting ground, not seconds.
 	 */
-	private static final float STEP_RATE = 1.45F;
+	private static final float STEP_RATE = com.xm.thefourthfrequency.entity.HorrorMotion.BACTERIA_STEP_RATE;
 	/** Idle drift period, deliberately not a divisor of the step cycle. */
 	private static final float DRIFT_PERIOD = 0.037F;
 

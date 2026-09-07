@@ -42,7 +42,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
@@ -187,29 +186,8 @@ public final class EndBossEncounterService {
 	 * under a third of its size at exactly that moment.
 	 */
 	private static final double MORPH_ASCENT_HEIGHT = 110.0D;
-	/**
-	 * The interface's roar: the vanilla dragon growl and the wither's, layered and pitched down.
-	 *
-	 * <p>Borrowed rather than generated on purpose. Both halves are sounds the game has already
-	 * taught the player, and neither one alone says the right thing. The dragon's growl is what the
-	 * End means - a player who has fought it reads the shape before they have identified anything on
-	 * screen - but on its own it says "the dragon", and this is not the dragon. The wither's is the
-	 * other boss roar vanilla owns, and it brings the grain the growl has none of.
-	 *
-	 * <p>Stacked, with the wither under the growl and pitched further down, they stop being either
-	 * one. The pitch falls as the body grows, so the same cue reports which form is out there from
-	 * across the island.
-	 */
+	/** Decaying pitch of the final authored throat while the body collapses. */
 	private static final float[] ROAR_PITCH_BY_FORM = {0.82F, 0.68F, 0.56F};
-	/**
-	 * The wither layer's pitch, lower again than the growl it sits under.
-	 *
-	 * <p>Deliberately not the same table. Two samples at one pitch read as one sample with a chorus
-	 * on it; separated by roughly a fourth they read as one throat with two registers in it.
-	 */
-	private static final float[] ROAR_WITHER_PITCH_BY_FORM = {0.68F, 0.56F, 0.46F};
-	/** How loud the wither layer sits under the growl. It is grain, not a second roar. */
-	private static final float ROAR_WITHER_VOLUME = 0.62F;
 	/**
 	 * Ticks between idle roars, per form.
 	 *
@@ -573,21 +551,14 @@ public final class EndBossEncounterService {
 	private static void roar(ServerLevel level, WorldInterfaceEntity boss, float volume) {
 		int form = Math.clamp(boss.form(), 0, ROAR_PITCH_BY_FORM.length - 1);
 		BlockPos origin = BlockPos.containing(WorldInterfaceAnatomy.coreOrigin(boss));
-		// Through playWithReach, not playBounded. Both halves are borrowed vanilla cues, which carry
-		// no attenuation distance of their own and therefore fade out over sixteen blocks - and this
-		// is emitted from a core that hangs sixteen to thirty-seven blocks over the arena floor. The
-		// roar has been inaudible from the second form onward for as long as the body has been
-		// climbing; it was never a mixing problem, it was a radius.
-		AudioService.playWithReach(level, origin, SoundEvents.ENDER_DRAGON_GROWL,
-				SoundSource.HOSTILE, volume, ROAR_PITCH_BY_FORM[form], ROAR_REACH_BLOCKS);
-		// The second throat. Emitted from the same point on the same tick so the two arrive as one
-		// sound rather than as a growl with an echo behind it.
-		AudioService.playWithReach(level, origin, SoundEvents.WITHER_AMBIENT, SoundSource.HOSTILE,
-				volume * ROAR_WITHER_VOLUME, ROAR_WITHER_PITCH_BY_FORM[form], ROAR_REACH_BLOCKS);
+		var cue = switch (form) {
+			case 0 -> ModSounds.WORLD_INTERFACE_ROAR_1;
+			case 1 -> ModSounds.WORLD_INTERFACE_ROAR_2;
+			default -> ModSounds.WORLD_INTERFACE_ROAR_3;
+		};
+		AudioService.playBounded(level, origin, cue, SoundSource.HOSTILE, volume, 1.0F);
 	}
 
-	/** The roar is an arena event: it reports which body is out there from across the island. */
-	private static final float ROAR_REACH_BLOCKS = 96.0F;
 
 	/** Whether the interface is currently away on its morph flight, and so owed no other orders. */
 	private static boolean isMorphing(ServerLevel level, WorldInterfaceEntity boss) {
@@ -1079,8 +1050,8 @@ public final class EndBossEncounterService {
 		// Two layers, because one of them is vanilla's own explosion - the sound every player already
 		// reads as "that just came apart" - and the other is the anchor's authored voice. The pair is
 		// what makes it a structure being destroyed rather than a generic bang or a distant chime.
-		AudioService.playWithReach(level, position, SoundEvents.GENERIC_EXPLODE.value(),
-				SoundSource.HOSTILE, 1.0F, 0.68F, AudioService.BLAST_REACH_BLOCKS);
+		AudioService.playDetail(level, position, ModSounds.WORLD_INTERFACE_BLAST,
+				SoundSource.HOSTILE, 1.0F, 0.68F);
 		AudioService.playBounded(level, position, ModSounds.WORLD_INTERFACE_ANCHOR,
 				SoundSource.HOSTILE, 1.0F, 0.62F);
 		WorldInterfaceBlastService.emit(level, encounterId, relay, ANCHOR_SHAKE_RADIUS,
@@ -2027,7 +1998,7 @@ public final class EndBossEncounterService {
 		// one is barely the same voice as the first. Started on the tick of death and then answering
 		// itself roughly every two seconds for as long as there is a body to scream with.
 		if (age % 38L != 0L) return;
-		AudioService.playBounded(level, BlockPos.containing(core), SoundEvents.ENDER_DRAGON_GROWL,
+		AudioService.playBounded(level, BlockPos.containing(core), ModSounds.WORLD_INTERFACE_ROAR_3,
 				SoundSource.HOSTILE, (float) (1.0D - 0.45D * progress),
 				(float) (ROAR_PITCH_BY_FORM[ROAR_PITCH_BY_FORM.length - 1] - 0.2D * progress));
 	}
@@ -2100,7 +2071,7 @@ public final class EndBossEncounterService {
 		WorldInterfaceShockwaveService.emit(level, core,
 				WorldInterfaceShockwaveService.MORPH_DURATION_TICKS, shell * 3.0D);
 		// The last of the scream, at the bottom of the range and cut off rather than finished.
-		AudioService.playBounded(level, BlockPos.containing(core), SoundEvents.ENDER_DRAGON_GROWL,
+		AudioService.playBounded(level, BlockPos.containing(core), ModSounds.WORLD_INTERFACE_ROAR_3,
 				SoundSource.HOSTILE, 0.5F, 0.5F);
 		// The sound the body used for leaving the field between forms, dropped as low as it goes:
 		// the same departure, except this time it does not come back.
@@ -2223,7 +2194,7 @@ public final class EndBossEncounterService {
 		BlockPos at = BlockPos.containing(position);
 		AudioService.playBounded(level, at,
 				ModSounds.WORLD_INTERFACE_GATEWAY_GOLD, SoundSource.AMBIENT, 1.0F, 0.85F);
-		level.playSound(null, at, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.AMBIENT, 4.0F, 0.72F);
+		AudioService.playBounded(level, at, ModSounds.WORLD_INTERFACE_ROAR_3, SoundSource.AMBIENT, 0.75F, 0.85F);
 	}
 
 	private static void emitPortalOpening(ServerLevel level, WorldInterfaceState.Snapshot snapshot,

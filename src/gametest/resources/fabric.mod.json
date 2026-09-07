@@ -19,6 +19,7 @@
       ,"com.xm.thefourthfrequency.test.PursuitRuntimeGameTests"
       ,"com.xm.thefourthfrequency.test.UnrenderedLayerGameTests"
       ,"com.xm.thefourthfrequency.test.TerminalBackfillAndProfileGameTests"
+      ,"com.xm.thefourthfrequency.test.SoundscapeGameTests"
     ],
     "fabric-client-gametest": [
       "com.xm.thefourthfrequency.test.M0ClientGameTest",
@@ -30,6 +31,7 @@
       ,"com.xm.thefourthfrequency.test.TerminalHandheldClientGameTest"
       ,"com.xm.thefourthfrequency.test.ScreenFilterClientGameTest"
       ,"com.xm.thefourthfrequency.test.EndWeatherClientGameTest"
+      ,"com.xm.thefourthfrequency.test.SoundscapeClientGameTest"
     ]
   },
   "depends": {

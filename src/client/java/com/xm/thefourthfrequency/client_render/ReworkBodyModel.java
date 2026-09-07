@@ -282,7 +282,7 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 	@Override
 	public void setupAnim(ReworkBodyRenderState state) {
 		super.setupAnim(state);
-		float walkPhase = state.walkAnimationPos * 0.56F;
+		float walkPhase = state.walkAnimationPos * com.xm.thefourthfrequency.entity.HorrorMotion.REWORK_STEP_RATE;
 		float walkStrength = Math.min(0.72F, state.walkAnimationSpeed * 1.45F);
 		float forwardLean = 0.15F + walkStrength * 0.09F + (stage - 1) * 0.012F;
 		torso.xRot += forwardLean;
@@ -295,7 +295,8 @@ public final class ReworkBodyModel extends EntityModel<ReworkBodyRenderState> {
 		head.xRot += Mth.clamp(state.xRot * DEG_TO_RAD, -0.72F, 0.72F)
 				+ Mth.sin(state.ageInTicks * 0.91F + stage) * 0.012F;
 		head.zRot += twitch * 0.72F;
-		jaw.xRot += 0.10F + (Mth.sin(state.ageInTicks * 0.16F + stage) + 1.0F) * 0.055F
+		jaw.xRot += 0.10F + (Mth.sin(com.xm.thefourthfrequency.entity.HorrorMotion.reworkBreathPhase(
+				state.ageInTicks, (stage + 1) / 2)) + 1.0F) * 0.055F
 				+ (stage >= 3 ? 0.08F : 0.0F);
 		innerJaw.xRot += stage >= 4 ? 0.16F + Mth.sin(state.ageInTicks * 0.11F) * 0.035F : 0.0F;
 

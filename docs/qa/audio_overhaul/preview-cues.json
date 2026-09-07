@@ -1,0 +1,102 @@
+[
+  {
+    "seconds": 0,
+    "label": "终端抬起",
+    "source": "device/terminal/raise/01"
+  },
+  {
+    "seconds": 1.0,
+    "label": "终端启动行",
+    "source": "device/terminal/boot_line/01"
+  },
+  {
+    "seconds": 1.59,
+    "label": "终端启动完成",
+    "source": "device/terminal/boot_complete/01"
+  },
+  {
+    "seconds": 2.62,
+    "label": "返工体一阶段",
+    "source": "entity/rework_step_1/01"
+  },
+  {
+    "seconds": 3.55,
+    "label": "返工体二阶段",
+    "source": "entity/rework_step_2/01"
+  },
+  {
+    "seconds": 4.58,
+    "label": "返工体三阶段",
+    "source": "entity/rework_breath_3/01"
+  },
+  {
+    "seconds": 7.43,
+    "label": "细菌足音",
+    "source": "entity/bacteria_skitter/01"
+  },
+  {
+    "seconds": 8.1,
+    "label": "HIM 衣料",
+    "source": "entity/him_presence/01"
+  },
+  {
+    "seconds": 9.7,
+    "label": "Watcher 消失",
+    "source": "entity/watcher_vanish/01"
+  },
+  {
+    "seconds": 11.65,
+    "label": "第一形态腔体",
+    "source": "world_interface/roar_1/01"
+  },
+  {
+    "seconds": 14.9,
+    "label": "第二形态咆哮",
+    "source": "world_interface/roar_2/01"
+  },
+  {
+    "seconds": 18.65,
+    "label": "第三形态共振",
+    "source": "world_interface/roar_3/01"
+  },
+  {
+    "seconds": 23.2,
+    "label": "口部激光蓄力",
+    "source": "world_interface/laser/01"
+  },
+  {
+    "seconds": 28.15,
+    "label": "激光释放",
+    "source": "world_interface/laser_fire/01"
+  },
+  {
+    "seconds": 30.6,
+    "label": "激光命中",
+    "source": "world_interface/laser_impact/01"
+  },
+  {
+    "seconds": 31.85,
+    "label": "激光收束",
+    "source": "world_interface/laser_release/01"
+  },
+  {
+    "seconds": 33.0,
+    "label": "触手绷紧",
+    "source": "world_interface/tendril/01"
+  },
+  {
+    "seconds": 34.95,
+    "label": "触手击地",
+    "source": "world_interface/tendril_strike/01"
+  },
+  {
+    "seconds": 36.5,
+    "label": "触手回收",
+    "source": "world_interface/tendril_recover/01"
+  },
+  {
+    "seconds": 37.6,
+    "label": "规则崩塌",
+    "source": "anomaly/rule_collapse/01"
+  }
+]

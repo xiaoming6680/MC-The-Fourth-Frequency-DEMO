@@ -1,5 +1,7 @@
 package com.xm.thefourthfrequency.entity;
 
+import com.xm.thefourthfrequency.audio.ModSounds;
+
 import com.xm.thefourthfrequency.audio.AudioService;
 import com.xm.thefourthfrequency.bootstrap.TheFourthFrequency;
 import com.xm.thefourthfrequency.ending.EndBossArenaService;
@@ -17,7 +19,6 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -353,8 +354,8 @@ public final class WorldInterfaceEnergyOrbEntity extends Entity implements ItemS
 						0, Math.cos(angle), 0.16D, Math.sin(angle), 0.3D + ring * 0.06D);
 			}
 		}
-		AudioService.playWithReach(level, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(),
-				SoundSource.HOSTILE, 1.0F, 0.94F - power * 0.09F, AudioService.BLAST_REACH_BLOCKS);
+		AudioService.playDetail(level, BlockPos.containing(impact), ModSounds.WORLD_INTERFACE_BLAST,
+				SoundSource.HOSTILE, 1.0F, 0.94F - power * 0.09F);
 		// And the camera. The bolt is an entity: it detonates wherever it happens to meet terrain or a
 		// player, on a tick nothing else can predict, and in the third phase it is thrown from the
 		// volley lane which the action envelope does not describe at all. There is no clock to derive

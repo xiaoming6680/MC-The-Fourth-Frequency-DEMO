@@ -38,13 +38,13 @@ Paths under `docs/art/**` are referenced directly by tests and scripts (`Resourc
 | `prepare_anomaly_art.py` | Anomaly GUI assets |
 | `generate_terminal_3d_assets.py` | The handheld terminal: six UV atlases, six item models, one Blockbench source |
 | `compose_flat_terminal_panels.py` | Terminal panel backdrops, all stages from one canonical control-bay geometry |
-| `pixelize_terminal_icons.py` · `remaster_terminal_audio.py` | Post-processing for terminal icons and audio |
+| `pixelize_terminal_icons.py` · `generate_soundscape.py` | Post-processing for terminal icons and audio |
 | `generate_resonance_core_textures.py` | The pixel texture set for the End resonance core |
 | `generate_analog_filter_textures.py` | The noise plate the analog filter falls back to where a shader cannot reach |
-| `generate_terminal_audio.py` · `generate_entity_audio.py` | Terminal and entity sound sets |
-| `generate_signal_bed_audio.py` | The signal bed: carrier, static, hiss, dead air and cues |
-| `generate_alpha_corruption_audio.py` | Analogue-horror cues for the first load and for hangs (at least 3 variants each) |
-| `generate_unrendered_textures.py` · `generate_unrendered_audio.py` | The unrendered layer's four surfaces (solid and false from one recipe, `LIGHTNESS_SHIFT` apart) and the bacteria's one-second heartbeat loop |
+| `generate_soundscape.py` · `audio_materials.py` | Terminal and entity sound sets |
+| `generate_soundscape.py` | The signal bed: carrier, static, hiss, dead air and cues |
+| `generate_soundscape.py` | Analogue-horror cues for the first load and for hangs (at least 3 variants each) |
+| `generate_unrendered_textures.py` · `generate_soundscape.py` | The unrendered layer's four surfaces (solid and false from one recipe, `LIGHTNESS_SHIFT` apart) and the bacteria's one-second heartbeat loop |
 | `import_music.py` | Imports BGM from lossless masters: measures and matches to -24 LUFS, then attenuates, baking the result into Ogg Vorbis |
 
 ## World Interface

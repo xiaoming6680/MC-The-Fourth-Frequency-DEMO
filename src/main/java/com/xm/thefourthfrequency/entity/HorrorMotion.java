@@ -2,6 +2,12 @@ package com.xm.thefourthfrequency.entity;
 
 /** Continuous motion curves shared by the entity models and their behavioural tests. */
 public final class HorrorMotion {
+	public static final float REWORK_STEP_RATE = .56F;
+	public static final float BACTERIA_STEP_RATE = 1.45F;
+	/** The three authored bodies retain visual construction indices 1, 3 and 5. */
+	public static float reworkBreathPhase(float age, int form) {
+		return age * .16F + Math.clamp(form, 1, 3) * 2 - 1;
+	}
 	private HorrorMotion() { }
 	public static float ease(float x) {
 		x = Math.clamp(x, 0, 1);

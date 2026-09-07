@@ -137,7 +137,8 @@ public final class WorldInterfaceEntity extends Monster {
 
 	@Override
 	protected float getSoundVolume() {
-		return 1.0F;
+		return (float) Math.clamp(com.xm.thefourthfrequency.bootstrap.RuntimeServices.config().meta().peakVolume()
+				* com.xm.thefourthfrequency.audio.AudioService.ENCOUNTER_MIX_TRIM, 0.0D, 1.0D);
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {

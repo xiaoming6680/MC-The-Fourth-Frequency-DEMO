@@ -164,6 +164,12 @@ public final class HimEntity extends Monster {
 		setNoGravity(true);
 		setDeltaMovement(Vec3.ZERO);
 		faceWatchedPlayer(player);
+		// Sparse cloth movement while unseen. Never announce spawn or confirm the disappearance.
+		if (seenTicks < 0 && tickCount > 40 && tickCount % 179 == 73 && !playerHasInView(player)) {
+			com.xm.thefourthfrequency.audio.AudioService.playForPlayer(player, position(),
+					com.xm.thefourthfrequency.audio.ModSounds.HIM_PRESENCE,
+					net.minecraft.sounds.SoundSource.AMBIENT, 0.16F);
+		}
 
 		if (distanceToSqr(player) < VANISH_RANGE_SQR) {
 			discard();

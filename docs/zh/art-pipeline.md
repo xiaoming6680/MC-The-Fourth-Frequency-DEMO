@@ -38,13 +38,13 @@ python tools/<script>.py
 | `prepare_anomaly_art.py` | 异象 GUI 素材 |
 | `generate_terminal_3d_assets.py` | 手持终端：六张 UV 图集、六个物品模型、一份 Blockbench 源 |
 | `compose_flat_terminal_panels.py` | 终端面板底图（由同一份控制台几何生成全部阶段） |
-| `pixelize_terminal_icons.py` · `remaster_terminal_audio.py` | 终端图标与音频的后处理 |
+| `pixelize_terminal_icons.py` · `generate_soundscape.py` | 终端图标与音频的后处理 |
 | `generate_resonance_core_textures.py` | 末地共振核心的像素贴图组 |
 | `generate_analog_filter_textures.py` | 模拟信号滤镜在着色器够不到处使用的噪声图层 |
-| `generate_terminal_audio.py` · `generate_entity_audio.py` | 终端与实体音效 |
-| `generate_signal_bed_audio.py` | 载波、静电、嘶声、黑场与提示音组成的信号床 |
-| `generate_alpha_corruption_audio.py` | 首次加载与卡死用的模拟恐怖提示音（每种至少 3 个变体） |
-| `generate_unrendered_textures.py` · `generate_unrendered_audio.py` | 未渲染层的四张表面贴图（实心／假面同一配方，只差 `LIGHTNESS_SHIFT`）与细菌的 1 秒循环心跳 |
+| `generate_soundscape.py` · `audio_materials.py` | 终端与实体音效 |
+| `generate_soundscape.py` | 载波、静电、嘶声、黑场与提示音组成的信号床 |
+| `generate_soundscape.py` | 首次加载与卡死用的模拟恐怖提示音（每种至少 3 个变体） |
+| `generate_unrendered_textures.py` · `generate_soundscape.py` | 未渲染层的四张表面贴图（实心／假面同一配方，只差 `LIGHTNESS_SHIFT`）与细菌的 1 秒循环心跳 |
 | `import_music.py` | 从无损母带导入 BGM：先实测对齐到 −24 LUFS，再按比例衰减，烘焙成 Ogg Vorbis |
 
 ## 世界接口

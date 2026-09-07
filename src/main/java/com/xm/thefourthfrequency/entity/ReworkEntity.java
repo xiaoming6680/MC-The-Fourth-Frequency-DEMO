@@ -376,6 +376,19 @@ public final class ReworkEntity extends Monster {
 		return super.hurtServer(level, source, amount);
 	}
 
+	@Override protected net.minecraft.sounds.SoundEvent getHurtSound(DamageSource source) {
+		return com.xm.thefourthfrequency.audio.ModSounds.REWORK_HURT;
+	}
+	@Override protected net.minecraft.sounds.SoundEvent getDeathSound() {
+		return com.xm.thefourthfrequency.audio.ModSounds.REWORK_DEATH;
+	}
+	@Override protected float getSoundVolume() {
+		return (float) Math.clamp(com.xm.thefourthfrequency.bootstrap.RuntimeServices.config().meta().peakVolume() * .62, 0, 1);
+	}
+	@Override protected void playStepSound(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+		// The client emits contacts on the renderer's walk clock, once per planted foot.
+	}
+
 	@Override
 	public void die(DamageSource source) {
 		if (pursuitMode) {

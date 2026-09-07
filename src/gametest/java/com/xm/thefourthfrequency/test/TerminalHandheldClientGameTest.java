@@ -211,7 +211,9 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 	static void completeWalkthrough(ClientGameTestContext context) {
 		rightClickTerminal(context);
 		context.waitForScreen(TerminalScreen.class);
-		for (int attempt = 0; attempt < 120; attempt++) {
+		// The input gate is real time and depends on translated paragraph lengths.
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(90);
+		while (System.nanoTime() < deadline) {
 			boolean[] held = {false};
 			context.runOnClient(client -> {
 				if (!(client.screen instanceof TerminalScreen terminal)) return;
@@ -235,7 +237,12 @@ public final class TerminalHandheldClientGameTest implements FabricClientGameTes
 			context.waitTicks(4);
 		}
 		context.runOnClient(client -> {
-			if (client.screen instanceof TerminalScreen terminal) terminal.onClose();
+			if (client.screen instanceof TerminalScreen terminal) {
+				if (terminal.onboardingLocksExitForTesting()) throw new AssertionError(
+						"Walkthrough still locked: question=" + terminal.profileQuestionForTesting()
+						+ ", targetPage=" + terminal.onboardingTargetPageForTesting());
+				terminal.onClose();
+			}
 		});
 		awaitRest(context);
 	}

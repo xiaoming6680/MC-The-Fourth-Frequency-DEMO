@@ -4,7 +4,6 @@ import com.xm.thefourthfrequency.terminal.AnomalyRuntimeService;
 import com.xm.thefourthfrequency.world.StoryProgressService;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
@@ -152,8 +151,8 @@ public final class WatcherEntity extends Monster {
 	 */
 	private void vanish(ServerLevel level, ServerPlayer player) {
 		if (isRemoved()) return;
-		level.playSound(null, getX(), getY(), getZ(), SoundEvents.AMBIENT_CAVE,
-				SoundSource.AMBIENT, 1.0F, 0.72F);
+		com.xm.thefourthfrequency.audio.AudioService.playForPlayer(player, position(),
+				com.xm.thefourthfrequency.audio.ModSounds.WATCHER_VANISH, SoundSource.AMBIENT, 0.65F);
 		StoryProgressService.recordWatcher(player);
 		discard();
 		// Being found is the end of the anomaly, not just the end of the entity. Without this the
