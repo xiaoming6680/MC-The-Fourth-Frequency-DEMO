@@ -951,5 +951,7 @@
   "subtitles.thefourthfrequency.world_interface.tendril_recover": "触手拖拽回收",
   "subtitles.thefourthfrequency.world_interface.roar_1": "巨大腔体呼吸",
   "subtitles.thefourthfrequency.world_interface.roar_2": "吞噬者低吼",
-  "subtitles.thefourthfrequency.world_interface.roar_3": "风暴与世界共振"
+  "subtitles.thefourthfrequency.world_interface.roar_3": "风暴与世界共振",
+  "screen.thefourthfrequency.alpha_loading.do_not_answer": "请勿回应。",
+  "screen.thefourthfrequency.alpha_loading.it_sees_you": "它看见你了。"
 }

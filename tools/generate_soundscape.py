@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import sys
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,6 +128,19 @@ def specification(event, path):
 def db(x): return 20*np.log10(max(1e-12,float(x)))
 
 
+def master_foreground(data, target, ffmpeg):
+    """Raise direct effects 4.35 dB with a look-ahead limiter; retain silence and exact timing."""
+    channels = data.shape[1] if data.ndim == 2 else 1
+    command = [str(ffmpeg), '-v', 'error', '-f', 'f32le', '-ar', str(RATE),
+               '-ac', str(channels), '-i', 'pipe:0', '-af',
+               'volume=1.65,alimiter=limit=0.86:attack=5:release=80:level=false:latency=true',
+               '-f', 'f32le', 'pipe:1']
+    output = subprocess.run(command, input=np.asarray(data, dtype='<f4').tobytes(),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    mastered = np.frombuffer(output.stdout, dtype='<f4').reshape(data.shape).copy()
+    return mastered, min(.86, target * 1.65)
+
+
 def measure(path, duration, loop, channels):
     info=sf.info(path)
     assert info.format=='OGG' and info.subtype=='VORBIS', f'Unsupported Minecraft codec: {path}: {info}'
@@ -150,16 +164,18 @@ def main():
     parser.add_argument('--verify-only',action='store_true')
     parser.add_argument('--terminal-only',action='store_true',help='Rebuild terminal cues, retaining all other shipped audio')
     parser.add_argument('--opening-only',action='store_true',help='Rebuild the opening warning and frozen-buffer cues')
+    parser.add_argument('--foreground-only',action='store_true',help='Master direct effects while preserving terminal feedback and opening cues')
     args=parser.parse_args()
     sounds=read(ASSETS/'sounds.json') if args.verify_only else configure()
     ffmpeg=Path(imageio_ffmpeg.get_ffmpeg_exe())
-    partial=args.terminal_only or args.opening_only
+    partial=args.terminal_only or args.opening_only or args.foreground_only
     if args.verify_only and partial: parser.error('Use --verify-only for the complete manifest')
     entries=read(REPORT)['files'] if partial else {}
     for event,definition in sounds.items():
         if event.startswith('music_'): continue
         if partial and not ((args.terminal_only and event.startswith('terminal_'))
-                            or (args.opening_only and event.startswith('alpha_corruption_'))): continue
+                            or (args.opening_only and event.startswith('alpha_corruption_'))
+                            or (args.foreground_only and not event.startswith(('terminal_', 'alpha_corruption_')))): continue
         for i,entry in enumerate(definition['sounds'],1):
             path=(entry if isinstance(entry,str) else entry['name']).split(':',1)[1]
             if path in entries and not partial: continue
@@ -180,12 +196,14 @@ def main():
                     tier={'terminal_carrier':-28,'signal_carrier':-24,'signal_static':-24,
                           'signal_tape_hiss':-24,'signal_dead_air':-32,'signal_alert':-6,
                           'signal_tuning_sweep':-9,'signal_carrier_lost':-9,
-                          'alpha_corruption_warning':-13,'alpha_corruption_collapse':-12,
+                          'alpha_corruption_warning':-13,'alpha_corruption_collapse':-4.5,
                           'pursuit_capture_scream':-2,'unrendered_capture_scream':-1.5}
                     tier['unrendered_heartbeat']=-14
                     if event.startswith('terminal_'): tier[event] = -30 if loop else -14
                     target=10**(tier.get(event,-9 if loop else -4)/20)
                     data *= target/max(1e-9,float(np.max(np.abs(data))))
+                if not event.startswith(('terminal_', 'alpha_corruption_')):
+                    data, target = master_foreground(data, target, ffmpeg)
                 boss.encode_to_peak(data,file,True,target,ffmpeg)
             entries[path]={'event':event,**measure(file,duration,loop,channels)}
             print(f'{event}: {path}',flush=True)

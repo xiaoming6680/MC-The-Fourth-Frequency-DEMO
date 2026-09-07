@@ -1,6 +1,6 @@
 # Architecture and safety boundaries
 
-The authoritative data flow, persistence, protocol and budgets of `1.0.0-rc.5`. Music has its own document ([Background music](audio.md)); trade-offs and rejected alternatives are in [Design notes](design-notes.md#architecture-and-lifecycle).
+The authoritative data flow, persistence, protocol and budgets of `1.0.0-rc.6`. Music has its own document ([Background music](audio.md)); trade-offs and rejected alternatives are in [Design notes](design-notes.md#architecture-and-lifecycle).
 
 ## Fixed environment
 
@@ -10,7 +10,7 @@ The authoritative data flow, persistence, protocol and budgets of `1.0.0-rc.5`. 
 | Fabric Loader | 0.19.3 |
 | Fabric API | 0.141.4+1.21.11 |
 | Java | 21 |
-| Mod version | 1.0.0-rc.5 |
+| Mod version | 1.0.0-rc.6 |
 
 ## Authoritative data and protocol
 

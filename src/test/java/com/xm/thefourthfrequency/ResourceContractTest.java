@@ -865,37 +865,18 @@ final class ResourceContractTest {
 	 * statement about which lines exist in the screen, not about any number in a policy class.
 	 */
 	@Test
-	void theEveryOpenSelfTestNeverHoldsTheWayOut() throws Exception {
+	void everydayOpenHasNoSelfTestButFirstBootKeepsItsOwnGraphics() throws Exception {
 		String screen = Files.readString(Path.of(
-				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"),
-				StandardCharsets.UTF_8);
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalScreen.java"), StandardCharsets.UTF_8);
+		assertFalse(screen.contains("selfTest"));
+		assertFalse(screen.contains("TerminalSelfTest"));
+		assertTrue(screen.contains("onboardingPhase == TerminalOnboardingPolicy.Phase.BOOT"));
+		assertTrue(screen.contains("onboardingOverlay.drawBoot"));
 		String overlay = Files.readString(Path.of(
-				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalSelfTestOverlay.java"),
-				StandardCharsets.UTF_8);
-		int escStart = screen.indexOf("public boolean shouldCloseOnEsc()");
-		assertTrue(escStart >= 0);
-		assertFalse(screen.substring(escStart, escStart + 400).contains("selfTest"),
-				"Only the one-shot walkthrough may hold the exit; a per-open check never can");
-		// Any key ends it and is then handled normally, Escape included.
-		int keyStart = screen.indexOf("public boolean keyPressed(KeyEvent event) {");
-		int firstBranch = screen.indexOf("if (profileActive())", keyStart);
-		assertTrue(keyStart >= 0 && firstBranch > keyStart);
-		assertTrue(screen.substring(keyStart, firstBranch).contains("selfTestSkipped = true;"),
-				"The first key must end the check before anything else in keyPressed looks at it");
-		// The page area is the only thing it owns, and the only clicks it eats are the ones aimed
-		// at that empty area.
-		assertTrue(answers(screen, "selfTestSkipped = true;",
-				"TerminalUiLayout.PAGE_BODY.contains(local[0], local[1])"),
-				"A click outside the hidden page area must still reach the control it was aimed at");
-		assertTrue(screen.contains("if (selfTestRunning()) return;"),
-				"The page body must stay unrendered while the machine is still reporting");
-		// The clock starts when the screen is first drawn, not when it is constructed.
-		assertTrue(screen.contains("if (selfTestArmed && selfTestStartedAtMillis < 0L) selfTestStartedAtMillis = renderNowMillis;"));
-		// The baseline line is read off the pitch table rather than restated.
-		assertTrue(overlay.contains("TerminalSelfTest.baselineDriftPercent(stage)"),
-				"The printed drift must come from the constant that pitches the presses");
-		assertFalse(overlay.contains("graphics.fill(body"),
-				"The check draws on the display glass, never on a plate laid over the device");
+				"src/client/java/com/xm/thefourthfrequency/client_ui/TerminalOnboardingOverlay.java"), StandardCharsets.UTF_8);
+		assertTrue(overlay.contains("AnalogBootGraphics.draw"));
+		assertTrue(overlay.contains("TerminalClientAudio.bootComplete()"));
+		assertFalse(overlay.contains("TerminalClientAudio.bootLine"));
 	}
 
 	/**
@@ -1472,25 +1453,24 @@ final class ResourceContractTest {
 				"A post-power-on fade would light the tube on an empty screen again");
 		assertTrue(screen.contains("minecraft.getOverlay() != null) return"),
 				"A reload overlay must hold the entrance clock instead of running it out of sight");
-		assertFalse(screen.contains("Calibration") || screen.contains("MHz"),
-				"The band-sweep entrance is replaced by a copy-free tube power-on");
+		assertTrue(screen.contains("AnalogBootGraphics.drawCrtCalibration"),
+				"The game entry uses a period television test card");
 		assertFalse(screen.contains("drawHeaderScope"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeOpening()"));
 		assertTrue(screen.contains("TerminalClientAudio.noticeStable()"));
 		assertTrue(screen.contains("arm(acknowledgementButton, ready)"),
 				"The way out stays hidden and dead until the entrance has finished playing");
 		assertTrue(screen.contains("transitionAge = 0"));
-		assertTrue(screen.contains("TEXT_FADE_TICKS = 4"));
-		assertTrue(screen.contains("ZOOM_TICKS = 24"));
+		assertTrue(screen.contains("TEXT_FADE_TICKS = 18"));
+		assertTrue(screen.contains("ZOOM_TICKS = 64"));
 		assertTrue(screen.contains("transitionAge >= TEXT_FADE_TICKS) return"));
 		assertTrue(screen.contains("returnScreen.render(graphics"));
 		assertTrue(screen.contains("graphics.enableScissor"));
 		assertTrue(screen.contains("renderTransitionFrame"));
-		assertTrue(screen.contains("zoomProgress * 2.0F"));
-		assertTrue(screen.contains("255.0F * (1.0F - zoomProgress)"));
-		assertTrue(screen.contains("renderTransitionFrame(graphics, zoomed, terminalAlpha)"));
 		assertTrue(screen.contains("targetZoomScale"));
-		assertTrue(screen.contains("(targetZoomScale(base) - 1.0F) * zoomProgress"));
+		assertTrue(screen.contains("renderTransitionFrame(graphics, zoomed, 255)"));
+		assertTrue(screen.contains("float scale = 1 / (1 - depth * travel)"));
+		assertTrue(screen.contains("ScreenFilterDriver.request"));
 		assertTrue(screen.contains("FirstRunNoticePalette"));
 		assertTrue(screen.contains("LATIN_BASELINE_Y_OFFSET = 1"));
 		assertTrue(screen.contains("drawBaselineAlignedString"));
@@ -2617,7 +2597,7 @@ final class ResourceContractTest {
 		assertTrue(loadingMixin.contains("renderSignalDropouts"));
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.fullScreenFailureWall"));
 		assertTrue(loadingMixin.contains("renderFullScreenFailureWall"));
-		assertTrue(loadingMixin.contains("String wallLine = word.repeat(repetitions)"));
+		assertTrue(loadingMixin.contains("String word = \"败\";"));
 		assertFalse(loadingMixin.contains("frameSeed"));
 		assertFalse(loadingMixin.contains("lockX"));
 		assertFalse(loadingMixin.contains("lockY"));
@@ -2685,7 +2665,7 @@ final class ResourceContractTest {
 				"Dead air must stay dead; the lost picture does not come back in single frames");
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.noise"),
 				"One seed must drive every layer, or a frozen frame freezes unevenly");
-		for (String layer : new String[]{"requestSignalFilter", "drawTimecode",
+		for (String layer : new String[]{"requestSignalFilter",
 				"drawDeadAir", "drawRecoveryLock", "drawChromaCenteredString"}) {
 			assertTrue(corruptionRenderer.contains(layer), "missing medium layer " + layer);
 		}
@@ -2696,10 +2676,7 @@ final class ResourceContractTest {
 		assertFalse(corruptionRenderer.contains("drawScanlines")
 						|| corruptionRenderer.contains("drawVignette"),
 				"scanlines and the tube are the filter's job; rectangles must not come back");
-		int filterAt = corruptionRenderer.indexOf("requestSignalFilter(screenTicks);");
-		int timecodeAt = corruptionRenderer.indexOf("drawTimecode(graphics, screenTicks)");
-		assertTrue(filterAt >= 0 && filterAt < timecodeAt,
-				"the medium is asked for before anything composites inside it");
+		assertFalse(corruptionRenderer.contains("drawTimecode"), "The lower-left counter is removed");
 		// The corruption screen holds still: it is a wall of text a player reads for half a minute,
 		// and text that will not stay in one place stops being a fault and becomes a headache. Its
 		// filter family is the one with the per-frame row wobble and the tearing zeroed.
@@ -2731,19 +2708,9 @@ final class ResourceContractTest {
 			assertTrue(enLang.has(key), "missing English " + key);
 			assertTrue(zhLang.has(key), "missing Chinese " + key);
 		}
-		// One line in the failure wall contradicts the wall; the observer returns on a frame that
-		// has stopped; the recovered progress bar takes its own reassurance back once.
-		assertTrue(loadingMixin.contains("alpha_loading.wall_intrusion"));
-		assertTrue(loadingMixin.contains("INTRUSION_COLOR = 0xFFFF5C57"));
-		// Woven into the wall, not laid on top of it: it stands in the flow of repeated text at
-		// the wall's own scale, with nothing framing it, so it has to be found rather than read.
-		assertTrue(loadingMixin.contains("int intrusionRow ="));
-		assertTrue(loadingMixin.contains("int intrusionOffsetX = font.width(intrusionHead)"));
-		assertTrue(loadingMixin.indexOf("x + intrusionOffsetX")
-						< loadingMixin.indexOf("graphics.pose().popMatrix()"),
-				"The contradicting line must be drawn inside the wall's own scale");
-		assertFalse(loadingMixin.contains("0xD9060000"),
-				"Nothing may frame the contradicting line; a backing box makes it a label");
+		assertFalse(loadingMixin.contains("intrusionLine"));
+		assertFalse(loadingMixin.contains("AlphaLoadTimeline.frozenObserverVisible"));
+		assertTrue(loadingMixin.contains("logicalWidth / wordWidth + 6"), "The repeated glyphs overscan every edge");
 		// The wipe travels on its own; lit edges read as a transition effect laid over the screen.
 		assertFalse(loadingMixin.contains("0xB3E8DCD4"),
 				"The flood wipe must not draw leading edge lines");
@@ -2753,7 +2720,6 @@ final class ResourceContractTest {
 		assertFalse(loadingMixin.contains("tremorY"));
 		assertTrue(loadingMixin.contains("int placement = thefourthfrequency$chaos(copy * 31)"),
 				"Failure copies must keep the offset they were born with");
-		assertTrue(loadingMixin.contains("AlphaLoadTimeline.frozenObserverVisible"));
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.recoveryProgressFault"));
 		assertTrue(loadingMixin.contains("AlphaLoadTimeline.initialNormalProgress"),
 				"The prelude bar must lose ground before anything visibly corrupts");

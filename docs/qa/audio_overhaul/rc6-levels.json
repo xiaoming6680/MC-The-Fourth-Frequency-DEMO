@@ -1,0 +1,830 @@
+{
+  "masterGain": 1.65,
+  "limiterCeiling": 0.86,
+  "foregroundOutputGain": 2.6,
+  "backgroundOutputGain": 0.85,
+  "unrenderedBackgroundOutputGain": 0.8,
+  "changedLoudnessFiles": 200,
+  "minimumRmsIncreaseDb": 1.78,
+  "maximumRmsIncreaseDb": 4.38,
+  "retainedTerminalAndOpeningFiles": 31,
+  "files": [
+    {
+      "path": "anomaly/empty_viewpoint/01",
+      "rmsIncreaseDb": 3.92
+    },
+    {
+      "path": "anomaly/empty_viewpoint/02",
+      "rmsIncreaseDb": 3.81
+    },
+    {
+      "path": "anomaly/empty_viewpoint/03",
+      "rmsIncreaseDb": 4.02
+    },
+    {
+      "path": "anomaly/empty_base/01",
+      "rmsIncreaseDb": 4.1
+    },
+    {
+      "path": "anomaly/empty_base/02",
+      "rmsIncreaseDb": 3.64
+    },
+    {
+      "path": "anomaly/empty_base/03",
+      "rmsIncreaseDb": 4.13
+    },
+    {
+      "path": "anomaly/empty_experience/01",
+      "rmsIncreaseDb": 4.07
+    },
+    {
+      "path": "anomaly/empty_experience/02",
+      "rmsIncreaseDb": 3.92
+    },
+    {
+      "path": "anomaly/empty_experience/03",
+      "rmsIncreaseDb": 4.02
+    },
+    {
+      "path": "anomaly/fourth_band/01",
+      "rmsIncreaseDb": 4.09
+    },
+    {
+      "path": "anomaly/fourth_band/02",
+      "rmsIncreaseDb": 3.92
+    },
+    {
+      "path": "anomaly/fourth_band/03",
+      "rmsIncreaseDb": 4.0
+    },
+    {
+      "path": "anomaly/layer_stone_step/01",
+      "rmsIncreaseDb": 4.05
+    },
+    {
+      "path": "anomaly/layer_stone_step/02",
+      "rmsIncreaseDb": 4.09
+    },
+    {
+      "path": "anomaly/layer_stone_step/03",
+      "rmsIncreaseDb": 3.87
+    },
+    {
+      "path": "anomaly/layer_wooden_door_close/01",
+      "rmsIncreaseDb": 4.16
+    },
+    {
+      "path": "anomaly/layer_wooden_door_close/02",
+      "rmsIncreaseDb": 3.67
+    },
+    {
+      "path": "anomaly/layer_wooden_door_close/03",
+      "rmsIncreaseDb": 3.98
+    },
+    {
+      "path": "anomaly/layer_chest_close/01",
+      "rmsIncreaseDb": 3.74
+    },
+    {
+      "path": "anomaly/layer_chest_close/02",
+      "rmsIncreaseDb": 3.81
+    },
+    {
+      "path": "anomaly/layer_chest_close/03",
+      "rmsIncreaseDb": 3.64
+    },
+    {
+      "path": "anomaly/layer_beacon_deactivate/01",
+      "rmsIncreaseDb": 3.89
+    },
+    {
+      "path": "anomaly/layer_beacon_deactivate/02",
+      "rmsIncreaseDb": 3.85
+    },
+    {
+      "path": "anomaly/layer_beacon_deactivate/03",
+      "rmsIncreaseDb": 4.03
+    },
+    {
+      "path": "anomaly/layer_deepslate_break/01",
+      "rmsIncreaseDb": 3.99
+    },
+    {
+      "path": "anomaly/layer_deepslate_break/02",
+      "rmsIncreaseDb": 4.05
+    },
+    {
+      "path": "anomaly/layer_deepslate_break/03",
+      "rmsIncreaseDb": 3.93
+    },
+    {
+      "path": "anomaly/layer_comparator_click/01",
+      "rmsIncreaseDb": 4.08
+    },
+    {
+      "path": "anomaly/layer_comparator_click/02",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "anomaly/layer_comparator_click/03",
+      "rmsIncreaseDb": 3.72
+    },
+    {
+      "path": "entity/rework/joint/01",
+      "rmsIncreaseDb": 4.02
+    },
+    {
+      "path": "entity/rework/joint/02",
+      "rmsIncreaseDb": 4.15
+    },
+    {
+      "path": "anomaly/anomaly_echo/01",
+      "rmsIncreaseDb": 3.8
+    },
+    {
+      "path": "anomaly/anomaly_echo/02",
+      "rmsIncreaseDb": 3.73
+    },
+    {
+      "path": "anomaly/anomaly_echo/03",
+      "rmsIncreaseDb": 3.83
+    },
+    {
+      "path": "anomaly/window_glitch/01",
+      "rmsIncreaseDb": 3.97
+    },
+    {
+      "path": "anomaly/window_glitch/02",
+      "rmsIncreaseDb": 3.84
+    },
+    {
+      "path": "anomaly/window_glitch/03",
+      "rmsIncreaseDb": 3.99
+    },
+    {
+      "path": "anomaly/door_cascade/01",
+      "rmsIncreaseDb": 3.88
+    },
+    {
+      "path": "anomaly/door_cascade/02",
+      "rmsIncreaseDb": 3.87
+    },
+    {
+      "path": "anomaly/door_cascade/03",
+      "rmsIncreaseDb": 3.89
+    },
+    {
+      "path": "anomaly/rule_collapse/01",
+      "rmsIncreaseDb": 3.63
+    },
+    {
+      "path": "anomaly/rule_collapse/02",
+      "rmsIncreaseDb": 3.53
+    },
+    {
+      "path": "anomaly/rule_collapse/03",
+      "rmsIncreaseDb": 3.53
+    },
+    {
+      "path": "client/pursuit/capture_scream",
+      "rmsIncreaseDb": 2.38
+    },
+    {
+      "path": "signal/alert",
+      "rmsIncreaseDb": 4.36
+    },
+    {
+      "path": "signal/carrier_lost",
+      "rmsIncreaseDb": 4.34
+    },
+    {
+      "path": "signal/tuning_sweep",
+      "rmsIncreaseDb": 4.35
+    },
+    {
+      "path": "world_interface/altar/01",
+      "rmsIncreaseDb": 3.81
+    },
+    {
+      "path": "world_interface/altar/02",
+      "rmsIncreaseDb": 3.83
+    },
+    {
+      "path": "world_interface/altar/03",
+      "rmsIncreaseDb": 3.95
+    },
+    {
+      "path": "world_interface/altar/04",
+      "rmsIncreaseDb": 3.84
+    },
+    {
+      "path": "world_interface/terminal/01",
+      "rmsIncreaseDb": 3.3
+    },
+    {
+      "path": "world_interface/terminal/02",
+      "rmsIncreaseDb": 3.36
+    },
+    {
+      "path": "world_interface/terminal/03",
+      "rmsIncreaseDb": 3.42
+    },
+    {
+      "path": "world_interface/terminal/04",
+      "rmsIncreaseDb": 3.48
+    },
+    {
+      "path": "world_interface/anchor/01",
+      "rmsIncreaseDb": 3.68
+    },
+    {
+      "path": "world_interface/anchor/02",
+      "rmsIncreaseDb": 3.69
+    },
+    {
+      "path": "world_interface/anchor/03",
+      "rmsIncreaseDb": 3.85
+    },
+    {
+      "path": "world_interface/gateway_purple/01",
+      "rmsIncreaseDb": 4.35
+    },
+    {
+      "path": "world_interface/gateway_gold/01",
+      "rmsIncreaseDb": 4.35
+    },
+    {
+      "path": "world_interface/gateway_red/01",
+      "rmsIncreaseDb": 4.35
+    },
+    {
+      "path": "world_interface/summon/01",
+      "rmsIncreaseDb": 2.91
+    },
+    {
+      "path": "world_interface/summon/02",
+      "rmsIncreaseDb": 2.92
+    },
+    {
+      "path": "world_interface/summon/03",
+      "rmsIncreaseDb": 2.52
+    },
+    {
+      "path": "world_interface/combat_start/01",
+      "rmsIncreaseDb": 3.18
+    },
+    {
+      "path": "world_interface/hurt/01",
+      "rmsIncreaseDb": 2.9
+    },
+    {
+      "path": "world_interface/hurt/02",
+      "rmsIncreaseDb": 2.87
+    },
+    {
+      "path": "world_interface/hurt/03",
+      "rmsIncreaseDb": 3.05
+    },
+    {
+      "path": "world_interface/death/01",
+      "rmsIncreaseDb": 3.16
+    },
+    {
+      "path": "world_interface/laser_fire/01",
+      "rmsIncreaseDb": 3.08
+    },
+    {
+      "path": "world_interface/laser_fire/02",
+      "rmsIncreaseDb": 3.19
+    },
+    {
+      "path": "world_interface/laser_fire/03",
+      "rmsIncreaseDb": 2.64
+    },
+    {
+      "path": "world_interface/lance/01",
+      "rmsIncreaseDb": 3.86
+    },
+    {
+      "path": "world_interface/lance/02",
+      "rmsIncreaseDb": 3.82
+    },
+    {
+      "path": "world_interface/lance/03",
+      "rmsIncreaseDb": 3.76
+    },
+    {
+      "path": "world_interface/lance_impact/01",
+      "rmsIncreaseDb": 3.28
+    },
+    {
+      "path": "world_interface/lance_impact/02",
+      "rmsIncreaseDb": 3.32
+    },
+    {
+      "path": "world_interface/lance_impact/03",
+      "rmsIncreaseDb": 3.25
+    },
+    {
+      "path": "world_interface/impact/01",
+      "rmsIncreaseDb": 3.26
+    },
+    {
+      "path": "world_interface/impact/02",
+      "rmsIncreaseDb": 3.28
+    },
+    {
+      "path": "world_interface/impact/03",
+      "rmsIncreaseDb": 3.23
+    },
+    {
+      "path": "world_interface/form_shift/01",
+      "rmsIncreaseDb": 3.07
+    },
+    {
+      "path": "world_interface/form_shift/02",
+      "rmsIncreaseDb": 2.96
+    },
+    {
+      "path": "world_interface/flight/01",
+      "rmsIncreaseDb": 3.62
+    },
+    {
+      "path": "world_interface/flight/02",
+      "rmsIncreaseDb": 3.16
+    },
+    {
+      "path": "world_interface/morph/01",
+      "rmsIncreaseDb": 2.68
+    },
+    {
+      "path": "world_interface/morph/02",
+      "rmsIncreaseDb": 3.03
+    },
+    {
+      "path": "world_interface/morph/03",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/morph/04",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/shockwave/01",
+      "rmsIncreaseDb": 3.14
+    },
+    {
+      "path": "world_interface/shockwave/02",
+      "rmsIncreaseDb": 3.08
+    },
+    {
+      "path": "world_interface/shockwave/03",
+      "rmsIncreaseDb": 3.23
+    },
+    {
+      "path": "world_interface/laser/01",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "world_interface/laser/02",
+      "rmsIncreaseDb": 4.13
+    },
+    {
+      "path": "world_interface/laser/03",
+      "rmsIncreaseDb": 3.87
+    },
+    {
+      "path": "world_interface/orb/01",
+      "rmsIncreaseDb": 4.06
+    },
+    {
+      "path": "world_interface/orb/02",
+      "rmsIncreaseDb": 3.84
+    },
+    {
+      "path": "world_interface/orb/03",
+      "rmsIncreaseDb": 3.98
+    },
+    {
+      "path": "world_interface/grab/01",
+      "rmsIncreaseDb": 3.27
+    },
+    {
+      "path": "world_interface/grab/02",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/grab/03",
+      "rmsIncreaseDb": 3.35
+    },
+    {
+      "path": "world_interface/mental/01",
+      "rmsIncreaseDb": 3.78
+    },
+    {
+      "path": "world_interface/mental/02",
+      "rmsIncreaseDb": 3.36
+    },
+    {
+      "path": "world_interface/mental/03",
+      "rmsIncreaseDb": 3.32
+    },
+    {
+      "path": "world_interface/weapon/01",
+      "rmsIncreaseDb": 3.74
+    },
+    {
+      "path": "world_interface/weapon/02",
+      "rmsIncreaseDb": 4.0
+    },
+    {
+      "path": "world_interface/weapon/03",
+      "rmsIncreaseDb": 3.96
+    },
+    {
+      "path": "world_interface/throw/01",
+      "rmsIncreaseDb": 3.25
+    },
+    {
+      "path": "world_interface/throw/02",
+      "rmsIncreaseDb": 3.2
+    },
+    {
+      "path": "world_interface/throw/03",
+      "rmsIncreaseDb": 3.27
+    },
+    {
+      "path": "world_interface/hotbar/01",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "world_interface/hotbar/02",
+      "rmsIncreaseDb": 4.03
+    },
+    {
+      "path": "world_interface/hotbar/03",
+      "rmsIncreaseDb": 3.76
+    },
+    {
+      "path": "world_interface/arrow/01",
+      "rmsIncreaseDb": 3.82
+    },
+    {
+      "path": "world_interface/arrow/02",
+      "rmsIncreaseDb": 3.51
+    },
+    {
+      "path": "world_interface/arrow/03",
+      "rmsIncreaseDb": 3.17
+    },
+    {
+      "path": "world_interface/expulsion/01",
+      "rmsIncreaseDb": 4.0
+    },
+    {
+      "path": "world_interface/expulsion/02",
+      "rmsIncreaseDb": 3.95
+    },
+    {
+      "path": "world_interface/expulsion/03",
+      "rmsIncreaseDb": 3.83
+    },
+    {
+      "path": "world_interface/eviction/01",
+      "rmsIncreaseDb": 3.49
+    },
+    {
+      "path": "world_interface/eviction/02",
+      "rmsIncreaseDb": 3.41
+    },
+    {
+      "path": "world_interface/success/01",
+      "rmsIncreaseDb": 3.89
+    },
+    {
+      "path": "world_interface/success/02",
+      "rmsIncreaseDb": 3.83
+    },
+    {
+      "path": "world_interface/success/03",
+      "rmsIncreaseDb": 3.84
+    },
+    {
+      "path": "world_interface/failure/01",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/failure/02",
+      "rmsIncreaseDb": 3.17
+    },
+    {
+      "path": "world_interface/failure/03",
+      "rmsIncreaseDb": 3.58
+    },
+    {
+      "path": "world_interface/failure/04",
+      "rmsIncreaseDb": 3.12
+    },
+    {
+      "path": "unrendered/capture_scream",
+      "rmsIncreaseDb": 1.78
+    },
+    {
+      "path": "unrendered/heartbeat",
+      "rmsIncreaseDb": 4.37
+    },
+    {
+      "path": "entity/lock_search/01",
+      "rmsIncreaseDb": 2.83
+    },
+    {
+      "path": "entity/dispossess/01",
+      "rmsIncreaseDb": 2.93
+    },
+    {
+      "path": "entity/watcher_vanish/01",
+      "rmsIncreaseDb": 3.71
+    },
+    {
+      "path": "entity/watcher_vanish/02",
+      "rmsIncreaseDb": 4.05
+    },
+    {
+      "path": "entity/watcher_vanish/03",
+      "rmsIncreaseDb": 3.8
+    },
+    {
+      "path": "entity/him_presence/01",
+      "rmsIncreaseDb": 3.65
+    },
+    {
+      "path": "entity/him_presence/02",
+      "rmsIncreaseDb": 3.8
+    },
+    {
+      "path": "entity/him_presence/03",
+      "rmsIncreaseDb": 3.91
+    },
+    {
+      "path": "entity/bacteria_skitter/01",
+      "rmsIncreaseDb": 2.92
+    },
+    {
+      "path": "entity/bacteria_skitter/02",
+      "rmsIncreaseDb": 3.52
+    },
+    {
+      "path": "entity/bacteria_skitter/03",
+      "rmsIncreaseDb": 3.96
+    },
+    {
+      "path": "entity/bacteria_skitter/04",
+      "rmsIncreaseDb": 3.45
+    },
+    {
+      "path": "entity/rework_step_1/01",
+      "rmsIncreaseDb": 4.08
+    },
+    {
+      "path": "entity/rework_step_1/02",
+      "rmsIncreaseDb": 3.89
+    },
+    {
+      "path": "entity/rework_step_1/03",
+      "rmsIncreaseDb": 4.09
+    },
+    {
+      "path": "entity/rework_step_1/04",
+      "rmsIncreaseDb": 3.94
+    },
+    {
+      "path": "entity/rework_step_2/01",
+      "rmsIncreaseDb": 3.96
+    },
+    {
+      "path": "entity/rework_step_2/02",
+      "rmsIncreaseDb": 3.94
+    },
+    {
+      "path": "entity/rework_step_2/03",
+      "rmsIncreaseDb": 3.92
+    },
+    {
+      "path": "entity/rework_step_2/04",
+      "rmsIncreaseDb": 3.68
+    },
+    {
+      "path": "entity/rework_step_3/01",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "entity/rework_step_3/02",
+      "rmsIncreaseDb": 3.93
+    },
+    {
+      "path": "entity/rework_step_3/03",
+      "rmsIncreaseDb": 3.96
+    },
+    {
+      "path": "entity/rework_step_3/04",
+      "rmsIncreaseDb": 3.91
+    },
+    {
+      "path": "entity/rework_breath_1/01",
+      "rmsIncreaseDb": 4.11
+    },
+    {
+      "path": "entity/rework_breath_1/02",
+      "rmsIncreaseDb": 4.11
+    },
+    {
+      "path": "entity/rework_breath_1/03",
+      "rmsIncreaseDb": 3.99
+    },
+    {
+      "path": "entity/rework_breath_2/01",
+      "rmsIncreaseDb": 4.17
+    },
+    {
+      "path": "entity/rework_breath_2/02",
+      "rmsIncreaseDb": 4.25
+    },
+    {
+      "path": "entity/rework_breath_2/03",
+      "rmsIncreaseDb": 4.11
+    },
+    {
+      "path": "entity/rework_breath_3/01",
+      "rmsIncreaseDb": 4.13
+    },
+    {
+      "path": "entity/rework_breath_3/02",
+      "rmsIncreaseDb": 3.96
+    },
+    {
+      "path": "entity/rework_breath_3/03",
+      "rmsIncreaseDb": 4.26
+    },
+    {
+      "path": "entity/rework_hurt/01",
+      "rmsIncreaseDb": 3.84
+    },
+    {
+      "path": "entity/rework_hurt/02",
+      "rmsIncreaseDb": 3.88
+    },
+    {
+      "path": "entity/rework_hurt/03",
+      "rmsIncreaseDb": 3.97
+    },
+    {
+      "path": "entity/rework_death/01",
+      "rmsIncreaseDb": 3.88
+    },
+    {
+      "path": "entity/rework_death/02",
+      "rmsIncreaseDb": 3.99
+    },
+    {
+      "path": "world_interface/laser_loop/01",
+      "rmsIncreaseDb": 4.38
+    },
+    {
+      "path": "world_interface/laser_release/01",
+      "rmsIncreaseDb": 3.61
+    },
+    {
+      "path": "world_interface/laser_release/02",
+      "rmsIncreaseDb": 3.61
+    },
+    {
+      "path": "world_interface/laser_release/03",
+      "rmsIncreaseDb": 3.78
+    },
+    {
+      "path": "world_interface/laser_impact/01",
+      "rmsIncreaseDb": 2.98
+    },
+    {
+      "path": "world_interface/laser_impact/02",
+      "rmsIncreaseDb": 3.0
+    },
+    {
+      "path": "world_interface/laser_impact/03",
+      "rmsIncreaseDb": 3.0
+    },
+    {
+      "path": "world_interface/laser_impact/04",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/blast/01",
+      "rmsIncreaseDb": 3.1
+    },
+    {
+      "path": "world_interface/blast/02",
+      "rmsIncreaseDb": 3.28
+    },
+    {
+      "path": "world_interface/blast/03",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/blast/04",
+      "rmsIncreaseDb": 3.12
+    },
+    {
+      "path": "world_interface/tendril/01",
+      "rmsIncreaseDb": 3.65
+    },
+    {
+      "path": "world_interface/tendril/02",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "world_interface/tendril/03",
+      "rmsIncreaseDb": 3.99
+    },
+    {
+      "path": "world_interface/tendril_strike/01",
+      "rmsIncreaseDb": 3.17
+    },
+    {
+      "path": "world_interface/tendril_strike/02",
+      "rmsIncreaseDb": 3.15
+    },
+    {
+      "path": "world_interface/tendril_strike/03",
+      "rmsIncreaseDb": 3.11
+    },
+    {
+      "path": "world_interface/tendril_strike/04",
+      "rmsIncreaseDb": 3.22
+    },
+    {
+      "path": "world_interface/tendril_recover/01",
+      "rmsIncreaseDb": 3.9
+    },
+    {
+      "path": "world_interface/tendril_recover/02",
+      "rmsIncreaseDb": 3.59
+    },
+    {
+      "path": "world_interface/tendril_recover/03",
+      "rmsIncreaseDb": 3.19
+    },
+    {
+      "path": "world_interface/roar_1/01",
+      "rmsIncreaseDb": 4.16
+    },
+    {
+      "path": "world_interface/roar_1/02",
+      "rmsIncreaseDb": 4.09
+    },
+    {
+      "path": "world_interface/roar_1/03",
+      "rmsIncreaseDb": 4.0
+    },
+    {
+      "path": "world_interface/roar_2/01",
+      "rmsIncreaseDb": 4.01
+    },
+    {
+      "path": "world_interface/roar_2/02",
+      "rmsIncreaseDb": 4.12
+    },
+    {
+      "path": "world_interface/roar_2/03",
+      "rmsIncreaseDb": 4.03
+    },
+    {
+      "path": "world_interface/roar_3/01",
+      "rmsIncreaseDb": 4.01
+    },
+    {
+      "path": "world_interface/roar_3/02",
+      "rmsIncreaseDb": 3.91
+    },
+    {
+      "path": "world_interface/roar_3/03",
+      "rmsIncreaseDb": 4.1
+    }
+  ],
+  "openingImpact": [
+    {
+      "path": "client/alpha_corruption/collapse/01",
+      "peakDbfs": -4.44,
+      "rmsIncreaseDb": 4.24
+    },
+    {
+      "path": "client/alpha_corruption/collapse/02",
+      "peakDbfs": -4.44,
+      "rmsIncreaseDb": 4.28
+    },
+    {
+      "path": "client/alpha_corruption/collapse/03",
+      "peakDbfs": -4.44,
+      "rmsIncreaseDb": 4.72
+    }
+  ]
+}

@@ -26,17 +26,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelLoadingScreen.class)
 public abstract class LevelLoadingScreenCorruptionMixin {
-	/**
-	 * Bright red, well clear of the wall's own.
-	 *
-	 * <p>The wall runs 206-248 in red with almost nothing in the other channels. Matching that
-	 * hue would hide the line; lifting green and blue together keeps it unmistakably red while
-	 * putting it far enough above the wall in brightness to be picked out at a glance.</p>
-	 */
-	@Unique private static final int INTRUSION_COLOR = 0xFFFF5C57;
-	/** Off the centre line, below and right of it: near enough to catch, far enough to miss. */
-	@Unique private static final float INTRUSION_ROW_FRACTION = 0.62F;
-	@Unique private static final float INTRUSION_SLOT_FRACTION = 0.55F;
 	@Shadow private LevelLoadTracker loadTracker;
 	@Shadow private float smoothedProgress;
 	@Unique private int thefourthfrequency$screenTicks;
@@ -260,18 +249,8 @@ public abstract class LevelLoadingScreenCorruptionMixin {
 				: "screen.thefourthfrequency.alpha_loading.failed").getString();
 		String failedLine = thefourthfrequency$failedLine();
 		if (AlphaLoadTimeline.fullScreenFailureWall(thefourthfrequency$screenTicks)) {
-			thefourthfrequency$renderFullScreenFailureWall(graphics, font, failedLine);
+			thefourthfrequency$renderFullScreenFailureWall(graphics, font);
 			AlphaCorruptionRenderer.drawMediumLayers(graphics, thefourthfrequency$screenTicks);
-			if (AlphaLoadTimeline.frozenObserverVisible(thefourthfrequency$screenTicks)) {
-				// Drawn without the tremor every other line carries: on a frame where nothing is
-				// allowed to move, this is steady, and being steady is what makes it wrong.
-				String observer = Component.translatable(
-						"screen.thefourthfrequency.alpha_loading.observer_detected").getString();
-				int observerY = graphics.guiHeight() / 2;
-				graphics.drawCenteredString(font, observer, centerX + 1, observerY + 1,
-						0xC8140505);
-				graphics.drawCenteredString(font, observer, centerX, observerY, 0xFFF0E8DC);
-			}
 			thefourthfrequency$viewportFlooded = true;
 			AlphaLoadSessionController.recordViewportFlooded(true);
 			if (!thefourthfrequency$testScreenshotRequested
@@ -302,8 +281,11 @@ public abstract class LevelLoadingScreenCorruptionMixin {
 				suffixColor, thefourthfrequency$screenTicks);
 
 		if (AlphaLoadTimeline.observerMessageVisible(thefourthfrequency$screenTicks)) {
-			String observer = Component.translatable(
-					"screen.thefourthfrequency.alpha_loading.observer_detected").getString();
+			int midpoint = (AlphaLoadTimeline.OBSERVER_MESSAGE_START_TICK
+					+ AlphaLoadTimeline.OBSERVER_MESSAGE_END_TICK) / 2;
+			String observer = Component.translatable(thefourthfrequency$screenTicks < midpoint
+					? "screen.thefourthfrequency.alpha_loading.do_not_answer"
+					: "screen.thefourthfrequency.alpha_loading.it_sees_you").getString();
 			graphics.drawCenteredString(font, observer, centerX + 1, labelY + 29,
 					0x6A321416);
 			AlphaCorruptionRenderer.drawChromaCenteredString(graphics, font, observer, centerX,
@@ -354,58 +336,27 @@ public abstract class LevelLoadingScreenCorruptionMixin {
 	 * the player unsure whether they saw it start.
 	 */
 	@Unique
-	private static void thefourthfrequency$renderFullScreenFailureWall(GuiGraphics graphics,
-			Font font, String failedLine) {
-		int width = graphics.guiWidth();
-		int height = graphics.guiHeight();
-		graphics.fill(0, 0, width, height, 0xD00B0000);
-
+	private static void thefourthfrequency$renderFullScreenFailureWall(GuiGraphics graphics, Font font) {
+		int width = graphics.guiWidth(), height = graphics.guiHeight();
+		graphics.fill(0, 0, width, height, 0xFF160303);
 		float scale = 2.85F;
-		int logicalWidth = (int) Math.ceil(width / scale);
-		int logicalHeight = (int) Math.ceil(height / scale);
-		String word = failedLine + " ";
+		int logicalWidth = (int)Math.ceil(width / scale);
+		int logicalHeight = (int)Math.ceil(height / scale);
+		String word = "败";
 		int wordWidth = Math.max(1, font.width(word));
-		int repetitions = Math.max(1, logicalWidth / wordWidth + 6);
-		String wallLine = word.repeat(repetitions);
-
-		// One line in the wall does not agree with the wall, and it is woven into the wall rather
-		// than laid on top of it: same glyph size, same baseline, standing in the flow of repeated
-		// text where one repetition of the word should have been. Nothing frames it. Twenty-eight
-		// ticks of the same word is parsed by the eye in ten and then costs attention without
-		// paying any back; a single line that contradicts every other line spends the rest of that
-		// time well - and it has to be *found* to do that, which a floating label can never be.
-		// What it says reframes the failure entirely: nothing failed to load. Something connected.
-		String intrusion = Component.translatable(
-				"screen.thefourthfrequency.alpha_loading.wall_intrusion").getString();
-		int intrusionRow = Math.round(logicalHeight * INTRUSION_ROW_FRACTION / font.lineHeight);
-		int intrusionSlot = Math.max(1, Math.round(repetitions * INTRUSION_SLOT_FRACTION));
-		String intrusionHead = word.repeat(intrusionSlot);
-		int intrusionOffsetX = font.width(intrusionHead);
-		String intrusionLine = intrusionHead + intrusion + " "
-				+ word.repeat(Math.max(1, repetitions - intrusionSlot));
-
+		String wallLine = word.repeat(logicalWidth / wordWidth + 6);
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
 		int row = -2;
 		for (int y = -font.lineHeight * 2; y < logicalHeight + font.lineHeight * 2;
 				y += font.lineHeight, row++) {
-			boolean carriesIntrusion = row == intrusionRow;
-			String line = carriesIntrusion ? intrusionLine : wallLine;
-			int stagger = (row & 1) == 0 ? 0 : -(wordWidth / 2);
+			int stagger = (row & 1) == 0 ? 0 : -wordWidth / 2;
 			int x = -wordWidth * 2 + stagger;
 			int red = 206 + Math.floorMod(row * 17, 42);
 			int green = 8 + Math.floorMod(row * 11, 17);
 			int blue = 9 + Math.floorMod(row * 7, 13);
-			graphics.drawString(font, line, x + 1, y + 1,
-					0xB8000000 | red << 16, false);
-			graphics.drawString(font, line, x, y,
-					0xFF000000 | red << 16 | green << 8 | blue, false);
-			if (carriesIntrusion) {
-				// Overdrawn in place. Minecraft's font is not antialiased, so repainting the same
-				// glyphs at the same position in a different colour leaves no seam behind.
-				graphics.drawString(font, intrusion, x + intrusionOffsetX, y,
-						INTRUSION_COLOR, false);
-			}
+			graphics.drawString(font, wallLine, x + 1, y + 1, 0xB8000000 | red << 16, false);
+			graphics.drawString(font, wallLine, x, y, 0xFF000000 | red << 16 | green << 8 | blue, false);
 		}
 		graphics.pose().popMatrix();
 	}

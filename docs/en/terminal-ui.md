@@ -53,34 +53,19 @@ The resident overlay is drawn by `client_ui/TerminalChrome` and covers only `DIS
 
 Per-frame cost: the CRT layer plus structural decoration is about **105 quads/frame** (59 scanlines + 24 vignette + ~20 corner marks and title bar), still within one GUI batch. Check against that number before adding a layer.
 
-## The short check on every open
+## Everyday opening and first-boot graphics
 
-Besides the one-shot six-line first boot (see "First-boot walkthrough" below), **every open of the terminal runs a four-line check of about 0.6 s first**. The timing and the reading rules are in `terminal/TerminalSelfTest` (**main source set**, a pure class tested directly by `TerminalSelfTestTest`); the drawing is `client_ui/TerminalSelfTestOverlay`.
+RC.6 removes the four-line check on every terminal open, including its policy, renderer and obsolete tests. Ordinary opens show the selected page immediately; clicks and Escape need no self-test skip.
 
-| Line | Reading | Source |
-|---|---|---|
-| `POWER` | POWER OK | The device is on, so the line is true |
-| `STORE` | ARCHIVE %s ITEMS | `snapshot.files().size()`, the same number the FILES page shows |
-| `LINK` | LINK %s/3 / UNAUTHORISED | `bandStage`, the same number the status bar prints |
-| `BASELINE` | CONTACT BASELINE CALIBRATED / -%s%% | **Not a restatement** - see below |
+Three period-device animations share `AnalogBootGraphics`: a monochrome CRT test card and scanning beam for game startup, six banks of memory lamps plus a persistent scope trace for terminal first boot, and raster recovery between audio and disclosure pages. Rotating cubes and spatial loading diagrams are absent.
 
-The first three are the control group: they repeat figures already visible on the panel, which is what makes the fourth one mean something.
+The first terminal boot still follows `TerminalOnboardingPolicy`: six checks over roughly 3.12 seconds before fading into the profile. Text stays silent with one quiet completion cue. Each animation adds about 160–180 basic primitives per frame only while that short presentation runs.
 
-### The fourth line is about itself
+`FirstRunNoticeScreen` owns game audio calibration and disclosure. The intro lasts roughly three seconds; pages use a 20-tick transition, swapping at the midpoint with disabled controls. Resource reload pauses the clock; rebuilding widgets or changing language cannot bypass acknowledgement.
 
-`BASELINE` prints a percentage read straight off `TerminalContactVoice.WEAR_PER_STAGE` - the constant that pitches every press on the device down. So the machine has been answering a touch duller than factory for hours, under the threshold where anyone notices a sound changing, and then one day it states the figure. **The reading is old news that has never been said out loud.**
+Confirmation starts a 64-tick (3.2-second) camera move into Minecraft running inside the terminal. Disclosure fades, the menu appears behind the glass and grows as the solid frame moves out of view. Five gentle focus/glass filter steps, scanlines and reflections then recede. Motion starts and ends at zero speed, with the last menu frame matching the real title screen. Filter requests expire each frame.
 
-At stage zero it reads as calibrated, because at stage zero it is.
-
-### It may not take anything away
-
-- **It does not hold the exit.** `shouldCloseOnEsc` knows nothing about it, and `ResourceContractTest` asserts that it never will. The world bible allows exactly one thing to take the way out, and that is the **one-shot** first-boot walkthrough; something that runs on every open would take it hundreds of times a run.
-- **Any key ends it**, and that key is then handled normally - Escape included.
-- **Only a click inside `PAGE_BODY` is eaten** - that is the area standing empty, where a press would reach a control the player cannot see. The tabs, the status bar and the hardware column **draw and take input throughout**.
-- **It stands down for the walkthrough**: that boot already has a six-line self test of its own.
-- **The clock starts on the first frame**, not in the constructor. A screen can be built and then sit before it is shown, and half a second is short enough to run out unseen.
-
-`TerminalSelfTest.TOTAL_MILLIS` is the single number to tune; the unit test pins it under a second and shorter than the first-boot check.
+First-world corruption retains its structure and timing, without these loading animations. Its wall contains only densely repeated “败”; embedded wording and the lower-left timecode are removed. Brief warnings precede the wall; the original crash onset gains impact and cuts at blackout.
 
 ## The sound of a press: six grades
 
@@ -113,11 +98,11 @@ Contact pitch drops with the **terminal's visual stage**, `WEAR_PER_STAGE = 0.03
 
 Contact feedback stays light and automatic guidance is silent. The original terminal carrier runs once while the screen is open and stops on close or world exit.
 
-The device displays the resulting figure once per open, without per-line audio; see [The short check on every open](#the-short-check-on-every-open) above.
+Ordinary opens no longer show a check; the stage still affects contact pitch.
 
 The stage is latched by `updatePanelStage(stage)`, which updates state without starting a noise bed. Closing the screen does not reset it.
 
-## Tuning feedback (RC.5)
+## Tuning feedback (RC.6)
 
 Dragging, scrolling and arrow keys share quiet notch feedback, limited to once per 2 ticks, with no sweep loop. A successful lock replaces that notch; releasing adds no sound. Automatic guidance text is silent, while important results retain light feedback. See [Audio](audio.md) for output gain.
 
@@ -166,7 +151,7 @@ Those 20 ticks are not a load guard — ticks where nothing was shown were never
 
 | Phase | Advances on | Permitted input |
 |---|---|---|
-| `BOOT` | Self test finishing (~3.1 s) | All swallowed; any key finishes the current line at once |
+| `BOOT` | Self test finishing (~3.1 s) | Wait for the first graphical check to complete; no typed lines |
 | `STEP_1`–`STEP_4` | Pressing Next (Finish tutorial on the last step), Enter or Space | All share the button's reading delay; the tab strip and number keys are swallowed |
 | `RELEASED` | The damage safety valve firing | Everything restored |
 | `DONE` | 40 ticks after step four lands | Everything |

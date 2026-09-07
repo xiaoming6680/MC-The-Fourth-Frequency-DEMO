@@ -20,8 +20,6 @@ import net.minecraft.resources.Identifier;
  * tested. Nothing here decides <em>when</em>; it only decides what a given tick looks like.</p>
  */
 public final class AlphaCorruptionRenderer {
-	private static final String TIMECODE_KEY = "screen.thefourthfrequency.alpha_loading.timecode";
-	private static final String TIMECODE_LOST = "--:--:--";
 	/**
 	 * The four analog-signal chains, weakest first, indexed by {@link AlphaLoadTimeline#signalStep}.
 	 *
@@ -44,9 +42,6 @@ public final class AlphaCorruptionRenderer {
 	private static final int CHROMA_RED = 0xFF2A2A;
 	private static final int CHROMA_CYAN = 0x22E0FF;
 	private static final int MAX_CHROMA_ALPHA = 150;
-	private static final int TIMECODE_COLOR = 0xFFD8D2C6;
-	private static final int TIMECODE_DOT_COLOR = 0xFFB4322C;
-	private static final int TIMECODE_MARGIN = 6;
 	private static final int COLLAPSE_CORE_COLOR = 0xE6E2D8;
 	/** What {@link AlphaLoadTimeline#deadAirNoiseAlpha} peaks at, turned back into a chain step. */
 	private static final int MAX_DEAD_AIR_ALPHA = 21;
@@ -75,7 +70,6 @@ public final class AlphaCorruptionRenderer {
 		// mistracking is in the picture rather than painted across it. drawTrackingBand is kept below
 		// and no longer called.
 		requestSignalFilter(screenTicks);
-		drawTimecode(graphics, screenTicks);
 	}
 
 	/**
@@ -128,21 +122,6 @@ public final class AlphaCorruptionRenderer {
 			graphics.fill(Math.max(0, streakLeft), y,
 					Math.min(width, streakLeft + streakWidth), y + 1,
 					streakAlpha << 24 | 0xC8C4BC);
-		}
-	}
-
-	/** The running counter that tells the player they are watching this rather than doing it. */
-	public static void drawTimecode(GuiGraphics graphics, int screenTicks) {
-		if (!AlphaLoadTimeline.timecodeVisible(screenTicks)) return;
-		Font font = Minecraft.getInstance().font;
-		String elapsed = AlphaLoadTimeline.timecodeCorrupted(screenTicks)
-				? TIMECODE_LOST : AlphaLoadTimeline.timecodeText(screenTicks);
-		String text = Component.translatable(TIMECODE_KEY, elapsed).getString();
-		int y = graphics.guiHeight() - TIMECODE_MARGIN - font.lineHeight;
-		drawChromaString(graphics, font, text, TIMECODE_MARGIN, y, TIMECODE_COLOR, screenTicks);
-		// The record dot keeps its own slow blink, independent of everything else on screen.
-		if (Math.floorMod(screenTicks, 20) < 13) {
-			graphics.fill(TIMECODE_MARGIN, y + 2, TIMECODE_MARGIN + 3, y + 5, TIMECODE_DOT_COLOR);
 		}
 	}
 

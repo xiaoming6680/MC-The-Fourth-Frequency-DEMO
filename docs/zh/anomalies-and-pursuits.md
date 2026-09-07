@@ -1,6 +1,6 @@
 # 异象、终端形态与个人追逐
 
-`1.0.0-rc.5` 当前代码中的异象阶段、个人校正者追逐、镜像维度和终端外观规则。数值以 `AnomalyIntensity`、`AnomalyCatalog`、`PursuitProgressPolicy`、`PursuitFormPolicy` 与 `PursuitSnapshotBuilder` 为准。
+`1.0.0-rc.6` 当前代码中的异象阶段、个人校正者追逐、镜像维度和终端外观规则。数值以 `AnomalyIntensity`、`AnomalyCatalog`、`PursuitProgressPolicy`、`PursuitFormPolicy` 与 `PursuitSnapshotBuilder` 为准。
 
 本文只写**规则是什么**。取舍与被否决的方案见[设计札记](design-notes.md#异象与个人追逐)。
 

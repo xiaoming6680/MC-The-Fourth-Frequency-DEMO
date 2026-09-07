@@ -1,6 +1,6 @@
 # Anomalies, terminal forms and personal pursuits
 
-The anomaly tiers, personal Corrector pursuits, mirror dimensions and terminal appearance rules in `1.0.0-rc.5`. Numbers are owned by `AnomalyIntensity`, `AnomalyCatalog`, `PursuitProgressPolicy`, `PursuitFormPolicy` and `PursuitSnapshotBuilder`.
+The anomaly tiers, personal Corrector pursuits, mirror dimensions and terminal appearance rules in `1.0.0-rc.6`. Numbers are owned by `AnomalyIntensity`, `AnomalyCatalog`, `PursuitProgressPolicy`, `PursuitFormPolicy` and `PursuitSnapshotBuilder`.
 
 This document states **what the rules are**. Trade-offs and rejected alternatives are in [Design notes](design-notes.md#anomalies-and-personal-pursuits).
 

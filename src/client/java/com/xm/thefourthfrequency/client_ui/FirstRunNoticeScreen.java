@@ -76,25 +76,18 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final int SECTION_GAP = 4;
 	private static final float[] BODY_SCALE_STEPS = {0.82F, 0.78F, 0.74F, 0.70F, 0.66F};
 	private static final int IGNITION_TICKS = 6;
-	private static final int UNFOLD_TICKS = 12;
-	private static final int BLOOM_TICKS = 11;
-	/** Soft bloom, mid band, hot core: one hard bar read as a drawn line, not as something lit. */
-	private static final int FILAMENT_PASSES = 3;
-	private static final int FILAMENT_SEGMENTS = 14;
-	/** Phosphor keeps glowing behind the sweep instead of switching off the moment it passes. */
-	private static final int EDGE_TRAIL_BANDS = 5;
-	private static final int WASH_BANDS = 10;
+	private static final int UNFOLD_TICKS = 30;
+	private static final int BLOOM_TICKS = 24;
 	private static final int TUBE_LIT_TICK = IGNITION_TICKS + UNFOLD_TICKS;
 	private static final int POWER_ON_END_TICK = TUBE_LIT_TICK + BLOOM_TICKS;
 	/** The raster sweep is the reveal, so the copy is finished the moment the tube settles. */
 	private static final int NOTICE_READY_TICK = POWER_ON_END_TICK;
 	private static final int PHOSPHOR_FLOOR_ALPHA = 14;
-	private static final int PHOSPHOR_STRIKE_ALPHA = 210;
 	private static final int SCANLINE_PITCH = 2;
 	private static final int SCANLINE_ALPHA = 26;
-	private static final int TEXT_FADE_TICKS = 4;
-	private static final int ZOOM_TICKS = 24;
-	private static final int TRANSITION_TICKS = TEXT_FADE_TICKS + ZOOM_TICKS;
+	private static final int TEXT_FADE_TICKS = 18;
+	private static final int ZOOM_TICKS = 64;
+	private static final int TRANSITION_TICKS = ZOOM_TICKS;
 	private static final String STATUS_PREFIX = "RX-04 //";
 	private static final int STATUS_GAP = 4;
 	private static final int LATIN_BASELINE_Y_OFFSET = 1;
@@ -117,6 +110,9 @@ public final class FirstRunNoticeScreen extends Screen {
 	private static final Identifier NOTICE_UI = Identifier.fromNamespaceAndPath(
 			TheFourthFrequency.MOD_ID, "textures/gui/notice/first_run_notice_terminal_shell.png");
 
+	private static final int PAGE_TRANSITION_TICKS = 20;
+	private int pageTransitionAge = -1;
+	private float copyOpacity = 1;
 	private int age;
 	private int transitionAge = -1;
 	private boolean transitionFinished;
@@ -181,6 +177,15 @@ public final class FirstRunNoticeScreen extends Screen {
 			}
 			return;
 		}
+		if (pageTransitionAge >= 0) {
+			pageTransitionAge++;
+			if (pageTransitionAge == PAGE_TRANSITION_TICKS / 2) {
+				page = Page.NOTICE;
+				acknowledgementFocused = false;
+				rebuildWidgets();
+			}
+			if (pageTransitionAge >= PAGE_TRANSITION_TICKS) pageTransitionAge = -1;
+		}
 		age++;
 		if (age >= TUBE_LIT_TICK && !stableSoundPlayed) {
 			stableSoundPlayed = true;
@@ -205,7 +210,8 @@ public final class FirstRunNoticeScreen extends Screen {
 	}
 
 	private boolean controlsReady() {
-		return presentationPhase() == PresentationPhase.NOTICE && age >= NOTICE_READY_TICK;
+		return presentationPhase() == PresentationPhase.NOTICE && age >= NOTICE_READY_TICK
+				&& pageTransitionAge < 0;
 	}
 
 	private static void arm(AbstractWidget widget, boolean ready) {
@@ -239,137 +245,33 @@ public final class FirstRunNoticeScreen extends Screen {
 		graphics.fill(0, 0, width, height, SHELL_BACKDROP);
 	}
 
-	/**
-	 * A cathode tube coming up: the beam strikes as a point and snaps out to a full-width line, the
-	 * raster unfolds vertically around it, then the over-bright phosphor decays to its resting floor.
-	 * No copy and no data — the screen is hardware waking up, which needs no translation.
-	 */
+	/** A recorded calibration: geometry converges before the readable controls arrive. */
 	private void renderPowerOn(GuiGraphics graphics, float renderAge) {
 		NoticeLayout layout = layout();
 		renderGeneratedNoticeUi(graphics, layout);
 		GlassBounds glass = glassOpening(layout);
-		graphics.enableScissor(glass.left(), glass.top(), glass.right(), glass.bottom());
-
-		int centerX = (glass.left() + glass.right()) / 2;
-		int centerY = (glass.top() + glass.bottom()) / 2;
-		// A tube does not ease into anything: the beam is simply there, and the raster is thrown
-		// open. Both curves front-load almost all of their travel and spend the remainder settling,
-		// because the part worth watching is the arrival, not the approach.
-		float ignition = snap(Math.clamp(renderAge / IGNITION_TICKS, 0.0F, 1.0F));
-		float unfold = slamOpen(Math.clamp((renderAge - IGNITION_TICKS) / UNFOLD_TICKS, 0.0F, 1.0F));
-		// Squared, so full brightness holds for a beat before falling away to the phosphor floor.
-		float bloom = Math.clamp((renderAge - TUBE_LIT_TICK) / BLOOM_TICKS, 0.0F, 1.0F);
-		float decay = bloom * bloom;
-
-		int halfHeight = Math.round(glass.height() / 2.0F * unfold);
-		int rasterTop = Math.max(glass.top(), centerY - halfHeight);
-		int rasterBottom = Math.min(glass.bottom(), centerY + halfHeight);
-		if (halfHeight > 0) {
-			// The sweep paints the copy in as it opens: whatever the raster has already reached is
-			// simply there, so the tube never lights an empty screen and waits for a separate fade.
-			graphics.enableScissor(glass.left(), rasterTop, glass.right(), rasterBottom);
-			renderNoticeText(graphics, layout);
-			drawGlassSurface(graphics, glass);
-			graphics.disableScissor();
-			drawRasterWash(graphics, glass, rasterTop, rasterBottom, centerY, decay);
-			drawSweepEdges(graphics, glass, rasterTop, rasterBottom, decay);
-		}
-		// Whatever the raster has not reached yet is still unlit tube.
-		if (rasterTop > glass.top()) {
-			graphics.fill(glass.left(), glass.top(), glass.right(), rasterTop, GLASS_BLACKOUT);
-		}
-		if (rasterBottom < glass.bottom()) {
-			graphics.fill(glass.left(), rasterBottom, glass.right(), glass.bottom(), GLASS_BLACKOUT);
-		}
-		drawFilament(graphics, glass, centerX, centerY, ignition,
-				(1.0F - decay) * (1.0F - 0.45F * unfold));
-		graphics.disableScissor();
+		float arrival = Math.clamp(renderAge / IGNITION_TICKS, 0, 1);
+		float reveal = Math.clamp((renderAge - TUBE_LIT_TICK) / BLOOM_TICKS, 0, 1);
+		reveal = reveal * reveal * (3 - 2 * reveal);
+		renderNoticeText(graphics, layout);
+		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
+				withAlpha(0x080E0C, Math.round((1 - reveal) * 255)));
+		AnalogBootGraphics.drawCrtCalibration(graphics, glass.left() + 12, glass.top() + 8,
+				glass.width() - 24, glass.height() - 16, renderAge / 20D,
+				Math.min(1, renderAge / TUBE_LIT_TICK), arrival * (1 - reveal));
+		drawGlassSurface(graphics, glass);
 	}
 
-	/**
-	 * The lit area is not one flat colour. Phosphor is hottest where the beam has just been, so the
-	 * wash is banded: brightest against the two sweeping edges, coolest across the settled middle.
-	 */
-	private void drawRasterWash(GuiGraphics graphics, GlassBounds glass, int rasterTop,
-			int rasterBottom, int centerY, float decay) {
-		float peak = PHOSPHOR_STRIKE_ALPHA * (1.0F - decay);
-		if (peak <= 1.0F) return;
-		int span = rasterBottom - rasterTop;
-		if (span <= 0) return;
-		for (int band = 0; band < WASH_BANDS; band++) {
-			int top = rasterTop + span * band / WASH_BANDS;
-			int bottom = rasterTop + span * (band + 1) / WASH_BANDS;
-			if (bottom <= top) continue;
-			// Distance from the middle of the band to the centre line, normalised to the half-span.
-			float offset = Math.abs((top + bottom) / 2.0F - centerY) / Math.max(1.0F, span / 2.0F);
-			int alpha = Math.round(peak * (0.62F + 0.38F * offset * offset));
-			if (alpha > 0) {
-				graphics.fill(glass.left(), top, glass.right(), bottom, withAlpha(GREEN, alpha));
-			}
-		}
-	}
-
-	/** Each opening edge drags a short persistence trail inwards behind it. */
-	private void drawSweepEdges(GuiGraphics graphics, GlassBounds glass, int rasterTop,
-			int rasterBottom, float decay) {
-		float heat = 1.0F - decay;
-		if (heat <= 0.0F) return;
-		for (int band = EDGE_TRAIL_BANDS; band >= 1; band--) {
-			float falloff = 1.0F - band / (float) (EDGE_TRAIL_BANDS + 1);
-			int alpha = Math.round(255.0F * heat * falloff * falloff * 0.5F);
-			if (alpha <= 0) continue;
-			int colour = withAlpha(PHOSPHOR_FLASH, alpha);
-			graphics.fill(glass.left(), rasterTop + band, glass.right(), rasterTop + band + 1, colour);
-			graphics.fill(glass.left(), rasterBottom - band - 1, glass.right(), rasterBottom - band, colour);
-		}
-		int core = withAlpha(PHOSPHOR_FLASH, Math.round(255.0F * heat));
-		graphics.fill(glass.left(), rasterTop, glass.right(), rasterTop + 1, core);
-		graphics.fill(glass.left(), rasterBottom - 1, glass.right(), rasterBottom, core);
-	}
-
-	/**
-	 * The struck filament: three widening passes so it glows outwards rather than ending on a hard
-	 * edge, and segmented along its length so it is hottest at the strike point and cools toward
-	 * the tips it is still reaching for.
-	 */
-	private void drawFilament(GuiGraphics graphics, GlassBounds glass, int centerX, int centerY,
-			float ignition, float alpha) {
-		int halfWidth = Math.round(glass.width() / 2.0F * ignition);
-		if (halfWidth <= 0 || alpha <= 0.0F) return;
-		for (int pass = FILAMENT_PASSES - 1; pass >= 0; pass--) {
-			int halfThickness = 1 + pass * 2 + Math.round(2.0F * (1.0F - ignition));
-			float weight = alpha * (float) Math.pow(0.36D, pass);
-			for (int segment = 0; segment < FILAMENT_SEGMENTS; segment++) {
-				int left = centerX - halfWidth + 2 * halfWidth * segment / FILAMENT_SEGMENTS;
-				int right = centerX - halfWidth + 2 * halfWidth * (segment + 1) / FILAMENT_SEGMENTS;
-				left = Math.max(glass.left(), left);
-				right = Math.min(glass.right(), right);
-				if (right <= left) continue;
-				float reach = Math.abs((left + right) / 2.0F - centerX) / Math.max(1.0F, halfWidth);
-				int value = Math.round(255.0F * weight * (1.0F - 0.55F * reach * reach));
-				if (value > 0) {
-					graphics.fill(left, centerY - halfThickness, right, centerY + halfThickness,
-							withAlpha(PHOSPHOR_FLASH, value));
-				}
-			}
-		}
-	}
-
-	/** Quartic ease-out: four fifths of the travel is over in the first third of the time. */
-	private static float snap(float progress) {
-		float inverted = 1.0F - progress;
-		inverted *= inverted;
-		return 1.0F - inverted * inverted;
-	}
-
-	/**
-	 * Back ease-out. The raster overshoots the bezel and settles into it, which is the overscan
-	 * bounce a tube actually makes; the scissor clips the overshoot, so what reads on screen is
-	 * the raster slamming to full and holding there rather than creeping the last few pixels.
-	 */
-	private static float slamOpen(float progress) {
-		float shifted = progress - 1.0F;
-		return 1.0F + shifted * shifted * (2.70158F * shifted + 1.70158F);
+	private void renderPageTransition(GuiGraphics graphics, float partialTick) {
+		if (pageTransitionAge < 0) return;
+		GlassBounds glass = glassOpening(layout());
+		float time = Math.min(PAGE_TRANSITION_TICKS, pageTransitionAge + partialTick);
+		float cover = 1 - Math.abs(time * 2 / PAGE_TRANSITION_TICKS - 1);
+		cover = cover * cover * (3 - 2 * cover);
+		graphics.fill(glass.left(), glass.top(), glass.right(), glass.bottom(),
+				withAlpha(0x080E0C, Math.round(cover * 255)));
+		AnalogBootGraphics.drawRetune(graphics, glass.left(), glass.top(),
+				glass.width(), glass.height(), time / PAGE_TRANSITION_TICKS, cover);
 	}
 
 	/**
@@ -396,35 +298,53 @@ public final class FirstRunNoticeScreen extends Screen {
 		// Widgets stay above the tube surface; the acknowledgement is the one control that has to
 		// stay crisp, and scan lines across an 18px button cost more than they add.
 		super.render(graphics, mouseX, mouseY, partialTick);
+		renderPageTransition(graphics, partialTick);
 	}
 
 	private void renderTransition(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		float transitionTime = Math.min(TRANSITION_TICKS, transitionAge + partialTick);
-		float textFade = Math.clamp(transitionTime / TEXT_FADE_TICKS, 0.0F, 1.0F);
-		float zoomProgress = Math.clamp((transitionTime - TEXT_FADE_TICKS) / ZOOM_TICKS, 0.0F, 1.0F);
+		float time = Math.min(TRANSITION_TICKS, transitionAge + partialTick);
+		float travel = smooth(time / TRANSITION_TICKS);
+		float reveal = smooth(time / TEXT_FADE_TICKS);
 		NoticeLayout base = layout();
-		float scale = 1.0F + (targetZoomScale(base) - 1.0F) * zoomProgress;
+		// Perspective approach: the frame stays solid and passes outside the viewport.
+		float depth = 1 - 1 / targetZoomScale(base);
+		float scale = 1 / (1 - depth * travel);
 		NoticeLayout zoomed = zoomedLayout(base, scale);
-
-		if (zoomProgress <= 0.0F) {
-			renderGeneratedNoticeUi(graphics, base);
-			renderNoticeText(graphics, base);
-			GlassBounds glass = glassOpening(base);
-			// The tube surface has to survive the click, or the panel visibly flattens on acknowledge.
-			graphics.enableScissor(glass.left(), glass.top(), glass.right(), glass.bottom());
-			drawGlassSurface(graphics, glass);
-			graphics.disableScissor();
-			fillGlass(graphics, glass, withAlpha(GLASS_BLACKOUT, Math.round(255.0F * textFade)));
-			return;
+		GlassBounds glass = glassBounds(zoomed, 3);
+		renderVanillaAnimationMask(graphics, glass, mouseX, mouseY, partialTick);
+		fillGlass(graphics, glass, withAlpha(GLASS_BLACKOUT, Math.round(255 * (1 - reveal))));
+		if (reveal < .999F) {
+			copyOpacity = 1 - reveal;
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(width * (1 - scale) / 2, height * (1 - scale) / 2);
+			graphics.pose().scale(scale, scale);
+			try { renderNoticeText(graphics, base); }
+			finally { graphics.pose().popMatrix(); copyOpacity = 1; }
 		}
+		graphics.enableScissor(glass.left(), glass.top(), glass.right(), glass.bottom());
+		float surface = 1 - smooth(travel / .82F);
+		for (int y = glass.top(); y < glass.bottom(); y += 3)
+			graphics.fill(glass.left(), y, glass.right(), y + 1, withAlpha(0, Math.round(24 * surface)));
+		// A reflection traverses the near glass while the image behind it grows towards the viewer.
+		int reflection = glass.left() + Math.round(glass.width() * (.15F + travel));
+		for (int band = -8; band <= 8; band++) {
+			int alpha = Math.round((8 - Math.abs(band)) * 1.5F * surface * reveal);
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(reflection + band * 3, glass.top());
+			graphics.pose().rotate(.25F);
+			graphics.fill(0, -glass.height(), 3, glass.height() * 2, withAlpha(0xD7DEBF, alpha));
+			graphics.pose().popMatrix();
+		}
+		graphics.disableScissor();
+		renderTransitionFrame(graphics, zoomed, 255);
+		int lensStep = Math.round((float)Math.sin(Math.PI * travel) * 5);
+		if (lensStep > 0) ScreenFilterDriver.request(ScreenFilterDriver.Owner.LOADING,
+				Identifier.fromNamespaceAndPath(TheFourthFrequency.MOD_ID, "terminal_entry_" + lensStep));
+	}
 
-		GlassBounds mask = glassBounds(zoomed, 3);
-		renderVanillaAnimationMask(graphics, mask, mouseX, mouseY, partialTick);
-		float maskReveal = Math.clamp(zoomProgress * 2.0F, 0.0F, 1.0F);
-		int veilAlpha = Math.round(255.0F * (1.0F - maskReveal));
-		if (veilAlpha > 0) fillGlass(graphics, mask, withAlpha(GLASS_BLACKOUT, veilAlpha));
-		int terminalAlpha = Math.round(255.0F * (1.0F - zoomProgress));
-		if (terminalAlpha > 0) renderTransitionFrame(graphics, zoomed, terminalAlpha);
+	private static float smooth(float value) {
+		float t = Math.clamp(value, 0, 1);
+		return t * t * t * (t * (t * 6 - 15) + 10);
 	}
 
 	private void renderNoticeText(GuiGraphics graphics, NoticeLayout layout) {
@@ -441,7 +361,13 @@ public final class FirstRunNoticeScreen extends Screen {
 		int right = Math.clamp(mask.right(), 0, width);
 		int bottom = Math.clamp(mask.bottom(), 0, height);
 		if (left >= right || top >= bottom) return;
-		returnScreen.render(graphics, mouseX, mouseY, partialTick);
+		float imageScale = Math.min(1, Math.min(mask.width() / (float)width, mask.height() / (float)height));
+		graphics.enableScissor(left, top, right, bottom);
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(width * (1 - imageScale) / 2, height * (1 - imageScale) / 2);
+		graphics.pose().scale(imageScale, imageScale);
+		try { returnScreen.render(graphics, -10000, -10000, partialTick); }
+		finally { graphics.pose().popMatrix(); graphics.disableScissor(); }
 		if (top > 0) graphics.fill(0, 0, width, top, SHELL_BACKDROP);
 		if (bottom < height) graphics.fill(0, bottom, width, height, SHELL_BACKDROP);
 		if (left > 0) graphics.fill(0, top, left, bottom, SHELL_BACKDROP);
@@ -503,9 +429,9 @@ public final class FirstRunNoticeScreen extends Screen {
 		drawBaselineAlignedString(graphics, pageTitle(), grid.textLeft(), grid.titleY(), AMBER, false);
 		drawLeftScaled(graphics, pageEyebrow(), grid.textLeft(), grid.eyebrowY(), grid.textWidth(), DIM);
 		graphics.fill(grid.slotLeft(), grid.headerRuleY(), grid.slotRight(), grid.headerRuleY() + 1,
-				withAlpha(GREEN, 52));
+				withAlpha(GREEN, Math.round(52 * copyOpacity)));
 		graphics.fill(grid.textLeft(), grid.headerRuleY(), grid.textLeft() + 46, grid.headerRuleY() + 1,
-				withAlpha(AMBER, 128));
+				withAlpha(AMBER, Math.round(128 * copyOpacity)));
 	}
 
 	private void renderContent(GuiGraphics graphics, NoticeLayout layout) {
@@ -515,7 +441,7 @@ public final class FirstRunNoticeScreen extends Screen {
 		drawNoticeColumn(graphics, copy.left(), grid.leftColumnLeft(), grid.contentTop(),
 				grid.columnWidth(), copy.bodyScale(), DIM);
 		graphics.fill(grid.columnDividerX(), grid.contentTop(), grid.columnDividerX() + 1,
-				grid.contentBottom(), withAlpha(GREEN, 44));
+				grid.contentBottom(), withAlpha(GREEN, Math.round(44 * copyOpacity)));
 		drawNoticeColumn(graphics, copy.right(), grid.rightColumnLeft(), grid.contentTop(),
 				grid.columnWidth(), copy.bodyScale(), AMBER);
 	}
@@ -526,7 +452,7 @@ public final class FirstRunNoticeScreen extends Screen {
 		for (int index = 0; index < sections.size(); index++) {
 			NoticeSection section = sections.get(index);
 			drawBaselineAlignedString(graphics, section.heading(), x, y, accent, false);
-			graphics.fill(x, y + 9, x + Math.min(width, 34), y + 10, withAlpha(accent, 92));
+			graphics.fill(x, y + 9, x + Math.min(width, 34), y + 10, withAlpha(accent, Math.round(92 * copyOpacity)));
 			y += 12;
 			drawWrappedScaledText(graphics, section.lines(), x, y, GREEN, lineHeight, bodyScale);
 			y += section.lines().size() * lineHeight;
@@ -549,7 +475,7 @@ public final class FirstRunNoticeScreen extends Screen {
 				Component.translatable("screen.thefourthfrequency.first_run_notice.volume.section"),
 				grid.textLeft(), headingY, AMBER, false);
 		graphics.fill(grid.textLeft(), headingY + 9,
-				grid.textLeft() + Math.min(grid.textWidth(), 34), headingY + 10, withAlpha(AMBER, 92));
+				grid.textLeft() + Math.min(grid.textWidth(), 34), headingY + 10, withAlpha(AMBER, Math.round(92 * copyOpacity)));
 		// Scaled to fit rather than wrapped: the hint is one sentence and the block below it is
 		// positioned for one line, so a second line would be a line nothing made room for.
 		drawLeftScaled(graphics,
@@ -614,7 +540,8 @@ public final class FirstRunNoticeScreen extends Screen {
 	/** Minecraft's Latin pixel face is one GUI pixel shorter than its CJK fallback. */
 	private void drawBaselineAlignedString(GuiGraphics graphics, String text,
 			int x, int y, int color, boolean shadow) {
-		if (text.isEmpty()) return;
+		if (text.isEmpty() || copyOpacity <= .004F) return;
+		color = withAlpha(color, Math.round((color >>> 24) * copyOpacity));
 		int cursorX = x;
 		int runStart = 0;
 		int index = 0;
@@ -828,8 +755,7 @@ public final class FirstRunNoticeScreen extends Screen {
 		return transitionAge < 0 ? 0.0F : Math.clamp(transitionAge / (float) TRANSITION_TICKS, 0.0F, 1.0F);
 	}
 	public float zoomProgressForTesting() {
-		return transitionAge < 0 ? 0.0F : Math.clamp(
-				(transitionAge - TEXT_FADE_TICKS) / (float) ZOOM_TICKS, 0.0F, 1.0F);
+		return transitionAge < 0 ? 0.0F : smooth(transitionAge / (float)TRANSITION_TICKS);
 	}
 	public boolean acknowledgementAvailableForTesting() {
 		return acknowledgementButton != null && acknowledgementButton.visible && acknowledgementButton.active;
@@ -895,6 +821,7 @@ public final class FirstRunNoticeScreen extends Screen {
 	}
 	public void reinitializeForTesting() { rebuildWidgets(); }
 	public void acknowledgeForTesting() { acknowledge(); }
+	public boolean pageTransitionActiveForTesting() { return pageTransitionAge >= 0; }
 	public Page pageForTesting() { return page; }
 	public void advanceForTesting() { advance(); }
 	public boolean advanceAvailableForTesting() {
@@ -950,9 +877,8 @@ public final class FirstRunNoticeScreen extends Screen {
 	private void advance() {
 		if (page != Page.AUDIO || !advanceAvailableForTesting() || transitionAge >= 0) return;
 		ModVolumeControl.commit();
-		page = Page.NOTICE;
-		acknowledgementFocused = false;
-		rebuildWidgets();
+		pageTransitionAge = 0;
+		updateButtonState();
 	}
 
 	private void acknowledge() {

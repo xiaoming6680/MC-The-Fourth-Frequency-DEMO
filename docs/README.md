@@ -1,8 +1,8 @@
 # 文档导航 / Documentation index
 
-《第四频段》RC 1.0.0（`1.0.0-rc.5`）的全部文档。中文是**事实源**，英文是同步翻译；两边冲突时以中文与源码为准。
+《第四频段》RC 1.0.0（`1.0.0-rc.6`）的全部文档。中文是**事实源**，英文是同步翻译；两边冲突时以中文与源码为准。
 
-All documentation for The Fourth Frequency RC 1.0.0 (`1.0.0-rc.5`). Chinese is the **source of truth**; English is a synchronised translation. On any disagreement, the Chinese text and the source code win.
+All documentation for The Fourth Frequency RC 1.0.0 (`1.0.0-rc.6`). Chinese is the **source of truth**; English is a synchronised translation. On any disagreement, the Chinese text and the source code win.
 
 ## 目录结构 / Layout
 

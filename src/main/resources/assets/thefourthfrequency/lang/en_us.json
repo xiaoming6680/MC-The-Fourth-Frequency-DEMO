@@ -951,5 +951,7 @@
   "subtitles.thefourthfrequency.world_interface.tendril_recover": "Tendril recoils",
   "subtitles.thefourthfrequency.world_interface.roar_1": "Huge cavity breathes",
   "subtitles.thefourthfrequency.world_interface.roar_2": "Devourer bellows",
-  "subtitles.thefourthfrequency.world_interface.roar_3": "Storm resonates through the world"
+  "subtitles.thefourthfrequency.world_interface.roar_3": "Storm resonates through the world",
+  "screen.thefourthfrequency.alpha_loading.do_not_answer": "DO NOT ANSWER.",
+  "screen.thefourthfrequency.alpha_loading.it_sees_you": "IT CAN SEE YOU."
 }

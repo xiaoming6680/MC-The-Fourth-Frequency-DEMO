@@ -37,12 +37,9 @@ final class TerminalOnboardingOverlay {
 			"terminal.thefourthfrequency.boot.line.ready"};
 	/** The line that names the holder, and so is the one that takes an argument. */
 	private static final int BIND_LINE = 4;
-	private static final int BOOT_LINE_HEIGHT = 11;
 	private static final int DETAIL_LINE_HEIGHT = 11;
 
 	private final String[] bootFull = new String[TerminalOnboardingPolicy.BOOT_LINE_COUNT];
-	private final String[] bootShown = new String[TerminalOnboardingPolicy.BOOT_LINE_COUNT];
-	private final int[] bootShownChars = new int[TerminalOnboardingPolicy.BOOT_LINE_COUNT];
 	private boolean bootTextReady;
 	private boolean bootCompletionHeard;
 
@@ -58,8 +55,6 @@ final class TerminalOnboardingOverlay {
 			bootFull[line] = line == BIND_LINE
 					? Component.translatable(BOOT_KEYS[line], holder).getString()
 					: Component.translatable(BOOT_KEYS[line]).getString();
-			bootShown[line] = "";
-			bootShownChars[line] = 0;
 		}
 		bootTextReady = true;
 	}
@@ -76,52 +71,29 @@ final class TerminalOnboardingOverlay {
 		var body = TerminalUiLayout.PAGE_BODY;
 		graphics.drawString(font, Component.translatable("terminal.thefourthfrequency.boot.title"),
 				body.left() + 9, body.top() + 8, accent, false);
-		graphics.fill(body.left() + 9, body.top() + 20, body.right() - 9, body.top() + 21,
-				TerminalVisualTheme.DARK_BORDER);
-
 		int visible = TerminalOnboardingPolicy.visibleBootLines(elapsedMillis);
-		// Text reveals are silent, including catch-up frames after a stall.
 		if (!bootCompletionHeard && visible == TerminalOnboardingPolicy.BOOT_LINE_COUNT) {
 			bootCompletionHeard = true;
 			TerminalClientAudio.bootComplete();
 		}
-		int y = body.top() + 28;
-		for (int line = 0; line < visible; line++) {
-			String text = typedPrefix(line, elapsedMillis);
-			graphics.drawString(font, text, body.left() + 9, y, TerminalVisualTheme.GREEN, false);
-			// A block cursor on whichever line is still printing. A fill rather than a character, so
-			// the caret costs no string building.
-			if (text.length() < bootFull[line].length()) {
-				int caret = body.left() + 9 + font.width(text) + 1;
-				graphics.fill(caret, y, caret + 4, y + font.lineHeight - 1, TerminalVisualTheme.GREEN);
-			}
-			y += BOOT_LINE_HEIGHT;
-		}
-
 		int percent = TerminalOnboardingPolicy.bootProgressPercent(elapsedMillis);
-		int trackLeft = body.left() + 9;
-		int trackRight = body.right() - 9;
-		int trackY = body.bottom() - 16;
-		graphics.fill(trackLeft, trackY, trackRight, trackY + 4, TerminalVisualTheme.PROGRESS_TRACK);
-		graphics.fill(trackLeft, trackY, trackLeft + (trackRight - trackLeft) * percent / 100, trackY + 4, accent);
-		Component readout = Component.translatable("terminal.thefourthfrequency.boot.progress", percent);
-		graphics.drawString(font, readout, trackRight - font.width(readout), trackY - 11,
-				TerminalVisualTheme.DIM, false);
-	}
-
-	/**
-	 * Reuses the previously rendered prefix whenever the visible length has not changed, so only the
-	 * one line currently printing ever builds a string.
-	 */
-	private String typedPrefix(int line, long elapsedMillis) {
-		String full = bootFull[line];
-		if (full == null) return "";
-		int total = full.codePointCount(0, full.length());
-		int want = TerminalOnboardingPolicy.typedCharacters(total, elapsedMillis, line);
-		if (want == bootShownChars[line] && bootShown[line] != null) return bootShown[line];
-		bootShownChars[line] = want;
-		bootShown[line] = want >= total ? full : full.substring(0, full.offsetByCodePoints(0, want));
-		return bootShown[line];
+		int diagramWidth = (body.right() - body.left()) * 2 / 5;
+		AnalogBootGraphics.drawMemoryCheck(graphics, body.left() + 6, body.top() + 25,
+				diagramWidth, body.bottom() - body.top() - 49, elapsedMillis / 1000D,
+				percent / 100D, 1);
+		int left = body.left() + diagramWidth + 15;
+		int available = body.right() - left - 12;
+		for (int line = 0; line < bootFull.length; line++) {
+			int y = body.top() + 32 + line * 13;
+			boolean complete = elapsedMillis >= (line + 1) * TerminalOnboardingPolicy.BOOT_LINE_MILLIS;
+			int color = line < visible ? TerminalVisualTheme.GREEN : TerminalVisualTheme.DIM;
+			graphics.fill(left, y + 2, left + 3, y + 5, complete ? accent : color);
+			graphics.drawString(font, font.plainSubstrByWidth(bootFull[line], Math.max(1, available - 9)),
+					left + 9, y, color, false);
+		}
+		int trackLeft = body.left() + 9, trackRight = body.right() - 9, trackY = body.bottom() - 12;
+		graphics.fill(trackLeft, trackY, trackRight, trackY + 2, TerminalVisualTheme.PROGRESS_TRACK);
+		graphics.fill(trackLeft, trackY, trackLeft + (trackRight - trackLeft) * percent / 100, trackY + 2, accent);
 	}
 
 	/**
@@ -274,6 +246,15 @@ final class TerminalOnboardingOverlay {
 	 */
 	void drawProfile(GuiGraphics graphics, Font font, int question, int tuning, int lockedOption,
 			int heldTicks, long seed, long bucket, long transitionMillis, int accent) {
+		if (question == 0 && transitionMillis < 320) {
+			var area = TerminalUiLayout.PAGE_BODY;
+			int diagramWidth = area.width() * 2 / 5;
+			float fade = 1 - transitionMillis / 320F;
+			AnalogBootGraphics.drawMemoryCheck(graphics, area.left() + 6, area.top() + 25,
+					diagramWidth, area.height() - 49,
+					(TerminalOnboardingPolicy.BOOT_TOTAL_MILLIS + transitionMillis) / 1000D, 1, fade);
+			return;
+		}
 		// The screen is between scenes. Drawn by not drawing - a plate laid over the page would read
 		// as a sticker on the device rather than as the device's own display going empty.
 		if (TerminalOnboardingTransition.blank(transitionMillis)) return;

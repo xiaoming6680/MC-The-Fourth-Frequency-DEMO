@@ -4,16 +4,17 @@
 
 This document covers effects output gain and music; the mix headroom for sound effects is in [The World Interface finale](world-interface.md), client lifecycle in [Architecture](architecture.md), and trade-offs in [Design notes](design-notes.md#background-music).
 
-## Sound-effect output gain (RC.5)
+## Sound-effect output gain (RC.6)
 
-`ModOutputMix` boosts this mod's effects at the final client channel gain. Initial playback, tick updates and category refreshes share the policy, applied once per calculation. Foreground effects use 1.8; quiet `terminal_*` feedback, excluding the carrier, uses 1.25. `music_*`, signal noise beds, unrendered-layer ambience and `world_interface_ambient_*` receive no boost. Vanilla and other mods are unchanged.
+`ModOutputMix` applies once at final client channel gain for initial, tickable and refreshed playback. Direct effects use 2.6; quiet terminal feedback stays at 1.25. Signal beds, terminal carrier and boss ambience use 0.85; unrendered-layer ambience independently uses 0.80. Music remains at 1. Vanilla and other mods are unchanged.
 
-`meta.peakVolume` remains the 0–1 MOD master control; no additional amplification slider is introduced. Output gain is capped at 1, so sounds already near that cap gain less; zero stays silent. Source volumes and server packets are preserved, keeping propagation distances and each multiplayer client's settings intact. Below the cap, the increase is about 5.1 dB for foreground effects and 1.9 dB for terminal feedback. Music follows the existing rules below.
+Output remains capped at 1. To improve sounds already reaching that ceiling, 200 foreground files also receive 1.65 mastering gain with a 5 ms look-ahead, 80 ms release and 0.86 limiter ceiling. Latency is compensated and durations preserved. Measured RMS increases range from 1.78 to 4.38 dB; see the [per-file level report](../qa/audio_overhaul/rc6-levels.json). Decoded true peaks and loop seams remain checked.
 
-Dragging the terminal dial now uses only rate-limited quiet notches, with no sweep loop. A successful lock replaces that notch with its confirmation. Automatic guidance text remains silent. The original terminal and environmental beds are restored: nine byte-identical files, excluded from amplification, with sources and hashes in `docs/art/audio/original_beds.json`. Other generated effects lose their continuous white-noise floor; contacts use discrete resonant grains and laser beams use modulated tones. The opening retains its original crash base. Recorded-material laser/tentacle audition samples have not replaced runtime assets. See the [RC.5 verification record](../qa/audio_overhaul/rc5.md).
+`meta.peakVolume` remains the 0–1 MOD slider and zero remains silent. Raw spatial volume, attenuation radii and server packets remain unchanged; multiplayer clients each apply their own settings.
 
+The nine original bed files remain byte-identical, with only playback trims changed; provenance is in `docs/art/audio/original_beds.json`. The violent terminal vibration cue retains the original `terminal_anomaly` from `original_cues.json`. All 31 terminal/warning files retain their RC.5 bytes. Three collapse cues keep the original crash base and 74 ms repeat, with a short onset envelope for impact: measured peaks about -4.44 dBFS and RMS gains of 4.24–4.72 dB. Dial feedback stays rate-limited with lock replacing the corresponding notch. Automatic guidance text stays silent; no continuous white-noise or static layer is added. Music is not remastered.
 
-The pre-pursuit “terminal is shaking violently” notice uses the original `terminal_anomaly` cue. Source and original hash are recorded in `docs/art/audio/original_cues.json`; automatic guidance text remains silent.
+See [RC.6 QA](../qa/audio_overhaul/rc6.md) for verification scope.
 
 ## Situation table
 
@@ -37,7 +38,7 @@ The pre-pursuit “terminal is shaking violently” notice uses the original `te
 | The unrendered layer, once the Bacteria has appeared this session (`UnrenderedLayerClient.hunted()`, latched once true) | `music_unrendered` (1 track, looping), with the fade target scaled by `UNRENDERED_MUSIC_TRIM = 0.45` |
 | The unrendered layer before it appears | Silence: the first minute down there is the place establishing that it is empty, and a track arriving with the player says it is not |
 
-**"Released" is the instant the player presses "I understand"**, not `FirstRunNoticeController.acknowledge()` (which waits out a 28-tick exit animation). The same entry also zeroes `nextSongDelay`.
+**"Released" is the instant the player presses "I understand"**, not `FirstRunNoticeController.acknowledge()` (which waits out a 64-tick entry animation). The same entry also zeroes `nextSongDelay`.
 
 **The End track keys off the dimension, not the stage**: the World Interface snapshot arrives with the world, and the player is already standing in the End before it lands — so "no stage" also counts as not summoned. `COMPLETE` is excluded.
 
@@ -173,7 +174,7 @@ The ratio is always relative to the lossless master, and so is the loudness targ
 
 All 96 non-music events and 242 Ogg Vorbis files are generated by `tools/generate_soundscape.py`. `tools/audio_materials.py` supplies original resonant cavities, granular friction, structural impacts, stalled buffers and broadcast textures. Seven obsolete audio writers were removed. No third-party recordings were imported.
 
-Music tracks and existing BGM gains are unchanged. The nine original beds retain their levels. Decoded peaks, true peaks and RMS values for effects are owned by `soundscape_manifest.json`; playback gain follows the RC.5 section above. Peak level is not perceived loudness.
+Music tracks and existing BGM gains are unchanged. The nine original bed files retain their levels; playback is slightly quieter. Decoded peaks, true peaks and RMS values for effects are owned by `soundscape_manifest.json`; playback gain follows the RC.6 section above. Peak level is not perceived loudness.
 
 Every encoded file is decoded again to check Vorbis, 44.1 kHz, duration, finite samples, DC offset, 4× oversampled true peak and loop seams. Measurements and SHA-256 hashes live in the [full manifest](../art/audio/soundscape_manifest.json). Historical recording LUFS values no longer describe these assets.
 

@@ -1,6 +1,6 @@
 # The Fourth Frequency world bible
 
-The current narrative boundaries of `1.0.0-rc.5`. Numbers are owned by [The World Interface finale](world-interface.md) and [Testing and acceptance](testing.md).
+The current narrative boundaries of `1.0.0-rc.6`. Numbers are owned by [The World Interface finale](world-interface.md) and [Testing and acceptance](testing.md).
 
 ## The core premise
 

@@ -6,7 +6,7 @@ A Fabric survival-horror narrative mod for Minecraft 1.21.11.
 
 You wake at Station Zero — the only one there is — holding an old terminal that gives you real survival information. Nothing is added to frighten you. Instead the blocks, menus, sounds and rules you already know gradually stop meaning what they used to. The terminal is your one stable instrument of explanation, and it is subject to the same thing.
 
-> Current build: **1.0.0-rc.5**, with independent MOD effects gain, cleaner effects and restored original ambience, plus BOSS animation timing fixes. Use the same build on clients and servers; this remains a release candidate.
+> Current build: **1.0.0-rc.6**, with period-style calibration, a camera move through the terminal into the menu, first-boot instruments and a full-screen “败” corruption wall, louder foreground effects and separately trimmed ambience. Use the same build on clients and servers; this remains a release candidate.
 
 MOD effects can now stand out from vanilla sounds without raising the game master volume. The terminal slider keeps quiet notch feedback; terminal and environmental beds use their original assets. See [Audio](docs/en/audio.md) for the mixing rules.
 
@@ -23,7 +23,7 @@ Both client and server need this mod and Fabric API. Licence: [All Rights Reserv
 
 ## Install
 
-1. Build `thefourthfrequency-1.0.0-rc.5.jar` using the steps below. Published attachments are listed on [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases).
+1. Build `thefourthfrequency-1.0.0-rc.6.jar` using the steps below. Published attachments are listed on [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases).
 2. Drop it, together with the matching Fabric API, into the `mods` folder of the client and the server.
 3. Launch Fabric 1.21.11 on Java 21 and **create a new world**, or join a server.
 

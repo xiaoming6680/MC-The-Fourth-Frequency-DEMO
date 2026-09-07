@@ -160,6 +160,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			openTerminalThroughClientCallback(context);
 			context.waitForScreen(TerminalScreen.class);
 			context.waitTicks(2);
+			context.takeScreenshot("r-terminal-first-boot-calibration");
 			// The profile comes first now: it holds the exit and points at no tab, so a step capture
 			// placed ahead of it would be polling for a pointer that cannot appear yet.
 			completeFirstBootProfile(context);
@@ -825,7 +826,9 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 					throw new AssertionError("Starting portal navigation did not create the HOME live information card");
 				}
 			});
-			context.waitTicks(5);
+			context.waitFor(client -> client.screen instanceof TerminalScreen terminal
+					&& terminal.navigationActiveForTesting()
+					&& terminal.guidanceToolForTesting() == TerminalTool.PORTAL.slot(), 40);
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				if (!terminal.navigationActiveForTesting()
@@ -840,7 +843,9 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				terminal.openToolForTesting(TerminalTool.PORTAL.slot());
 				terminal.activateSelectedToolForTesting();
 			});
-			context.waitTicks(5);
+			context.waitFor(client -> client.screen instanceof TerminalScreen terminal
+					&& terminal.guidanceToolForTesting() == TerminalToolService.NO_TOOL
+					&& terminal.homeLiveToolForTesting() == TerminalToolService.NO_TOOL, 40);
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				if (terminal.guidanceToolForTesting() != TerminalToolService.NO_TOOL
@@ -874,7 +879,9 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 					throw new AssertionError("Starting stronghold navigation did not create the HOME live information card");
 				}
 			});
-			context.waitTicks(5);
+			context.waitFor(client -> client.screen instanceof TerminalScreen terminal
+					&& terminal.navigationActiveForTesting()
+					&& terminal.guidanceToolForTesting() == TerminalTool.STRONGHOLD.slot(), 40);
 			context.runOnClient(client -> {
 				TerminalScreen terminal = (TerminalScreen) client.screen;
 				if (!terminal.navigationActiveForTesting()
@@ -1298,11 +1305,22 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 		context.runOnClient(client -> {
 			FirstRunNoticeScreen notice = (FirstRunNoticeScreen) client.screen;
 			notice.advanceForTesting();
-			if (notice.pageForTesting() != FirstRunNoticeScreen.Page.NOTICE)
-				throw new AssertionError("The audio page did not hand over to the disclosure");
+			if (!notice.pageTransitionActiveForTesting() || notice.advanceAvailableForTesting()
+					|| notice.acknowledgementAvailableForTesting())
+				throw new AssertionError("Page transition must disable both pages' actions");
+			notice.advanceForTesting();
+			notice.acknowledgeForTesting();
+			notice.reinitializeForTesting();
+			if (notice.advanceAvailableForTesting() || notice.acknowledgementAvailableForTesting())
+				throw new AssertionError("Rebuilding widgets bypassed the transition gate");
 			if (FirstRunNoticeController.acknowledgedForTesting())
 				throw new AssertionError("Leaving the audio page spent the acknowledgement it does not own");
 		});
+		context.waitTicks(7);
+		context.takeScreenshot("m1-first-run-page-transition");
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& notice.pageForTesting() == FirstRunNoticeScreen.Page.NOTICE
+				&& notice.acknowledgementAvailableForTesting(), 80);
 	}
 
 	private static void assertAndAcknowledgeFirstRunNotice(ClientGameTestContext context) {
@@ -1326,6 +1344,7 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 			if (notice.pageForTesting() != FirstRunNoticeScreen.Page.AUDIO)
 				throw new AssertionError("The tube must light up on the audio page, not on the disclosure");
 		});
+		context.waitTicks(16);
 		context.takeScreenshot("m1-first-run-crt-power-on");
 		switchFirstRunNoticeLanguage(context, "zh_cn");
 		context.runOnClient(client -> {
@@ -1394,7 +1413,20 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 				throw new AssertionError("First-run acknowledgement persisted before the entry transition finished");
 		});
 		context.takeScreenshot("m1-first-run-terminal-entry-transition");
+		context.runOnClient(client -> {
+			var chain = com.xm.thefourthfrequency.client_ui.ScreenFilterDriver.lastApplied();
+			if (chain == null || !chain.getPath().startsWith("terminal_entry_"))
+				throw new AssertionError("The entry lens shader did not render on the actual frame");
+		});
+		context.waitFor(client -> client.screen instanceof FirstRunNoticeScreen notice
+				&& notice.zoomProgressForTesting() >= .85F, 80);
+		context.takeScreenshot("m1-first-run-terminal-entry-near-glass");
 		context.waitForScreen(TitleScreen.class);
+		context.waitTicks(2);
+		context.runOnClient(client -> {
+			if (com.xm.thefourthfrequency.client_ui.ScreenFilterDriver.lastApplied() != null)
+				throw new AssertionError("The entry lens filter outlived the terminal");
+		});
 		context.runOnClient(client -> {
 			if (client.level != null || client.player != null)
 				throw new AssertionError("Acknowledging the notice did not return to the pre-world title page");

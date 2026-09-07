@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class ModOutputMixTest {
 	@Test void effectsGainPresenceWithoutBringingBackLoudTerminalOrNoiseBeds() {
-		assertEquals(.36F, ModOutputMix.apply("thefourthfrequency", "world_interface_laser", .2F), 1e-6);
+		assertEquals(.52F, ModOutputMix.apply("thefourthfrequency", "world_interface_laser", .2F), 1e-6);
 		assertEquals(.25F, ModOutputMix.apply("thefourthfrequency", "terminal_click", .2F), 1e-6);
-		for (String event : new String[]{"music_end", "signal_static", "world_interface_ambient_3", "terminal_carrier"})
-			assertEquals(.2F, ModOutputMix.apply("thefourthfrequency", event, .2F), 1e-6);
+		assertEquals(.2F, ModOutputMix.apply("thefourthfrequency", "music_end", .2F), 1e-6);
+		for (String event : new String[]{"signal_static", "world_interface_ambient_3", "terminal_carrier"})
+			assertEquals(.17F, ModOutputMix.apply("thefourthfrequency", event, .2F), 1e-6);
+		assertEquals(.16F, ModOutputMix.apply("thefourthfrequency", "unrendered_layer_ambience", .2F), 1e-6);
 	}
 
 	@Test void unrelatedAudioKeepsItsOriginalGain() {

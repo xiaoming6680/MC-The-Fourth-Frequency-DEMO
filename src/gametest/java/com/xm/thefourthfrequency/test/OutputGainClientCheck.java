@@ -23,8 +23,11 @@ final class OutputGainClientCheck {
 		var loop = new ProbeLoop();
 		SoundInstance[] voices = {
 				SimpleSoundInstance.forUI(ModSounds.WORLD_INTERFACE_LASER, 1, .2F),
-				SimpleSoundInstance.forUI(SoundEvents.AMBIENT_CAVE.value(), 1, .2F), loop};
-		var measured = List.of(new AtomicReference<Float>(), new AtomicReference<Float>(), new AtomicReference<Float>());
+				SimpleSoundInstance.forUI(SoundEvents.AMBIENT_CAVE.value(), 1, .2F), loop,
+				SimpleSoundInstance.forUI(ModSounds.SIGNAL_STATIC, 1, .2F),
+				SimpleSoundInstance.forUI(ModSounds.UNRENDERED_LAYER_AMBIENCE, 1, .2F)};
+		var measured = List.of(new AtomicReference<Float>(), new AtomicReference<Float>(),
+				new AtomicReference<Float>(), new AtomicReference<Float>(), new AtomicReference<Float>());
 		context.runOnClient(client -> { for (var voice : voices) client.getSoundManager().play(voice); });
 		try {
 			context.waitTicks(4);
@@ -88,7 +91,8 @@ final class OutputGainClientCheck {
 				raw.setAccessible(true);
 				for (int i=0; i<voices.length; i++) {
 					float base = (float)raw.invoke(engine, voices[i].getVolume(), voices[i].getSource());
-					float expected = Math.min(1, base * (i == 1 ? 1 : 1.8F));
+					float gain = switch (i) { case 1 -> 1; case 3 -> .85F; case 4 -> .8F; default -> 2.6F; };
+					float expected = Math.min(1, base * gain);
 					Float actual = measured.get(i).get();
 					if (actual == null || Math.abs(expected-actual) > 1e-4)
 						throw new AssertionError("Native gain mismatch " + voices[i].getIdentifier() + ": " + actual + " vs " + expected);

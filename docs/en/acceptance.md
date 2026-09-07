@@ -1,13 +1,13 @@
 # Manual acceptance checklist
 
-For the `1.0.0-rc.5` candidate build. It lists **only what automation cannot cover**. Each item is written as "what to do → what passes"; the reasoning is not here — rules live in the owning topic document, trade-offs in [Design notes](design-notes.md).
+For the `1.0.0-rc.6` candidate build. It lists **only what automation cannot cover**. Each item is written as "what to do → what passes"; the reasoning is not here — rules live in the owning topic document, trade-offs in [Design notes](design-notes.md).
 
 Automated results and commands are in [Testing and acceptance](testing.md).
 
 ## Before you start
 
 - Minecraft 1.21.11 / Fabric Loader 0.19.3 / Fabric API 0.141.4+1.21.11 / Java 21.
-- Install `thefourthfrequency-1.0.0-rc.5.jar`; prefer a fresh save for the first pass.
+- Install `thefourthfrequency-1.0.0-rc.6.jar`; prefer a fresh save for the first pass.
 - **Back up the save first**: the End ending writes a local isolation marker for the current save.
 - Keep developer acceleration off: `pacing.developerAcceleration=false`.
 - To recover from an interrupted ending transaction, launch once with `-Dthefourthfrequency.safeMode=true`.
@@ -27,16 +27,14 @@ The notice version is now v4, so players who acknowledged v3 will see both pages
 | 7 | Back on the title screen | Menu music volume follows step 2; at master volume 0 the menu track is completely silent |
 | 8 | Press F8 with no ending yet | No meta toggle, no ending-reset dialog |
 
-## First-run corruption loading screen
+## First corruption loading screen
 
-Only on the first world entry of a new save, about 30 s, running the whole frame through post-processing (`signal_still_*`).
+Preserve the first corruption structure without inserting a new loading animation. The presentation lasts at least 250 ticks, with bounded additional reload waiting.
 
-1. **The wall of text fills the screen in one frame**, never unfolding from the centre. **Sound and image arrive in the same instant** — the original crash fragment starts repeating with the wall and stops at blackout, never "the picture breaks and the noise rises a second later". Check with headphones; this one is ears only.
-2. **The image must not shake**: text rows stay straight, do not sway and do not shift per frame. The whole screen should be visibly *dirty* (grain, scanlines, red/cyan separation increasing toward the edges, bloom around bright glyphs, darkened corners) — but every glyph stays exactly where it is. **This is the easiest thing to regress.**
-3. The failure text, the recording timecode and `OBSERVER DETECTED` must all be **inside** those effects, not a clean layer floating above them.
-4. The slow upward mistrack band is kept; there must be **only that one** on screen at a time.
-5. During dead air the screen must not be pure black: it should read as a powered display receiving nothing — full-screen snow, **per pixel**, not a few hundred countable dots.
-6. After recovery, scanlines and grain **do not fully disappear**; they settle at a worse baseline.
+1. Ordinary loading text fails, followed by “DO NOT ANSWER.” and “IT CAN SEE YOU.” Position text steadily inside the damaged medium.
+2. At tick 132 the wall fills the screen in one frame with “败” only, overscanning all edges. No embedded phrases or lower-left timecode may remain.
+3. A short impact marks the wall, followed by the original 74 ms crash-buffer repeat. Freeze occurs at 160 and blackout/audio cutoff at 172. Reducing MOD volume must reduce the impact; mute remains silent.
+4. Legacy loading returns without exposing a modern page during reload. Disconnects or kicks stop the voices, and later loading does not replay the first corruption.
 
 ## New world and the terminal
 
@@ -48,7 +46,7 @@ Only on the first world entry of a new save, about 30 s, running the whole frame
 | 4 | Terminal pages | Only `HOME / TOOLS / RECORDS / FILES`; the wire protocol still uses `SIGNAL / FILES` |
 | 4a | **The terminal opens itself** | First entry into a new save: about a second after you are standing in the world the terminal **comes up on its own** and goes straight into the self test, with no key pressed. It must never flash up under a loading screen. **Quitting and rejoining the same save must not replay it**; join with the terminal out of the main hand (dropped or swapped away) and it must neither open within 30 s nor pop up at some later moment |
 | 4b | **It may not cover a screen you opened** | First entry into a new save: **open your inventory immediately** on landing (or the pause menu, or video settings) and stay there. The terminal **must not** evict your screen a second later. It gives that greeting up quietly, the device returns to the hand, and a right-click still opens it any time. The same during the half-second opening animation of a manual right-click - the rise finishing must not eat the inventory you opened inside it |
-| 4d | **The short check on every open** | Opening the terminal runs a four-line check of about 0.6 s first; the page area is not drawn during it while the tabs and hardware column are. **Escape must still leave immediately**; any key ends it and is then handled normally; a click in the page area is eaten once, but a click on a tab still changes page. The first boot of a new save does not run it (that one has its own six-line self test). The last line, the contact baseline, reads as calibrated at stage 0 and as -3% / -6% once chases have resolved, matching how much duller the presses have actually become |
+| 4d | **First-boot graphics and ordinary direct entry** | First boot shows memory lamps, a scope and six states; ordinary opens show the page directly. Startup uses a period test card and raster page recovery. After confirmation the MC menu appears inside the terminal glass, the camera approaches smoothly, the frame leaves view and filters clear. Menu controls then work normally |
 | 5 | First boot on a new save | ~3 s of six-line self test → profile questionnaire → four-step walkthrough (Tools → Records → Files → Home). Esc and clicks elsewhere do nothing during it, and the bottom right reads **"cannot exit right now"**, not "press Esc to exit". The last step lands on Home, where the bar fills to 4/4 and the reward arrives on screen |
 | 5a | The one-line brief per step | Describes **the page currently shown** (not the one an arrow points at), opening with that page's tab name, e.g. "Current page 'Home': …". The four steps describe Home → Tools → Records → Files in order |
 | 6 | **Walkthrough safety valve** | Let a zombie hit you mid-walkthrough: the lock releases immediately, Esc works at once, progress is kept and the next open resumes at the current step |

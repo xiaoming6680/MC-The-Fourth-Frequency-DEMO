@@ -1,6 +1,6 @@
 # Testing and acceptance
 
-The test entry points, layered coverage, key invariants and **the evidence actually produced this round** for `1.0.0-rc.5`. Only results that really finished are listed as current evidence; a successful compile is not acceptance.
+The test entry points, layered coverage, key invariants and **the evidence actually produced this round** for `1.0.0-rc.6`. Only results that really finished are listed as current evidence; a successful compile is not acceptance.
 
 Release steps and sync rules are in [Repository maintenance](maintenance.md).
 
@@ -85,19 +85,11 @@ The device must be **the one Station Zero actually issued**: the server validate
 
 ## Current evidence
 
-Completed on 2026-09-07 against the final `1.0.0-rc.5` workspace. Historical RC.1 counts are archived.
+RC.6 passed the complete build, 861 unit tests, 99 server GameTests, the full `all` client suite, and the separate `notice-entry` suite in an isolated validation checkout. That checkout uses `3c77e8e` plus only this startup/audio change. Other tasks' unfinished anomaly, model and desktop changes in the shared workspace are excluded from this package.
 
-| Check | Result and scope |
-| --- | --- |
-| `build` (compilation, resources, JUnit, server GameTests) | Passed; 866/866 unit tests and 99/99 server GameTests |
-| `verifyRemappedJar` | Passed; 60 mixin classes, 22 Minecraft injection targets |
-| `runClientGameTest -PtffClientTestSuite=all` | Full pass, exit 0; includes mainline, tools UI, entities, World Interface and audio. Only the original vibration cue was restored afterwards, followed by a passing final `audio` run |
-| Client audio checks | Actual OpenAL initial/tick/refresh gain, vanilla isolation, mute; no slider sweep overlay and exactly one original terminal carrier after unmute |
-| Audio resources | 242 decoded non-music OGG files checked for true peaks, seams and hashes; nine original beds plus the vibration cue preserved byte-for-byte, and 198 cleaned foreground files |
-| Local deployment | RC.5 copied into PCL mods with matching SHA-256; RC.4 moved into ignored build storage |
-| Not covered | Separate `notice-entry` / `alpha-relaunch` runs, launching the actual PCL instance, two-machine combat and subjective listening acceptance |
+The startup suite retained nine runtime screenshots and checked actual GPU lens-filter application and cleanup. Audio checks covered initial playback, tickable sounds, refresh, mute and both ambience-bed categories. All 242 non-music files passed complete decoding, level, loop-seam and preserved-source hash checks. The final JAR verifier checked 60 mixin classes and 22 Minecraft injection targets. RC.6 is installed in PCL with a matching SHA-256; RC.5 was moved into a local workspace archive.
 
-See [RC.5 audio QA](../qa/audio_overhaul/rc5.md). Passing automation does not establish subjective presentation quality.
+See the [RC.6 record](../qa/audio_overhaul/rc6.md) for visuals, levels and validation limits. No manual listening session in the PCL instance or real two-client multiplayer acceptance was performed this round; those items remain below. RC.5 results remain [archived](../qa/audio_overhaul/rc5.md).
 
 ## How the sharp tests are shaped
 
@@ -202,21 +194,19 @@ Their value is not in re-running things known to be correct but in that each one
 
 ## Documentation and resource static checks
 
-- Both language JSONs parse, with 902 keys each and fully symmetric key sets.
+- Both language JSONs parse, with 955 keys each and fully symmetric key sets.
 - All relative links in the READMEs (both languages) and `docs/**` resolve.
 - Scans for stale test numbers, the old health formula and retired finale semantics find no residue.
-- `sounds.json` holds 81 events and 160 references; the 211 OGGs in the repository match its references one for one, the difference is empty in both directions, and every one of them measures as Ogg Vorbis.
+- `sounds.json` holds 106 events and 263 references; the 263 OGGs in the repository match its references one for one, the difference is empty in both directions, and every one of them measures as Ogg Vorbis.
 
 The manual flow for a candidate build is in the [Manual acceptance checklist](acceptance.md).
 
 ## Release artefacts
 
-Final RC.5 `build` output:
-
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.5.jar` | 53,194,833 | `ED895A43FACAB7BEB68E457012EA4B1A39939B38CE6814905D0C445E0606ABC2` |
-| `build/libs/thefourthfrequency-1.0.0-rc.5-sources.jar` | 52,637,790 | `9645CCA2103694FB7CA5EBC2360AC7C53AE795B3314E3092DB66AF55966D6106` |
+| `thefourthfrequency-1.0.0-rc.6-sources.jar` | 52,424,296 | `5957721DF1E1A08AFC56A9A1ED5B63DF2475154C3A6334007CCF92DE50F175E2` |
+| `thefourthfrequency-1.0.0-rc.6.jar` | 52,986,250 | `076528CC7C942153DB48DBCD954F7ECDD19016E0670C3C6460543B7F8226EE1D` |
 
 ## Still outstanding before release
 

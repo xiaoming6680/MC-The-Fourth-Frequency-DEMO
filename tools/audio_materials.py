@@ -41,6 +41,8 @@ def opening_feedback(name,duration,variant):
     # Keep a piece of the original onset before the buffer catches.
     lead=round(.28*RATE); transition=round(.016*RATE)
     original=source[:lead].copy()
+    # A short startle on the wall's first frame, made from the original onset itself.
+    original *= 1 + 2.0 * np.exp(-np.arange(lead) / (RATE * .085))
     blend=np.linspace(0,1,transition)
     original[-transition:]=original[-transition:]*(1-blend)+x[lead-transition:lead]*blend
     x[:lead]=original
