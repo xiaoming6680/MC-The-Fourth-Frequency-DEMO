@@ -6,7 +6,9 @@ A Fabric survival-horror narrative mod for Minecraft 1.21.11.
 
 You wake at Station Zero — the only one there is — holding an old terminal that gives you real survival information. Nothing is added to frighten you. Instead the blocks, menus, sounds and rules you already know gradually stop meaning what they used to. The terminal is your one stable instrument of explanation, and it is subject to the same thing.
 
-> Current version **RC 1.0.0** (`1.0.0-rc.1`). All gameplay is implemented and frozen; this is the release-candidate stage.
+> Current build: **1.0.0-rc.5**, with independent MOD effects gain, cleaner effects and restored original ambience, plus BOSS animation timing fixes. Use the same build on clients and servers; this remains a release candidate.
+
+MOD effects can now stand out from vanilla sounds without raising the game master volume. The terminal slider keeps quiet notch feedback; terminal and environmental beds use their original assets. See [Audio](docs/en/audio.md) for the mixing rules.
 
 ## Requirements
 
@@ -21,7 +23,7 @@ Both client and server need this mod and Fabric API. Licence: [All Rights Reserv
 
 ## Install
 
-1. Download `thefourthfrequency-1.0.0-rc.1.jar` from [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency/releases), or build it yourself with the steps below.
+1. Build `thefourthfrequency-1.0.0-rc.5.jar` using the steps below. Published attachments are listed on [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases).
 2. Drop it, together with the matching Fabric API, into the `mods` folder of the client and the server.
 3. Launch Fabric 1.21.11 on Java 21 and **create a new world**, or join a server.
 
@@ -125,7 +127,7 @@ An operator running `/tff debug true` on themselves can press the rebindable `M`
 | [Architecture](docs/en/architecture.md) | Authoritative data flow, persistence, protocol, budgets |
 | [Background music](docs/en/audio.md) | Situation table, fade seams, track rotation |
 | [Terminal interface and handheld form](docs/en/terminal-ui.md) | Coordinate space, layout, palette, animation, 3D model |
-| [Anomalies, terminal forms and personal pursuits](docs/en/anomalies-and-pursuits.md) | Five stages, five forms, the private mirror |
+| [Anomalies, terminal forms and personal pursuits](docs/en/anomalies-and-pursuits.md) | Five anomaly stages, three pursuit forms, the private mirror |
 | [The World Interface finale](docs/en/world-interface.md) | Ritual, state machine, eight actions, endings, F8 |
 | [Art and asset pipeline](docs/en/art-pipeline.md) | Deterministic generators, UV and emissive contracts |
 | [Testing and acceptance](docs/en/testing.md) | Gradle entry points, layered coverage, current evidence |

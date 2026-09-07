@@ -75,12 +75,14 @@ MC-The-Fourth-Frequency/
 | 异象、校正者、镜像规则 | `docs/zh/anomalies-and-pursuits.md` |
 | 终端外观、布局、动画、开机引导 | `docs/zh/terminal-ui.md` |
 | 终局数值、行动、结局契约 | `docs/zh/world-interface.md` |
-| 配乐情境与接缝 | `docs/zh/audio.md` |
+| 音效输出增益、配乐情境与接缝 | `docs/zh/audio.md` |
 | 资产生成与 UV/自发光契约 | `docs/zh/art-pipeline.md` |
 | 测试结果与发布物 | `docs/zh/testing.md` |
 | 数值背后的取舍与历史故障 | `docs/zh/design-notes.md` |
 
 ## 改动同步矩阵
+
+每次 Git 提交前，按改动影响核对中英文 README、专题文档、配置说明和实际测试证据；发现不一致时与代码一起修正。历史记录保留原版本与验证范围，不能冒充当前证据。**提交标题和正文统一使用中文。**
 
 | 改动类型 | 至少同步 |
 |---|---|

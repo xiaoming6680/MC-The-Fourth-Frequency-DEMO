@@ -30,9 +30,25 @@ final class SoundscapeManifestTest {
 			assertEquals(entry.get("sha256").getAsString(), java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes)), path);
 			assertTrue(entry.get("truePeakDbfs").getAsDouble() < -.5, path);
 			if (entry.get("loop").getAsBoolean()) assertTrue(entry.get("seam").getAsDouble() < .035, path);
-			if (!path.contains("ambient_form_") && !path.startsWith("signal/")) assertEquals(1,entry.get("channels").getAsInt(),path);
+			if (!path.contains("ambient_form_") && !path.startsWith("signal/")
+					&& !path.equals("unrendered/layer_ambience")) assertEquals(1,entry.get("channels").getAsInt(),path);
 		}
 		assertEquals(files.size(), report.get("fileCount").getAsInt());
+	}
+	@Test void originalBedsAndWarningRemainByteIdenticalWithTheirOriginalChannels() throws Exception {
+		var originals = json(Path.of("docs/art/audio/original_beds.json")).getAsJsonObject("files");
+		var measured = json(Path.of("docs/art/audio/soundscape_manifest.json")).getAsJsonObject("files");
+		assertEquals(9, originals.size());
+		var cues = json(Path.of("docs/art/audio/original_cues.json")).getAsJsonObject("files");
+		assertEquals(1, cues.size());
+		for (var cue : cues.entrySet()) originals.add(cue.getKey(), cue.getValue());
+		for (var entry : originals.entrySet()) {
+			var original = entry.getValue().getAsJsonObject();
+			var current = measured.getAsJsonObject(entry.getKey());
+			assertEquals(original.get("sha256"), current.get("sha256"), entry.getKey());
+			assertEquals(original.get("channels"), current.get("channels"), entry.getKey());
+			assertEquals(original.get("seconds").getAsDouble(), current.get("seconds").getAsDouble(), .001, entry.getKey());
+		}
 	}
 	@Test void terminalBootHasItsOwnRecordings() throws Exception {
 		var sounds=json(ASSETS.resolve("sounds.json"));

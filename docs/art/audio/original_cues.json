@@ -1,0 +1,13 @@
+{
+  "note": "Original pursuit-warning terminal vibration cue, preserved byte-for-byte.",
+  "files": {
+    "device/terminal/anomaly/01": {
+      "event": "terminal_anomaly",
+      "commit": "29138172c33aa086ed04fb00d4b3c27179576b80",
+      "sha256": "b4c401351dcc56c72c13aec5e9d0d9610f6f44e4f7cd6d8eff798003d21adcac",
+      "seconds": 0.46,
+      "channels": 1,
+      "loop": false
+    }
+  }
+}

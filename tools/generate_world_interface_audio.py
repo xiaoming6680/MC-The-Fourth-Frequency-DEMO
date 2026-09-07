@@ -20,6 +20,7 @@ from pathlib import Path
 
 TOOLING = Path(__file__).resolve().parents[1] / "build" / "tff-audio-tooling"
 sys.path.insert(0, str(TOOLING))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '.gradle/tff-audio-tooling'))
 
 import numpy as np  # type: ignore  # installed only into build tooling
 import soundfile as sf  # type: ignore
@@ -31,12 +32,11 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "src/main/resources/assets/thefourthfrequency/sounds/world_interface"
 MANIFEST = ROOT / "docs/art/world_interface/audio_manifest.json"
 
-# The phase beds: non-positional, so they may be stereo, and long-running, so they must be
-# long. Every other group keeps its mono contract because the arena has to place it.
+# Original phase beds are retained at their original six-second duration.
 AMBIENT_SECONDS: dict[str, float] = {
-    "ambient_form_1": 18.7,
-    "ambient_form_2": 22.9,
-    "ambient_form_3": 26.3,
+    "ambient_form_1": 6.0,
+    "ambient_form_2": 6.0,
+    "ambient_form_3": 6.0,
 }
 
 # ---------------------------------------------------------------------------------------
@@ -295,6 +295,8 @@ def main() -> None:
                         help="path to ffmpeg, required to encode the stereo phase beds")
     parser.add_argument("--only", help="regenerate a single group, for iterating on one recipe")
     args = parser.parse_args()
+    if args.only is None or args.only in AMBIENT_SECONDS:
+        parser.error('Use tools/generate_soundscape.py to preserve the original ambience files and their hashes; --only may target foreground effects.')
     if args.ffmpeg is None:
         parser.error("--ffmpeg is required: the stereo phase beds cannot go through libsndfile")
 

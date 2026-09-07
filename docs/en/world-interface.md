@@ -1,6 +1,6 @@
 # The World Interface finale
 
-The rule book for the End finale in `1.0.0-rc.1`: entry conditions, the ritual, the state machine, numbers, the eight actions, both endings and F8.
+The rule book for the End finale in `1.0.0-rc.5`: entry conditions, the ritual, the state machine, numbers, the eight actions, both endings and F8.
 
 This document states **what the rules are**. The trade-off behind each one, the bugs it fixed and the alternatives that were rejected are in [Design notes](design-notes.md#the-world-interface-finale).
 

@@ -6,7 +6,9 @@
 
 玩家在唯一的零号站醒来，得到一台会提供真实生存信息的旧终端。它不靠凭空加入怪物制造恐怖，而是让你熟悉的方块、菜单、声音和规则逐步失去原有解释——终端是你唯一稳定的解释工具，而它也在被同一件事影响。
 
-> 当前构建版本 **1.0.0-rc.4**，包含 BOSS 动作同步修复、安静终端反馈与卡机开屏音效。客户端与服务端请使用同一构建；仍处于发布候选阶段。
+> 当前构建版本 **1.0.0-rc.5**，包含 MOD 音效独立放大、音效清噪与初版底噪恢复、BOSS 动作同步修复。客户端与服务端请使用同一构建；仍处于发布候选阶段。
+
+音效现可比原版声音更突出，无需一起提高游戏总音量；终端滑块只保留轻刻度反馈。终端与环境底噪使用初版素材，具体混音规则见[音频说明](docs/zh/audio.md)。
 
 ## 运行环境
 
@@ -21,7 +23,7 @@
 
 ## 安装
 
-1. 按下面的步骤构建 `thefourthfrequency-1.0.0-rc.4.jar`。正式发布的附件以 [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases) 为准。
+1. 按下面的步骤构建 `thefourthfrequency-1.0.0-rc.5.jar`。正式发布的附件以 [Releases](https://github.com/xiaoming6680/MC-The-Fourth-Frequency-DEMO/releases) 为准。
 2. 与对应版本的 Fabric API 一起放入客户端和服务器的 `mods` 目录。
 3. 用 Java 21 启动 Fabric 1.21.11，**新建世界**或连入服务器。
 
@@ -127,7 +129,7 @@
 | [架构与安全边界](docs/zh/architecture.md) | 权威数据流、持久化、协议、预算 |
 | [背景音乐](docs/zh/audio.md) | 情境判定、淡变接缝与曲目轮换 |
 | [终端界面与手持形态](docs/zh/terminal-ui.md) | 坐标系、布局、配色、动画与 3D 模型 |
-| [异象、终端形态与个人追逐](docs/zh/anomalies-and-pursuits.md) | 五阶段异象、五形态追逐、私人镜像 |
+| [异象、终端形态与个人追逐](docs/zh/anomalies-and-pursuits.md) | 五阶段异象、三形态追逐、私人镜像 |
 | [世界接口终局](docs/zh/world-interface.md) | 仪式、状态机、八类行动、结局与 F8 |
 | [美术与资产管线](docs/zh/art-pipeline.md) | 可重复生成脚本、UV 与自发光契约 |
 | [测试与验收](docs/zh/testing.md) | Gradle 入口、分层覆盖、当前证据 |

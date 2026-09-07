@@ -75,12 +75,14 @@ Do not treat an older JAR in `build/libs`, a stale test number or a historical r
 | Anomaly, Corrector and mirror rules | `docs/zh/anomalies-and-pursuits.md` |
 | Terminal appearance, layout, animation, onboarding | `docs/zh/terminal-ui.md` |
 | Finale numbers, actions, ending contracts | `docs/zh/world-interface.md` |
-| Music situations and seams | `docs/zh/audio.md` |
+| Effects output gain, music situations and seams | `docs/zh/audio.md` |
 | Asset generation, UV and emissive contracts | `docs/zh/art-pipeline.md` |
 | Test results and release artefacts | `docs/zh/testing.md` |
 | The trade-off behind a number, and past failures | `docs/zh/design-notes.md` |
 
 ## Change sync matrix
+
+Before every Git commit, check both READMEs, the affected topic documents, configuration descriptions and actual test evidence against the implementation. Correct mismatches in the same change. Historical records retain their original version and verification scope. **Write all commit titles and bodies in Chinese.**
 
 | Change type | Sync at minimum |
 |---|---|

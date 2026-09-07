@@ -1,6 +1,6 @@
 # The Fourth Frequency world bible
 
-The current narrative boundaries of `1.0.0-rc.1`. Numbers are owned by [The World Interface finale](world-interface.md) and [Testing and acceptance](testing.md).
+The current narrative boundaries of `1.0.0-rc.5`. Numbers are owned by [The World Interface finale](world-interface.md) and [Testing and acceptance](testing.md).
 
 ## The core premise
 
@@ -52,14 +52,12 @@ The mirror is not another world to mine. It copies the reality near the player a
 
 > The world is not real, but the damage is.
 
-The five forms are not simply "faster" — they are five ways of **interpreting**:
+The three forms are not simply "faster" — they are three ways of **interpreting**:
 
 | Form | What it reads as what |
 |---|---|
 | Soundseeker | Repeated action as position |
-| Router | A habitual route as intent |
 | Interceptor | Movement trend as a future exit |
-| Boundary-crosser | Stops accepting walls and ceilings as boundaries |
 | Interface Corrector | Begins forging coordinates, text and direction; the heartbeat only says where it is and how close — **never where the exit is** |
 
 Rushing the mainline is never punished with back-to-back pursuits, and the world holds only the next correction opportunity. But **no form has to be seen before it may arrive** — the first encounter can be the real pursuit, with the explanation arriving afterwards.

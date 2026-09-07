@@ -1,7 +1,7 @@
 """Original sound materials and edits of the first project opening cues.
 
 Dependencies: numpy, scipy. Voices are filtered pulse trains (no intelligible speech),
-foley is granular resonant noise. Durations/impact landmarks belong to the calling score.
+foley uses short resonant contacts without a continuous noise floor.
 """
 from __future__ import annotations
 import hashlib
@@ -62,13 +62,16 @@ def env(n, attack=.008, release=.12):
 
 
 def grain(n, rng, low=180, high=5000, density=22):
-    """Asymmetric wet friction/cable fibres, with individually spaced micro-impacts."""
-    x = band(rng.normal(size=n), low, high)
-    gate = np.zeros(n)
+    """Discrete resonant contacts. Silence between grains, no white-noise excitation."""
+    x = np.zeros(n)
     for start in rng.integers(0, max(1, n), max(2, int(n / RATE * density))):
         size = min(n - start, int(RATE * rng.uniform(.007, .075)))
-        gate[start:start + size] += rng.uniform(.25, 1) * np.hanning(size)
-    return x * (.08 + gate)
+        t = np.arange(size) / RATE
+        frequency = rng.uniform(low, min(high, low * 5))
+        contact = sum(np.sin(2*np.pi*frequency*ratio*t) / ratio
+                      for ratio in (1, 1.47, 2.16))
+        x[start:start + size] += rng.uniform(.25, 1) * np.hanning(size) * contact
+    return x
 
 
 def cavity(n, rng, base=57):
@@ -89,7 +92,7 @@ def strike(n, rng, mass=1):
     body = np.zeros(n)
     for ratio in (1, 1.47, 2.16, 3.91, 5.43):
         body += np.sin(2*np.pi*(110/mass)*ratio*t + rng.uniform(-.3,.3)) * np.exp(-t*(2.8+ratio)/mass) / ratio
-    crack = band(rng.normal(size=n), 1000, 10500) * np.exp(-t*70)
+    crack = np.sin(2*np.pi*(3200*t+1800*.009*(1-np.exp(-t/.009)))) * np.exp(-t*110)
     debris = grain(n, rng, 230, 5300, 30) * np.exp(-t*3.4)
     return .75*sub*np.exp(-t*3.3/mass) + .34*body + .36*crack + .5*debris
 
@@ -161,13 +164,13 @@ def make(name, duration, variant=1, loop=False, channel=0):
         stage = int(key[-1]) if key[-1:].isdigit() else 1
         slow = .5 + .3*np.sin(t*.71 + channel*.7) + .2*np.sin(t*1.13)
         if "laser" in key:
-            x = .45*cavity(n,rng,84) + .5*band(rng.normal(size=n),350,6200)*(.7+.3*np.sin(t*73)**2)
+            x = .45*cavity(n,rng,84) + .24*np.sin(2*np.pi*1450*t + 1.2*np.sin(2*np.pi*73*t))
         elif "ambient_form" in key:
             x = .46*cavity(n,rng,63-stage*8)*slow + .12*grain(n,rng,80,1600,7+stage*3)
             x += .15*np.sin(2*np.pi*(31+stage*3)*t)*(1+.2*np.sin(t*.37))
         else:
             low,high = (320,3800) if "tune" in name or "static" in name else (65,1500)
-            x = .23*band(rng.normal(size=n),low,high)*slow
+            x = .16*np.sin(2*np.pi*low*t)*slow
             x += .065*np.sin(2*np.pi*50*t) + .045*np.sin(2*np.pi*100.13*t)
             if "unrendered" in name: x += .12*cavity(n,rng,42)*(.6+.4*np.sin(t*.43))
         x = circular(x)
@@ -213,7 +216,7 @@ def make(name, duration, variant=1, loop=False, channel=0):
     elif any(k in key for k in ("impact","blast","throw","grab","hurt","shockwave","strike","laser_fire")):
         x = strike(n,rng,1.6 if boss else .75)
         x += .45*cavity(n,rng,51)*np.exp(-t*1.8)
-        if "laser_fire" in key: x += .38*band(rng.normal(size=n),550,8100)*np.exp(-t*1.4)
+        if "laser_fire" in key: x += .28*np.sin(2*np.pi*1850*t+2*np.sin(2*np.pi*113*t))*np.exp(-t*5)
     elif any(k in key for k in ("death","morph","shift","collapse","scream","failure","combat_start")):
         x = .9*cavity(n,rng,45 if boss else 105) + .7*grain(n,rng,120,6200,36)
         x *= (.7+.3*np.sin(t*8.7 + .5))

@@ -656,9 +656,9 @@ public final class TerminalScreen extends Screen {
 		// the tick rather than from init so that it follows the stage the server is currently
 		// reporting, and so there is no ordering question about whether a snapshot had arrived yet.
 		TerminalClientAudio.updatePanelStage(snapshot.visualStage());
+		TerminalClientAudio.carrierOn();
 		tickCompletionHold();
 		tickUnreadAcknowledgement();
-		TerminalClientAudio.tick();
 	}
 
 	/**
@@ -2524,7 +2524,6 @@ public final class TerminalScreen extends Screen {
 	public boolean mouseReleased(MouseButtonEvent event) {
 		if (draggingTuner) {
 			draggingTuner = false;
-			TerminalClientAudio.endTuningInput();
 			return true;
 		}
 		return super.mouseReleased(event);
@@ -2771,11 +2770,9 @@ public final class TerminalScreen extends Screen {
 		boolean receiverLockBefore = gameplay && receiverLocked(tuning);
 		retargetTuningVisual(safe, nowMillis());
 		boolean receiverLockAfter = gameplay && receiverLocked(tuning);
-		TerminalClientAudio.tuningInput();
-		// The loop covers the sweep; the detent marks that the dial actually moved a notch, which
-		// is what makes a stepped control feel mechanical rather than painted on.
-		TerminalClientAudio.detent();
+		// A successful lock replaces this notch instead of layering another sound over it.
 		if (!receiverLockBefore && receiverLockAfter) TerminalClientAudio.lock();
+		else TerminalClientAudio.detent();
 		if (gameplay) {
 			localTuningOnly = false;
 			send(TerminalControlPayload.TUNE, tuning);
@@ -3001,6 +2998,7 @@ public final class TerminalScreen extends Screen {
 	 */
 	@Override
 	public void removed() {
+		TerminalClientAudio.carrierOff();
 		super.removed();
 	}
 
@@ -3012,7 +3010,6 @@ public final class TerminalScreen extends Screen {
 			refuseOnboardingInput();
 			return;
 		}
-		TerminalClientAudio.endTuningInput();
 		if (!closedByServer) send(TerminalControlPayload.CLOSE, 0);
 		TerminalHandheldAnimator.requestClose();
 		super.onClose();

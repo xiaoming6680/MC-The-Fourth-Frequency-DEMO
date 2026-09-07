@@ -53,6 +53,7 @@
     "RenderSectionRegionAnomalyMixin",
     "SkyRendererAnomalyMixin",
     "SoundEngineStateAccessor",
+    "SoundEngineOutputMixMixin",
     "SoundManagerEngineAccessor",
     "TextureDecayMixin",
     "TitleScreenErosionMixin",

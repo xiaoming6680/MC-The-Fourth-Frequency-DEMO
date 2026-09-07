@@ -1695,35 +1695,58 @@ public final class M0ClientGameTest implements FabricClientGameTest {
 	}
 
 	private static void verifyReceiverAudioLifecycle(ClientGameTestContext context, int target) {
-		final int[] baseline = new int[2];
-		context.runOnClient(client -> {
-			TerminalScreen terminal = (TerminalScreen) client.screen;
-			TerminalClientAudio.resetTuningForTesting();
-			baseline[0] = TerminalClientAudio.loopStartsForTesting();
-			baseline[1] = TerminalClientAudio.lockPlaysForTesting();
-			for (int value = Math.max(0, target - 4); value <= target; value++) {
-				terminal.setTuningForTesting(value);
-			}
-			if (TerminalClientAudio.loopStartsForTesting() != baseline[0] + 1
-					|| TerminalClientAudio.lockPlaysForTesting() != baseline[1] + 1) {
-				throw new AssertionError("Contextual receiver audio mismatch: loops="
-						+ (TerminalClientAudio.loopStartsForTesting() - baseline[0]) + ", locks="
-						+ (TerminalClientAudio.lockPlaysForTesting() - baseline[1]));
-			}
-		});
-		context.waitTicks(5);
-		context.runOnClient(client -> {
-			if (!TerminalClientAudio.loopActiveForTesting() || TerminalClientAudio.loopVolumeForTesting() <= 0.0F) {
-				throw new AssertionError("Tuning loop did not hold for four ticks before fading");
-			}
-		});
-		context.waitTicks(5);
-		context.runOnClient(client -> {
-			if (TerminalClientAudio.loopActiveForTesting()) {
-				throw new AssertionError("Tuning loop did not fade and stop after input ceased");
-			}
-		});
-	}
+        context.runOnClient(client -> {
+            TerminalScreen terminal = (TerminalScreen) client.screen;
+            int locks = TerminalClientAudio.lockPlaysForTesting();
+            int detents = TerminalClientAudio.detentPlaysForTesting();
+            for (int value = Math.max(0, target - 4); value <= target; value++) {
+                terminal.setTuningForTesting(value);
+            }
+            if (TerminalClientAudio.lockPlaysForTesting() != locks + 1
+                    || TerminalClientAudio.detentPlaysForTesting() <= detents) {
+                throw new AssertionError("Receiver lost its notch or successful lock feedback");
+            }
+            var engine = ((com.xm.thefourthfrequency.mixin.SoundManagerEngineAccessor)
+                    client.getSoundManager()).thefourthfrequency$soundEngine();
+            var sounds = ((com.xm.thefourthfrequency.mixin.SoundEngineStateAccessor)
+                    engine).thefourthfrequency$instanceToChannel();
+            if (sounds.keySet().stream().anyMatch(sound -> sound.getIdentifier().getPath().equals("terminal_tune"))) {
+                throw new AssertionError("Dragging the receiver layered a sweep over its notch feedback");
+            }
+        });
+        double[] savedVolume = new double[1];
+        context.runOnClient(client -> savedVolume[0] = com.xm.thefourthfrequency.client_ui.ModVolumeControl.current());
+        try {
+            context.runOnClient(client -> {
+                com.xm.thefourthfrequency.client_ui.ModVolumeControl.apply(0);
+                TerminalClientAudio.carrierOn();
+            });
+            // Channel stop is scheduled on the sound thread; allow the engine's deletion grace.
+            context.waitTicks(25);
+            context.runOnClient(client -> {
+                var engine = ((com.xm.thefourthfrequency.mixin.SoundManagerEngineAccessor)
+                        client.getSoundManager()).thefourthfrequency$soundEngine();
+                var sounds = ((com.xm.thefourthfrequency.mixin.SoundEngineStateAccessor)
+                        engine).thefourthfrequency$instanceToChannel();
+                if (sounds.keySet().stream().anyMatch(sound -> sound.getIdentifier().getPath().equals("terminal_carrier")))
+                    throw new AssertionError("Muted terminal retained its carrier channel");
+                com.xm.thefourthfrequency.client_ui.ModVolumeControl.apply(.8);
+                TerminalClientAudio.carrierOn();
+                TerminalClientAudio.carrierOn();
+            });
+            context.waitTicks(3);
+            context.runOnClient(client -> {
+                var engine = ((com.xm.thefourthfrequency.mixin.SoundManagerEngineAccessor)
+                        client.getSoundManager()).thefourthfrequency$soundEngine();
+                var sounds = ((com.xm.thefourthfrequency.mixin.SoundEngineStateAccessor)
+                        engine).thefourthfrequency$instanceToChannel();
+                if (sounds.keySet().stream().filter(sound -> sound.getIdentifier().getPath().equals("terminal_carrier")).count() != 1)
+                    throw new AssertionError("Original carrier did not resume exactly once after unmute");
+            });
+        } finally {
+            context.runOnClient(client -> com.xm.thefourthfrequency.client_ui.ModVolumeControl.apply(savedVolume[0]));
+        }
+    }
 
 	private static void assertSingleOwnedTerminal(ClientGameTestContext context) {
 		context.runOnClient(client -> {

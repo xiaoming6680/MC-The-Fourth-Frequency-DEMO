@@ -12,29 +12,29 @@
           "variant": 1,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.86,
-          "rmsDbfs": -18.09
+          "peakDbfs": -3.01,
+          "rmsDbfs": -17.72
         },
         {
           "variant": 2,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.8,
-          "rmsDbfs": -17.51
+          "peakDbfs": -2.98,
+          "rmsDbfs": -17.19
         },
         {
           "variant": 3,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.94,
-          "rmsDbfs": -16.83
+          "peakDbfs": -2.82,
+          "rmsDbfs": -17.05
         },
         {
           "variant": 4,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -3.14,
-          "rmsDbfs": -17.58
+          "peakDbfs": -2.89,
+          "rmsDbfs": -17.48
         }
       ]
     },
@@ -47,29 +47,29 @@
           "variant": 1,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.29,
-          "rmsDbfs": -20.36
+          "peakDbfs": -3.04,
+          "rmsDbfs": -16.79
         },
         {
           "variant": 2,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -20.0
+          "peakDbfs": -2.9,
+          "rmsDbfs": -17.72
         },
         {
           "variant": 3,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -2.91,
-          "rmsDbfs": -20.65
+          "peakDbfs": -2.94,
+          "rmsDbfs": -17.13
         },
         {
           "variant": 4,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -2.62,
-          "rmsDbfs": -19.4
+          "peakDbfs": -2.82,
+          "rmsDbfs": -17.15
         }
       ]
     },
@@ -82,22 +82,22 @@
           "variant": 1,
           "seconds": 2.4,
           "channels": 1,
-          "peakDbfs": -2.88,
-          "rmsDbfs": -19.33
+          "peakDbfs": -2.98,
+          "rmsDbfs": -18.96
         },
         {
           "variant": 2,
           "seconds": 2.4,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -20.13
+          "peakDbfs": -3.04,
+          "rmsDbfs": -19.49
         },
         {
           "variant": 3,
           "seconds": 2.4,
           "channels": 1,
-          "peakDbfs": -2.88,
-          "rmsDbfs": -19.42
+          "peakDbfs": -2.95,
+          "rmsDbfs": -18.73
         }
       ]
     },
@@ -110,8 +110,8 @@
           "variant": 1,
           "seconds": 6.0,
           "channels": 1,
-          "peakDbfs": -7.2,
-          "rmsDbfs": -20.01
+          "peakDbfs": -6.87,
+          "rmsDbfs": -15.71
         }
       ]
     },
@@ -124,8 +124,8 @@
           "variant": 1,
           "seconds": 6.0,
           "channels": 1,
-          "peakDbfs": -7.15,
-          "rmsDbfs": -20.36
+          "peakDbfs": -6.87,
+          "rmsDbfs": -15.71
         }
       ]
     },
@@ -138,8 +138,8 @@
           "variant": 1,
           "seconds": 6.0,
           "channels": 1,
-          "peakDbfs": -6.95,
-          "rmsDbfs": -18.95
+          "peakDbfs": -6.87,
+          "rmsDbfs": -15.71
         }
       ]
     },
@@ -152,64 +152,64 @@
           "variant": 1,
           "seconds": 6.5,
           "channels": 1,
-          "peakDbfs": -2.65,
-          "rmsDbfs": -15.3
+          "peakDbfs": -2.85,
+          "rmsDbfs": -15.73
         },
         {
           "variant": 2,
           "seconds": 6.5,
           "channels": 1,
-          "peakDbfs": -2.61,
-          "rmsDbfs": -15.42
+          "peakDbfs": -2.99,
+          "rmsDbfs": -15.61
         },
         {
           "variant": 3,
           "seconds": 6.5,
           "channels": 1,
-          "peakDbfs": -2.8,
-          "rmsDbfs": -15.93
+          "peakDbfs": -2.62,
+          "rmsDbfs": -15.28
         }
       ]
     },
     "ambient_form_1": {
       "kind": "loop",
       "variants": 1,
-      "seconds": 18.7,
+      "seconds": 6.0,
       "files": [
         {
           "variant": 1,
-          "seconds": 18.7,
-          "channels": 2,
-          "peakDbfs": -6.84,
-          "rmsDbfs": -17.97
+          "seconds": 6.0,
+          "channels": 1,
+          "peakDbfs": -6.9,
+          "rmsDbfs": -14.39
         }
       ]
     },
     "ambient_form_2": {
       "kind": "loop",
       "variants": 1,
-      "seconds": 22.9,
+      "seconds": 6.0,
       "files": [
         {
           "variant": 1,
-          "seconds": 22.9,
-          "channels": 2,
-          "peakDbfs": -6.9,
-          "rmsDbfs": -18.02
+          "seconds": 6.0,
+          "channels": 1,
+          "peakDbfs": -6.93,
+          "rmsDbfs": -14.39
         }
       ]
     },
     "ambient_form_3": {
       "kind": "loop",
       "variants": 1,
-      "seconds": 26.3,
+      "seconds": 6.0,
       "files": [
         {
           "variant": 1,
-          "seconds": 26.3,
-          "channels": 2,
-          "peakDbfs": -6.95,
-          "rmsDbfs": -17.41
+          "seconds": 6.0,
+          "channels": 1,
+          "peakDbfs": -6.79,
+          "rmsDbfs": -14.45
         }
       ]
     },
@@ -222,29 +222,29 @@
           "variant": 1,
           "seconds": 4.0,
           "channels": 1,
-          "peakDbfs": -2.92,
-          "rmsDbfs": -15.18
+          "peakDbfs": -2.87,
+          "rmsDbfs": -12.79
         },
         {
           "variant": 2,
           "seconds": 4.0,
           "channels": 1,
-          "peakDbfs": -3.0,
-          "rmsDbfs": -15.19
+          "peakDbfs": -2.85,
+          "rmsDbfs": -12.51
         },
         {
           "variant": 3,
           "seconds": 4.0,
           "channels": 1,
-          "peakDbfs": -3.19,
-          "rmsDbfs": -14.9
+          "peakDbfs": -2.85,
+          "rmsDbfs": -12.66
         },
         {
           "variant": 4,
           "seconds": 4.0,
           "channels": 1,
-          "peakDbfs": -2.65,
-          "rmsDbfs": -14.74
+          "peakDbfs": -2.82,
+          "rmsDbfs": -12.83
         }
       ]
     },
@@ -258,21 +258,21 @@
           "seconds": 4.5,
           "channels": 1,
           "peakDbfs": -2.92,
-          "rmsDbfs": -17.1
+          "rmsDbfs": -17.28
         },
         {
           "variant": 2,
           "seconds": 4.5,
           "channels": 1,
-          "peakDbfs": -2.93,
-          "rmsDbfs": -18.4
+          "peakDbfs": -2.96,
+          "rmsDbfs": -17.63
         },
         {
           "variant": 3,
           "seconds": 4.5,
           "channels": 1,
-          "peakDbfs": -3.07,
-          "rmsDbfs": -18.11
+          "peakDbfs": -2.86,
+          "rmsDbfs": -17.5
         }
       ]
     },
@@ -285,22 +285,22 @@
           "variant": 1,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -3.32,
-          "rmsDbfs": -18.63
+          "peakDbfs": -3.06,
+          "rmsDbfs": -18.39
         },
         {
           "variant": 2,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -3.24,
-          "rmsDbfs": -17.7
+          "peakDbfs": -3.15,
+          "rmsDbfs": -17.09
         },
         {
           "variant": 3,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -3.16,
-          "rmsDbfs": -17.65
+          "peakDbfs": -3.03,
+          "rmsDbfs": -16.69
         }
       ]
     },
@@ -313,22 +313,22 @@
           "variant": 1,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.85,
-          "rmsDbfs": -14.41
+          "peakDbfs": -2.82,
+          "rmsDbfs": -14.16
         },
         {
           "variant": 2,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.59,
-          "rmsDbfs": -14.29
+          "peakDbfs": -2.97,
+          "rmsDbfs": -14.16
         },
         {
           "variant": 3,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.66,
-          "rmsDbfs": -14.16
+          "peakDbfs": -2.92,
+          "rmsDbfs": -14.25
         }
       ]
     },
@@ -341,22 +341,22 @@
           "variant": 1,
           "seconds": 2.6,
           "channels": 1,
-          "peakDbfs": -2.77,
-          "rmsDbfs": -21.13
+          "peakDbfs": -2.89,
+          "rmsDbfs": -19.84
         },
         {
           "variant": 2,
           "seconds": 2.6,
           "channels": 1,
-          "peakDbfs": -2.82,
-          "rmsDbfs": -20.83
+          "peakDbfs": -2.94,
+          "rmsDbfs": -16.87
         },
         {
           "variant": 3,
           "seconds": 2.6,
           "channels": 1,
-          "peakDbfs": -2.81,
-          "rmsDbfs": -20.18
+          "peakDbfs": -2.93,
+          "rmsDbfs": -16.7
         }
       ]
     },
@@ -369,22 +369,22 @@
           "variant": 1,
           "seconds": 1.3,
           "channels": 1,
-          "peakDbfs": -2.6,
-          "rmsDbfs": -17.67
+          "peakDbfs": -2.77,
+          "rmsDbfs": -17.22
         },
         {
           "variant": 2,
           "seconds": 1.3,
           "channels": 1,
-          "peakDbfs": -2.89,
-          "rmsDbfs": -18.38
+          "peakDbfs": -2.83,
+          "rmsDbfs": -17.97
         },
         {
           "variant": 3,
           "seconds": 1.3,
           "channels": 1,
-          "peakDbfs": -2.74,
-          "rmsDbfs": -18.26
+          "peakDbfs": -2.89,
+          "rmsDbfs": -16.38
         }
       ]
     },
@@ -397,22 +397,22 @@
           "variant": 1,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.96,
-          "rmsDbfs": -13.98
+          "peakDbfs": -2.97,
+          "rmsDbfs": -13.97
         },
         {
           "variant": 2,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.54,
-          "rmsDbfs": -14.4
+          "peakDbfs": -2.97,
+          "rmsDbfs": -14.14
         },
         {
           "variant": 3,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.97,
-          "rmsDbfs": -14.77
+          "peakDbfs": -2.68,
+          "rmsDbfs": -14.05
         }
       ]
     },
@@ -425,22 +425,22 @@
           "variant": 1,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.48,
-          "rmsDbfs": -19.19
+          "peakDbfs": -3.04,
+          "rmsDbfs": -17.37
         },
         {
           "variant": 2,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.08,
-          "rmsDbfs": -17.95
+          "peakDbfs": -2.81,
+          "rmsDbfs": -17.94
         },
         {
           "variant": 3,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.07,
-          "rmsDbfs": -16.2
+          "peakDbfs": -2.89,
+          "rmsDbfs": -17.22
         }
       ]
     },
@@ -453,22 +453,22 @@
           "variant": 1,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -2.72,
-          "rmsDbfs": -19.91
+          "peakDbfs": -2.98,
+          "rmsDbfs": -17.51
         },
         {
           "variant": 2,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -2.57,
-          "rmsDbfs": -18.36
+          "peakDbfs": -2.92,
+          "rmsDbfs": -17.34
         },
         {
           "variant": 3,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -2.69,
-          "rmsDbfs": -20.53
+          "peakDbfs": -3.01,
+          "rmsDbfs": -16.75
         }
       ]
     },
@@ -481,22 +481,22 @@
           "variant": 1,
           "seconds": 3.0,
           "channels": 1,
-          "peakDbfs": -3.34,
-          "rmsDbfs": -18.53
+          "peakDbfs": -2.84,
+          "rmsDbfs": -17.74
         },
         {
           "variant": 2,
           "seconds": 3.0,
           "channels": 1,
-          "peakDbfs": -2.85,
-          "rmsDbfs": -18.93
+          "peakDbfs": -2.89,
+          "rmsDbfs": -17.11
         },
         {
           "variant": 3,
           "seconds": 3.0,
           "channels": 1,
-          "peakDbfs": -2.85,
-          "rmsDbfs": -18.36
+          "peakDbfs": -2.82,
+          "rmsDbfs": -17.02
         }
       ]
     },
@@ -509,22 +509,22 @@
           "variant": 1,
           "seconds": 4.5,
           "channels": 1,
-          "peakDbfs": -2.93,
-          "rmsDbfs": -23.49
+          "peakDbfs": -2.82,
+          "rmsDbfs": -21.93
         },
         {
           "variant": 2,
           "seconds": 4.5,
           "channels": 1,
-          "peakDbfs": -2.94,
-          "rmsDbfs": -23.14
+          "peakDbfs": -2.92,
+          "rmsDbfs": -21.93
         },
         {
           "variant": 3,
           "seconds": 4.5,
           "channels": 1,
-          "peakDbfs": -2.96,
-          "rmsDbfs": -22.71
+          "peakDbfs": -2.76,
+          "rmsDbfs": -21.23
         }
       ]
     },
@@ -537,29 +537,29 @@
           "variant": 1,
           "seconds": 5.0,
           "channels": 1,
-          "peakDbfs": -3.02,
-          "rmsDbfs": -15.48
+          "peakDbfs": -2.86,
+          "rmsDbfs": -12.95
         },
         {
           "variant": 2,
           "seconds": 5.0,
           "channels": 1,
-          "peakDbfs": -2.6,
-          "rmsDbfs": -15.38
+          "peakDbfs": -2.85,
+          "rmsDbfs": -12.72
         },
         {
           "variant": 3,
           "seconds": 5.0,
           "channels": 1,
-          "peakDbfs": -3.05,
-          "rmsDbfs": -15.42
+          "peakDbfs": -2.91,
+          "rmsDbfs": -13.79
         },
         {
           "variant": 4,
           "seconds": 5.0,
           "channels": 1,
-          "peakDbfs": -2.81,
-          "rmsDbfs": -14.99
+          "peakDbfs": -2.8,
+          "rmsDbfs": -12.84
         }
       ]
     },
@@ -572,22 +572,22 @@
           "variant": 1,
           "seconds": 0.55,
           "channels": 1,
-          "peakDbfs": -2.71,
-          "rmsDbfs": -10.53
+          "peakDbfs": -3.02,
+          "rmsDbfs": -10.13
         },
         {
           "variant": 2,
           "seconds": 0.55,
           "channels": 1,
-          "peakDbfs": -2.96,
-          "rmsDbfs": -10.25
+          "peakDbfs": -2.89,
+          "rmsDbfs": -10.27
         },
         {
           "variant": 3,
           "seconds": 0.55,
           "channels": 1,
-          "peakDbfs": -3.01,
-          "rmsDbfs": -10.06
+          "peakDbfs": -2.92,
+          "rmsDbfs": -10.4
         }
       ]
     },
@@ -600,8 +600,8 @@
           "variant": 1,
           "seconds": 7.0,
           "channels": 1,
-          "peakDbfs": -3.13,
-          "rmsDbfs": -16.21
+          "peakDbfs": -2.72,
+          "rmsDbfs": -13.34
         }
       ]
     },
@@ -614,22 +614,22 @@
           "variant": 1,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -3.0,
-          "rmsDbfs": -15.92
+          "peakDbfs": -2.69,
+          "rmsDbfs": -15.46
         },
         {
           "variant": 2,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -2.87,
-          "rmsDbfs": -15.76
+          "peakDbfs": -2.92,
+          "rmsDbfs": -15.58
         },
         {
           "variant": 3,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -15.67
+          "peakDbfs": -2.63,
+          "rmsDbfs": -15.64
         }
       ]
     },
@@ -642,22 +642,22 @@
           "variant": 1,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.69,
-          "rmsDbfs": -14.31
+          "peakDbfs": -2.82,
+          "rmsDbfs": -14.25
         },
         {
           "variant": 2,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -14.62
+          "peakDbfs": -2.91,
+          "rmsDbfs": -14.31
         },
         {
           "variant": 3,
           "seconds": 1.6,
           "channels": 1,
-          "peakDbfs": -2.73,
-          "rmsDbfs": -14.1
+          "peakDbfs": -2.77,
+          "rmsDbfs": -14.15
         }
       ]
     },
@@ -670,15 +670,15 @@
           "variant": 1,
           "seconds": 2.4,
           "channels": 1,
-          "peakDbfs": -2.64,
-          "rmsDbfs": -13.8
+          "peakDbfs": -2.86,
+          "rmsDbfs": -12.23
         },
         {
           "variant": 2,
           "seconds": 2.4,
           "channels": 1,
-          "peakDbfs": -2.52,
-          "rmsDbfs": -14.19
+          "peakDbfs": -2.86,
+          "rmsDbfs": -11.86
         }
       ]
     },
@@ -691,22 +691,22 @@
           "variant": 1,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -2.93,
-          "rmsDbfs": -15.69
+          "peakDbfs": -2.94,
+          "rmsDbfs": -15.48
         },
         {
           "variant": 2,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -2.97,
-          "rmsDbfs": -16.34
+          "peakDbfs": -2.95,
+          "rmsDbfs": -15.29
         },
         {
           "variant": 3,
           "seconds": 2.2,
           "channels": 1,
-          "peakDbfs": -2.88,
-          "rmsDbfs": -15.42
+          "peakDbfs": -2.79,
+          "rmsDbfs": -15.66
         }
       ]
     },
@@ -719,8 +719,8 @@
           "variant": 1,
           "seconds": 2.8,
           "channels": 1,
-          "peakDbfs": -2.58,
-          "rmsDbfs": -14.4
+          "peakDbfs": -2.88,
+          "rmsDbfs": -12.65
         }
       ]
     },
@@ -733,15 +733,15 @@
           "variant": 1,
           "seconds": 3.0,
           "channels": 1,
-          "peakDbfs": -2.64,
-          "rmsDbfs": -20.07
+          "peakDbfs": -2.85,
+          "rmsDbfs": -18.25
         },
         {
           "variant": 2,
           "seconds": 3.0,
           "channels": 1,
-          "peakDbfs": -3.34,
-          "rmsDbfs": -21.28
+          "peakDbfs": -2.68,
+          "rmsDbfs": -17.78
         }
       ]
     },
@@ -754,22 +754,22 @@
           "variant": 1,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.4,
-          "rmsDbfs": -17.13
+          "peakDbfs": -2.99,
+          "rmsDbfs": -15.86
         },
         {
           "variant": 2,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.21,
-          "rmsDbfs": -17.09
+          "peakDbfs": -2.86,
+          "rmsDbfs": -17.49
         },
         {
           "variant": 3,
           "seconds": 1.4,
           "channels": 1,
-          "peakDbfs": -3.02,
-          "rmsDbfs": -16.69
+          "peakDbfs": -2.92,
+          "rmsDbfs": -17.73
         }
       ]
     },
@@ -782,22 +782,22 @@
           "variant": 1,
           "seconds": 1.9,
           "channels": 1,
-          "peakDbfs": -2.89,
-          "rmsDbfs": -14.98
+          "peakDbfs": -2.94,
+          "rmsDbfs": -14.99
         },
         {
           "variant": 2,
           "seconds": 1.9,
           "channels": 1,
-          "peakDbfs": -2.87,
-          "rmsDbfs": -14.69
+          "peakDbfs": -2.89,
+          "rmsDbfs": -14.98
         },
         {
           "variant": 3,
           "seconds": 1.9,
           "channels": 1,
-          "peakDbfs": -2.8,
-          "rmsDbfs": -14.88
+          "peakDbfs": -2.74,
+          "rmsDbfs": -14.96
         }
       ]
     },
@@ -810,15 +810,15 @@
           "variant": 1,
           "seconds": 2.0,
           "channels": 1,
-          "peakDbfs": -2.83,
-          "rmsDbfs": -19.6
+          "peakDbfs": -2.77,
+          "rmsDbfs": -17.87
         },
         {
           "variant": 2,
           "seconds": 2.0,
           "channels": 1,
-          "peakDbfs": -3.19,
-          "rmsDbfs": -20.01
+          "peakDbfs": -3.0,
+          "rmsDbfs": -16.73
         }
       ]
     },
@@ -831,8 +831,8 @@
           "variant": 1,
           "seconds": 2.8,
           "channels": 1,
-          "peakDbfs": -6.7,
-          "rmsDbfs": -17.78
+          "peakDbfs": -6.92,
+          "rmsDbfs": -15.48
         }
       ]
     },
@@ -845,22 +845,22 @@
           "variant": 1,
           "seconds": 0.7,
           "channels": 1,
-          "peakDbfs": -3.22,
-          "rmsDbfs": -18.57
+          "peakDbfs": -3.03,
+          "rmsDbfs": -17.71
         },
         {
           "variant": 2,
           "seconds": 0.7,
           "channels": 1,
-          "peakDbfs": -3.38,
-          "rmsDbfs": -19.91
+          "peakDbfs": -2.9,
+          "rmsDbfs": -16.42
         },
         {
           "variant": 3,
           "seconds": 0.7,
           "channels": 1,
-          "peakDbfs": -2.86,
-          "rmsDbfs": -18.99
+          "peakDbfs": -2.92,
+          "rmsDbfs": -18.4
         }
       ]
     },
@@ -873,29 +873,29 @@
           "variant": 1,
           "seconds": 0.8,
           "channels": 1,
-          "peakDbfs": -2.8,
-          "rmsDbfs": -11.69
+          "peakDbfs": -2.87,
+          "rmsDbfs": -11.46
         },
         {
           "variant": 2,
           "seconds": 0.8,
           "channels": 1,
-          "peakDbfs": -2.83,
-          "rmsDbfs": -11.81
+          "peakDbfs": -2.88,
+          "rmsDbfs": -11.29
         },
         {
           "variant": 3,
           "seconds": 0.8,
           "channels": 1,
-          "peakDbfs": -2.8,
-          "rmsDbfs": -11.76
+          "peakDbfs": -2.86,
+          "rmsDbfs": -11.28
         },
         {
           "variant": 4,
           "seconds": 0.8,
           "channels": 1,
-          "peakDbfs": -2.65,
-          "rmsDbfs": -11.38
+          "peakDbfs": -2.76,
+          "rmsDbfs": -11.61
         }
       ]
     },
@@ -908,29 +908,29 @@
           "variant": 1,
           "seconds": 1.7,
           "channels": 1,
-          "peakDbfs": -2.83,
-          "rmsDbfs": -14.48
+          "peakDbfs": -2.89,
+          "rmsDbfs": -14.34
         },
         {
           "variant": 2,
           "seconds": 1.7,
           "channels": 1,
-          "peakDbfs": -2.88,
-          "rmsDbfs": -14.55
+          "peakDbfs": -2.8,
+          "rmsDbfs": -14.58
         },
         {
           "variant": 3,
           "seconds": 1.7,
           "channels": 1,
-          "peakDbfs": -2.88,
-          "rmsDbfs": -14.94
+          "peakDbfs": -2.82,
+          "rmsDbfs": -14.43
         },
         {
           "variant": 4,
           "seconds": 1.7,
           "channels": 1,
-          "peakDbfs": -2.67,
-          "rmsDbfs": -14.3
+          "peakDbfs": -2.51,
+          "rmsDbfs": -14.32
         }
       ]
     },
@@ -943,22 +943,22 @@
           "variant": 1,
           "seconds": 1.5,
           "channels": 1,
-          "peakDbfs": -2.92,
-          "rmsDbfs": -17.46
+          "peakDbfs": -3.02,
+          "rmsDbfs": -16.91
         },
         {
           "variant": 2,
           "seconds": 1.5,
           "channels": 1,
-          "peakDbfs": -3.29,
-          "rmsDbfs": -16.47
+          "peakDbfs": -2.93,
+          "rmsDbfs": -16.65
         },
         {
           "variant": 3,
           "seconds": 1.5,
           "channels": 1,
-          "peakDbfs": -2.99,
-          "rmsDbfs": -16.93
+          "peakDbfs": -3.02,
+          "rmsDbfs": -17.98
         }
       ]
     },
@@ -971,29 +971,29 @@
           "variant": 1,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -2.85,
-          "rmsDbfs": -12.44
+          "peakDbfs": -2.76,
+          "rmsDbfs": -12.65
         },
         {
           "variant": 2,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -3.02,
-          "rmsDbfs": -12.42
+          "peakDbfs": -2.74,
+          "rmsDbfs": -12.52
         },
         {
           "variant": 3,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -13.34
+          "peakDbfs": -2.97,
+          "rmsDbfs": -12.47
         },
         {
           "variant": 4,
           "seconds": 1.1,
           "channels": 1,
-          "peakDbfs": -3.02,
-          "rmsDbfs": -12.71
+          "peakDbfs": -2.72,
+          "rmsDbfs": -12.64
         }
       ]
     },
@@ -1006,22 +1006,22 @@
           "variant": 1,
           "seconds": 0.65,
           "channels": 1,
-          "peakDbfs": -3.08,
-          "rmsDbfs": -19.17
+          "peakDbfs": -2.96,
+          "rmsDbfs": -16.9
         },
         {
           "variant": 2,
           "seconds": 0.65,
           "channels": 1,
-          "peakDbfs": -2.81,
-          "rmsDbfs": -17.69
+          "peakDbfs": -3.03,
+          "rmsDbfs": -16.68
         },
         {
           "variant": 3,
           "seconds": 0.65,
           "channels": 1,
-          "peakDbfs": -3.15,
-          "rmsDbfs": -19.34
+          "peakDbfs": -2.81,
+          "rmsDbfs": -16.0
         }
       ]
     },
@@ -1034,22 +1034,22 @@
           "variant": 1,
           "seconds": 2.8,
           "channels": 1,
-          "peakDbfs": -2.95,
-          "rmsDbfs": -15.93
+          "peakDbfs": -3.1,
+          "rmsDbfs": -17.17
         },
         {
           "variant": 2,
           "seconds": 2.8,
           "channels": 1,
-          "peakDbfs": -3.12,
-          "rmsDbfs": -16.11
+          "peakDbfs": -2.89,
+          "rmsDbfs": -16.82
         },
         {
           "variant": 3,
           "seconds": 2.8,
           "channels": 1,
-          "peakDbfs": -2.94,
-          "rmsDbfs": -15.32
+          "peakDbfs": -2.92,
+          "rmsDbfs": -16.13
         }
       ]
     },
@@ -1062,22 +1062,22 @@
           "variant": 1,
           "seconds": 3.3,
           "channels": 1,
-          "peakDbfs": -3.21,
-          "rmsDbfs": -17.6
+          "peakDbfs": -3.05,
+          "rmsDbfs": -15.71
         },
         {
           "variant": 2,
           "seconds": 3.3,
           "channels": 1,
-          "peakDbfs": -3.38,
-          "rmsDbfs": -18.37
+          "peakDbfs": -2.87,
+          "rmsDbfs": -16.7
         },
         {
           "variant": 3,
           "seconds": 3.3,
           "channels": 1,
-          "peakDbfs": -3.15,
-          "rmsDbfs": -16.34
+          "peakDbfs": -2.97,
+          "rmsDbfs": -17.02
         }
       ]
     },
@@ -1090,22 +1090,22 @@
           "variant": 1,
           "seconds": 4.1,
           "channels": 1,
-          "peakDbfs": -2.96,
-          "rmsDbfs": -18.27
+          "peakDbfs": -3.02,
+          "rmsDbfs": -16.09
         },
         {
           "variant": 2,
           "seconds": 4.1,
           "channels": 1,
-          "peakDbfs": -2.52,
-          "rmsDbfs": -19.61
+          "peakDbfs": -2.96,
+          "rmsDbfs": -16.2
         },
         {
           "variant": 3,
           "seconds": 4.1,
           "channels": 1,
-          "peakDbfs": -2.9,
-          "rmsDbfs": -17.97
+          "peakDbfs": -3.01,
+          "rmsDbfs": -16.48
         }
       ]
     }

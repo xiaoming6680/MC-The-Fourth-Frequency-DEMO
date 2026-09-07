@@ -1,13 +1,13 @@
 # Manual acceptance checklist
 
-For the `1.0.0-rc.1` candidate build. It lists **only what automation cannot cover**. Each item is written as "what to do → what passes"; the reasoning is not here — rules live in the owning topic document, trade-offs in [Design notes](design-notes.md).
+For the `1.0.0-rc.5` candidate build. It lists **only what automation cannot cover**. Each item is written as "what to do → what passes"; the reasoning is not here — rules live in the owning topic document, trade-offs in [Design notes](design-notes.md).
 
 Automated results and commands are in [Testing and acceptance](testing.md).
 
 ## Before you start
 
 - Minecraft 1.21.11 / Fabric Loader 0.19.3 / Fabric API 0.141.4+1.21.11 / Java 21.
-- Install `thefourthfrequency-1.0.0-rc.1.jar`; prefer a fresh save for the first pass.
+- Install `thefourthfrequency-1.0.0-rc.5.jar`; prefer a fresh save for the first pass.
 - **Back up the save first**: the End ending writes a local isolation marker for the current save.
 - Keep developer acceleration off: `pacing.developerAcceleration=false`.
 - To recover from an interrupted ending transaction, launch once with `-Dthefourthfrequency.safeMode=true`.
@@ -20,7 +20,7 @@ The notice version is now v4, so players who acknowledged v3 will see both pages
 |---:|---|---|
 | 1 | Delete the local safety-notice version file and open the title screen | The boot scan lights up the **audio calibration page**: the "Master volume" heading, the slider, "Preview" on the right, one line of explanation under the slider, one footer line and "Next" at the bottom. **There are no paragraphs of explanatory prose**; all three controls wait for the boot animation |
 | 2 | Drag the slider / press ←→ | The readout steps in 5% increments; the far left reads "Muted"; the keyboard moves exactly one step |
-| 3 | Press Preview | About 3 s of `signal/tuning_sweep` at the current volume; audibly quieter after turning it down; silent when muted; **pressing repeatedly interrupts rather than stacking louder** |
+| 3 | Press Preview | A short `terminal_boot_complete` cue at the current volume; audibly quieter after turning it down; silent when muted; **pressing repeatedly interrupts rather than stacking louder** |
 | 4 | Inspect the config file | Only `meta.peakVolume` is written; `bedVolume`, `clientState` and `presentation` are untouched |
 | 5 | Press Next | The v4 safety notice appears (flicker/high contrast, volume, irreversible save presentation); **the acknowledgement is not yet written** |
 | 6 | Press "I understand" | The same notice version shows only once; the state is written to `config/thefourthfrequency-safety-notice.version` |
@@ -31,7 +31,7 @@ The notice version is now v4, so players who acknowledged v3 will see both pages
 
 Only on the first world entry of a new save, about 30 s, running the whole frame through post-processing (`signal_still_*`).
 
-1. **The wall of text fills the screen in one frame**, never unfolding from the centre. **Sound and image arrive in the same instant** — the noise floor comes up with the wall, never "the picture breaks and the noise rises a second later". Check with headphones; this one is ears only.
+1. **The wall of text fills the screen in one frame**, never unfolding from the centre. **Sound and image arrive in the same instant** — the original crash fragment starts repeating with the wall and stops at blackout, never "the picture breaks and the noise rises a second later". Check with headphones; this one is ears only.
 2. **The image must not shake**: text rows stay straight, do not sway and do not shift per frame. The whole screen should be visibly *dirty* (grain, scanlines, red/cyan separation increasing toward the edges, bloom around bright glyphs, darkened corners) — but every glyph stays exactly where it is. **This is the easiest thing to regress.**
 3. The failure text, the recording timecode and `OBSERVER DETECTED` must all be **inside** those effects, not a clean layer floating above them.
 4. The slow upward mistrack band is kept; there must be **only that one** on screen at a time.
@@ -170,7 +170,7 @@ Trigger from the debug panel (the last row of the anomaly list). A refusal names
 | Check | Passes when |
 |---|---|
 | Entry | The order is **watching yourself sink for about half a second** (the view passes through the floor, the body does not move, takes no damage and is not stuck in a block), **then** about 1 s of blackout. **You must not see chunks assembling in front of you.** On the frame the blackout clears, the view is still stuck inside the ceiling |
-| Ambience | A 20-second loop fades in within 2 s of entry, **with no music at all**; it fades out within 2 s of leaving. Enter and leave repeatedly without stacking two layers. The test is **that it no longer covers footsteps and the heartbeat** |
+| Ambience | The original 20-second loop fades in within 2 s of entry; music stays silent until the bacteria appears, then `music_unrendered` plays below the ambience and heartbeat. The bed fades out within 2 s of leaving. Enter and leave repeatedly without stacking two layers; footsteps and heartbeat must remain audible |
 | View distance | Locked to 6 chunks with the video-settings slider disabled. Walk a trunk corridor: the end should vanish into fog, not be visible all the way |
 | Nothing breaks | A diamond pickaxe on walls, floor and ceiling drops **not one block**; placing, water and flint and steel are all inert |
 | Finding the exit | The exit is a 15×15 **false wall wrapped around false floor**, differing only by about 20% in colour. **This colour delta is the one parameter you must judge by eye** (`LIGHTNESS_SHIFT` in `tools/generate_unrendered_textures.py`): it should fool you at a distance and be recognisable head-on. Walking into the false wall **passes straight through** with no collision and no prompt; one more step and the floor lets go. The false wall must still **block light and sight** |

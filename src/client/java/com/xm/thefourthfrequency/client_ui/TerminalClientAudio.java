@@ -15,9 +15,7 @@ import net.minecraft.util.Util;
 
 public final class TerminalClientAudio {
 	private static final RandomSource JITTER = RandomSource.create();
-	private static TuningLoop tuningLoop;
 	private static long nextContactTick;
-	private static int loopStarts;
 	private static int lockPlays;
 	private static int noticeOpeningPlays;
 	private static int noticeStablePlays;
@@ -28,6 +26,7 @@ public final class TerminalClientAudio {
 	private static int signalSweepPlays;
 	private static int detentPlays;
 	private static int panelStage;
+	private static CarrierLoop carrierLoop;
 
 	private TerminalClientAudio() {
 	}
@@ -74,7 +73,7 @@ public final class TerminalClientAudio {
 		contact(TerminalContactVoice.ACKNOWLEDGE);
 	}
 
-	/** One notch of the dial. Rides on top of the sweep loop {@link #tuningInput()} maintains. */
+	/** One quiet notch of the dial, with no continuous sweep underneath. */
 	public static void detent() {
 		detentPlays++;
 		playContact(ModSounds.TERMINAL_DETENT, 0.98F, 0.26F);
@@ -83,25 +82,6 @@ public final class TerminalClientAudio {
 	/** The last check. It answers differently, because it is the one that says the device is up. */
 	public static void bootComplete() {
 		playContact(ModSounds.TERMINAL_BOOT_COMPLETE, 1.0F, 0.46F);
-	}
-
-	public static void tuningInput() {
-		Minecraft client = Minecraft.getInstance();
-		if (client.level == null) return;
-		if (tuningLoop == null || tuningLoop.isStopped()) {
-			tuningLoop = new TuningLoop(baseVolume(0.20F));
-			client.getSoundManager().play(tuningLoop);
-			loopStarts++;
-		}
-		tuningLoop.requestInput();
-	}
-
-	public static void endTuningInput() {
-		if (tuningLoop != null) tuningLoop.releaseInput();
-	}
-
-	public static void tick() {
-		if (tuningLoop != null && tuningLoop.isStopped()) tuningLoop = null;
 	}
 
 	public static void lock() {
@@ -238,9 +218,6 @@ public final class TerminalClientAudio {
 				RuntimeServices.config().meta().peakVolume() * relativeVolume * 0.55F, 0.0D, 1.0D);
 	}
 
-	public static int loopStartsForTesting() { return loopStarts; }
-	public static boolean loopActiveForTesting() { return tuningLoop != null && !tuningLoop.isStopped(); }
-	public static float loopVolumeForTesting() { return tuningLoop == null ? 0.0F : tuningLoop.currentVolume(); }
 	public static int lockPlaysForTesting() { return lockPlays; }
 	public static int noticeOpeningPlaysForTesting() { return noticeOpeningPlays; }
 	public static int noticeStablePlaysForTesting() { return noticeStablePlays; }
@@ -249,58 +226,51 @@ public final class TerminalClientAudio {
 	public static int signalSweepPlaysForTesting() { return signalSweepPlays; }
 	public static int detentPlaysForTesting() { return detentPlays; }
 	public static int panelStageForTesting() { return panelStage; }
-	public static void resetTuningForTesting() {
-		if (tuningLoop != null) tuningLoop.forceStop();
-		tuningLoop = null;
-	}
 
-	/** Stage changes alter controls; opening a reading screen must not start a sound bed. */
+	/** Stage changes alter the controls without starting playback on their own. */
 	public static void updatePanelStage(int stage) {
 		panelStage = Math.clamp(stage, 0, TerminalContactVoice.MAX_STAGE);
 	}
 
-	private static final class TuningLoop extends AbstractTickableSoundInstance {
-		private static final int RELEASE_TICKS = 4;
-		private static final int FADE_TICKS = 4;
-		private final float fullVolume;
-		private int ticksSinceInput;
-		private boolean released;
-
-		private TuningLoop(float volume) {
-			super(ModSounds.TERMINAL_TUNE, SoundSource.AMBIENT, RandomSource.create());
-			this.fullVolume = volume;
-			this.volume = volume;
-			this.pitch = 0.82F;
-			this.looping = true;
-			this.relative = true;
-			this.attenuation = Attenuation.NONE;
+	/** The original device bed is independent of slider input and automatic guidance. */
+	public static void carrierOn() {
+		if (RuntimeServices.config().meta().peakVolume() <= 0) {
+			carrierOff();
+			return;
 		}
-
-		private void requestInput() {
-			ticksSinceInput = 0;
-			released = false;
-			volume = fullVolume;
-		}
-
-		private void releaseInput() {
-			released = true;
-		}
-
-		private float currentVolume() {
-			return volume;
-		}
-
-		private void forceStop() {
-			stop();
-		}
-
-		@Override
-		public void tick() {
-			ticksSinceInput++;
-			if (!released && ticksSinceInput <= RELEASE_TICKS) return;
-			int fadeAge = ticksSinceInput - RELEASE_TICKS;
-			volume = fullVolume * Math.clamp(1.0F - fadeAge / (float) FADE_TICKS, 0.0F, 1.0F);
-			if (fadeAge >= FADE_TICKS) stop();
+		if (carrierLoop == null || carrierLoop.isStopped()
+				|| !Minecraft.getInstance().getSoundManager().isActive(carrierLoop)) {
+			carrierLoop = new CarrierLoop();
+			Minecraft.getInstance().getSoundManager().play(carrierLoop);
 		}
 	}
+
+	public static void carrierOff() {
+		if (carrierLoop != null) {
+			carrierLoop.finish();
+			Minecraft.getInstance().getSoundManager().stop(carrierLoop);
+			carrierLoop = null;
+		}
+	}
+
+	private static final class CarrierLoop extends AbstractTickableSoundInstance {
+		private CarrierLoop() {
+			super(ModSounds.TERMINAL_CARRIER, SoundSource.AMBIENT, RandomSource.create());
+			looping = true;
+			relative = true;
+			attenuation = Attenuation.NONE;
+			refresh();
+		}
+		private void refresh() {
+			volume = (float) Math.clamp(RuntimeServices.config().meta().peakVolume() * .35, 0, 1);
+			pitch = 1.0F - .05F * panelStage;
+		}
+		private void finish() { stop(); }
+		@Override public void tick() {
+			Minecraft client = Minecraft.getInstance();
+			if (client.level == null || !(client.screen instanceof TerminalScreen)) stop();
+			else refresh();
+		}
+	}
+
 }

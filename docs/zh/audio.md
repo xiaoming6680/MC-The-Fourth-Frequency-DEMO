@@ -1,8 +1,19 @@
-# 背景音乐
+# 音频与背景音乐
 
 `MusicDirector` 通过 `MinecraftMusicMixin` 接管原版的两个接缝：`getSituationalMusic` 决定放什么，`getMusicVolume` 决定淡入淡出的目标增益。调度、淡变与「正在播放」提示全部沿用原版实现。
 
-本文只讲配乐；音效的混音余量见[世界接口终局](world-interface.md)，客户端生命周期见[架构与安全边界](architecture.md)，取舍见[设计札记](design-notes.md#背景音乐)。
+本文记录音效输出增益与配乐；音效的混音余量见[世界接口终局](world-interface.md)，客户端生命周期见[架构与安全边界](architecture.md)，取舍见[设计札记](design-notes.md#背景音乐)。
+
+## 音效输出增益（RC.5）
+
+`ModOutputMix` 在客户端最终通道增益处放大本 MOD 的主体音效；初次播放、持续更新与分类刷新使用同一策略，每次仅应用一次。主体音效乘 1.8，`terminal_*` 轻提示（不含载波）乘 1.25；`music_*`、信号底噪、未渲染层环境床和 `world_interface_ambient_*` 不增加。原版与其他 MOD 的声音不变。
+
+`meta.peakVolume` 仍是 0–1 的 MOD 总音量控制，并非新增放大滑块。输出增益限制在 0–1，原本接近上限的声音提升较少；零音量仍静音。保留原始发声音量与服务端包，所以不会扩大传播半径，多人各客户端独立混音。主体音效未触及上限时约提高 5.1 dB，终端约提高 1.9 dB；音乐沿用下述规则。
+
+终端拖动只保留限频的轻刻度声，不再叠加循环扫频；进入锁定频段时，锁定提示替代当次刻度声。自动引导弹字保持无声。终端载波与环境底噪恢复初版，9 份文件逐字节保留且不参与放大，来源与哈希见 `docs/art/audio/original_beds.json`。其余新制作音效移除持续白噪底层，接触材质改为离散共振短声，激光束流改用调制音调；初版开屏卡机基底保留。待试听的录音素材激光/触手样板未替换进游戏。验证见 [RC.5 记录](../qa/audio_overhaul/rc5.md)。
+
+
+追逐前的“终端传来剧烈震动”提示使用初版 `terminal_anomaly`，来源与原始哈希见 `docs/art/audio/original_cues.json`；自动引导文字保持无声。
 
 ## 情境判定
 
@@ -34,7 +45,7 @@
 
 `meta.peakVolume` 是本 MOD 的**总音量**，配乐也在其中：`musicVolume` 把原版给出的淡变目标乘上它再返回，缓存的 `fadeTarget` 存的也是乘完之后的值。
 
-入口有两个：`config/thefourthfrequency.json`，以及首启开屏的**音量校准页**。滑条拖动时只改进程内的那份配置，所以旁边的「试听」立刻就是新电平。试听放的是 `signal/tuning_sweep`——本 MOD 自己录的 3 秒信号扫频。
+入口有两个：`config/thefourthfrequency.json`，以及首启开屏的**音量校准页**。滑条拖动时只改进程内的那份配置，所以旁边的「试听」立刻就是新电平。试听播放 `terminal_boot_complete` 干净完成提示；重复点击会替换上一段试听。
 
 ## 四条淡变规则
 
@@ -162,7 +173,7 @@ Minecraft 没有播放列表。`sounds.json` 里一个事件带多条 `sounds` �
 
 全套 96 个非音乐事件、242 个 Ogg Vorbis 文件由 `tools/generate_soundscape.py` 生成；没有引入第三方录音。`tools/audio_materials.py` 提供共振腔、颗粒摩擦、结构撞击、故障缓冲和广播材质。七个旧音频生成/重制脚本已移除，避免重新覆盖资产。
 
-音乐曲目、播放事件和既有 BGM 音量保持不变。音效按用途保留不同电平：信号底噪峰值约 −24 dBFS、空载 −32、终端载波 −28、细菌心跳 −14；普通交互约 −4、BOSS 动作约 −3。极短瞬态的峰值不代表整体响度，播放处仍有分类增益与主音量。
+音乐曲目与既有 BGM 音量保持不变。9 份初版底噪保留原始电平，其余音效解码后的峰值、真峰与 RMS 以 `soundscape_manifest.json` 为准；播放侧增益见本文 RC.5 节。峰值不等同于整体听感响度。
 
 所有实际编码文件均重新解码，验证 Vorbis、44.1 kHz、时长、有限数值、直流偏移、四倍过采样真峰值和循环接缝。准确测量与 SHA-256 见 [完整声音清单](../art/audio/soundscape_manifest.json)。旧录音的 LUFS 不再描述本轮资产。
 

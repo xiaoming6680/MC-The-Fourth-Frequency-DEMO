@@ -1,6 +1,6 @@
 # 测试与验收
 
-本文记录 `1.0.0-rc.1` 的测试入口、分层覆盖、关键不变量与**本轮实际完成**的证据。只有真正跑完的结果才列为当前证据；编译成功不算验收。
+本文记录 `1.0.0-rc.5` 的测试入口、分层覆盖、关键不变量与**本轮实际完成**的证据。只有真正跑完的结果才列为当前证据；编译成功不算验收。
 
 发版步骤与同步规则见[仓库维护指南](maintenance.md)。
 
@@ -47,7 +47,7 @@
 
 `build` 的最后一步只在前置编译与测试全部成功后执行：把 `remapJar` 产出的可运行 JAR 复制到本地实例的 `mods` 目录。**它默认关闭**——目标路径属于某一台机器，不写进仓库；在用户级 `~/.gradle/gradle.properties` 里设 `tffDeployDir=<路径>` 长期启用，或用 `-PtffDeployDir=<路径>` 临时指定、`-PtffDeployDir=` 临时关闭。未配置只打印一行说明，目标盘不存在时跳过，都不会让构建失败（见[仓库维护指南](maintenance.md#本地部署)）。它不复制 sources JAR、不删除其他 MOD；单独运行 `remapJar` 只生成 `build/libs/` 产物，不触发部署。
 
-允许的客户端套件 ID：`all`、`default`、`mainline`、`tools-ui`、`notice-entry`、`alpha-relaunch`、`anomalies`、`anomaly-meta-smoke`、`rework-forms`、`watcher-model`、`world-interface`、`terminal-3d`、`screen-filters`。`all` 覆盖主线全程、工具 UI、异象、校正者、观察者模型、World Interface（含末地天气）、手持终端和屏幕滤镜；告知/重启类套件仍独立运行。仅 `anomalies` 套件允许额外指定 `-PtffAnomaly=<id>`。
+允许的客户端套件 ID：`all`、`default`、`mainline`、`tools-ui`、`notice-entry`、`alpha-relaunch`、`anomalies`、`anomaly-meta-smoke`、`rework-forms`、`watcher-model`、`horror-entities`、`world-interface`、`terminal-3d`、`screen-filters`、`audio`。`all` 覆盖主线全程、工具 UI、异象、校正者、观察者模型、World Interface（含末地天气）、手持终端和屏幕滤镜；告知/重启类套件仍独立运行。仅 `anomalies` 套件允许额外指定 `-PtffAnomaly=<id>`。
 
 **`all` 必须是 `mainline` 的真超集。** 它一度不是：主线测试里那句提前 `return` 被 `runsToolsUi()` 守着，而该谓词对 `all` 与 `tools-ui` 同时为真，于是完整套件跑完工具 UI 检查就返回，静默丢掉主线后半段（波段推进、四份破损文件、日记解锁、下界往返连续性、终端能力模型、Alpha 主菜单版本戳），**而且仍然报绿**。现在由 `ClientGameTestSelection.stopsAfterToolsUi()` 只让 `tools-ui` 停在那里，`AnomalyClientAutomationContractTest` 对三个套件双向断言这条谓词。一个报绿的覆盖缺口比没有这个套件更糟。
 
@@ -76,7 +76,7 @@
 
 | 层 | 覆盖重点 |
 | --- | --- |
-| 筛选纯逻辑测试 | 异象池/节奏、五形态策略、终端外观、动态区块窗口和不跳形态规则 |
+| 筛选纯逻辑测试 | 异象池/节奏、三形态策略、终端外观、动态区块窗口和不跳形态规则 |
 | 聚合 JUnit/资源契约 | schema、载荷版本、资源键、数据表、迁移、策略公式与恢复规则；当前全绿 |
 | 服务端 GameTest | 世界事件、目标推进、多人权威状态、方块/实体交互、镜像拓扑与持久化（含全服单追逐槽、按名单选取攻击目标、门被强制打开而非破坏） |
 | 客户端 GameTest | 终端 UI、告知/重启、异象呈现、模型、世界接口、诗篇与视距 |
@@ -84,24 +84,19 @@
 
 ## 当前证据
 
-**只列本轮实际跑完的结果。** 未运行、超时或被并行构建干扰的项必须写明。逐次改动的复跑流水不在本文，只保留在本地归档 `archive/superseded-docs/testing-history.md`——那些数字只对写下它们的那一轮成立，留在正文里只会和当前工作区打架。
+以下为 2026-09-07 在 `1.0.0-rc.5` 最终工作区实际完成的验证；历史 RC.1 数字已归档。
 
-以下结果于 **2026-08-30** 在 `mod_version=1.0.0-rc.1` 的当前工作区实际运行完成。
+| 验证 | 本轮结果与边界 |
+| --- | --- |
+| `build`（含编译、资源、JUnit、服务端 GameTest） | 通过；866/866 单元测试、99/99 服务端 GameTests |
+| `verifyRemappedJar` | 通过；60 个 mixin 类、22 个 Minecraft 注入目标 |
+| `runClientGameTest -PtffClientTestSuite=all` | 完整通过；包含主线、工具 UI、实体、世界接口与 audio，退出码 0。随后仅恢复震动提示素材，并在最终构建重跑 `audio` 通过 |
+| 音频客户端检查 | 实际 OpenAL 初播/持续/刷新增益、原版隔离、静音；滑块无扫频叠层，终端初版载波静音后仅恢复一层 |
+| 音频资源 | 242 份非音乐 OGG 完整解码、真峰/接缝/哈希检查通过；9 份底噪和震动提示与初版逐字节一致；198 份主体文件清理 |
+| 本地部署 | RC.5 已复制至 PCL mods，源与安装文件 SHA-256 相同；RC.4 移至忽略的构建归档 |
+| 未包含 | 本轮未单独跑 `notice-entry` / `alpha-relaunch`；未启动 PCL 正式实例、未做双机实战与主观听感验收 |
 
-> **这批数字有时间边界。** 每次改动之后都必须重跑并把新数字换进这张表——上一版这张表记的「完整客户端 GameTest 通过」是在 `M0ClientGameTest` 加入渲染距离锁定断言**之前**跑的，于是那条断言从未通过过，而表上写着绿。数字过期不只是数字过期。
-
-| 验证 | 结果 | 边界 |
-| --- | --- | --- |
-| `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | 通过 | 四个 source set 均可编译 |
-| 聚合 `unitTest` | **798/798 通过**（139 个容器），0 失败 0 跳过 | 用显式 `--select-class` 枚举编译产物中的每个测试类 |
-| 服务端 GameTest | **93/93 通过** | `All 93 required tests passed`。此前是 87，再往前是 80——`TerminalBackfillAndProfileGameTests` 从未写进 `src/gametest/resources/fabric.mod.json`，那 6 个测试一次也没跑过。现在由 `ResourceContractTest` 双向盯住注册表。新增 4 项来自 `PursuitRuntimeGameTests`：追逐此前有 10 个纯策略单测和 1 个只检查维度文件是否打包的 GameTest，退款账本与镜像放置规则两条玩家能感知的链路一条也没被覆盖 |
-| 产物校验 `verifyRemappedJar` | **通过**（58 个 mixin 类、21 个 Minecraft 侧注入目标全部为中间名） | 挂在 `check` 上，因此每次 `build` 都跑。它查的是**其余四层原理上看不见**的那一类问题：单测、服务端 GameTest 和客户端套件全部跑在 *named* Minecraft 上，一个 Loom 没能重写的 mixin 注解在那里依然指向一个存在的方法、依然能绑定；只有 remap 后的产物被真实启动器按中间名加载时才会在 bootstrap 崩。检查四件事：版本占位符已展开、`fabric.mod.json` 声明的 entrypoint 类都在 JAR 里、mixin 清单声明的每一项都已打包、没有任何 Minecraft 侧注入目标以 Mojang 名残留。**两个数字会打印出来**——一个查了 0 项的检查和一个查了全部的检查报告同样的「通过」，所以读到 0 直接判失败。本轮做过反向验证：故意注入一个不存在的 entrypoint，任务如实拦下并指名 |
-| 完整（`all`）客户端 GameTest | **通过**（8 分 39 秒，退出码 0），产出 166 张截图 | 目录 18 项、覆盖 17 项：未渲染层按名字在 `AnomalyClientScenario.UNCOVERED` 中显式豁免。日志中 `unrendered_layer` 与六个镜像维度均正常加载并存盘，这是数据包三件套与生成器编解码器在真实运行时可用的**直接**证据。本轮它抓到两处：终端开屏会顶掉玩家自己打开的界面，以及 `terminal-3d` 里「没人开过终端就该静止」这条在自动开屏上线后不再成立的旧断言。**注意**：与另一个 Gradle／Minecraft 进程并行跑会争用 `build/run/clientGameTest`，表现为存档写不完加原生崩溃，看起来像主线断言失败 |
-| `notice-entry` 定向客户端 GameTest | **本轮未重跑**（上次通过 45 秒） | 它不在 `all` 里——`ClientGameTestSelection.runsNoticeEntry()` 只对这个套件为真，所以完整套件绿并不覆盖它。上次是在 `thefourthfrequency.mixins.json` 重排/重缩进之后单独复跑的，确认 7 条 common + 50 条 client mixin 全部解析——清单是 `defaultRequire: 1`，格式化打错一个名字就是 bootstrap 崩溃，而不是静默降级 |
-| 中英文语言 JSON | 各 **902** 个键，解析通过且键集合完全对称，`%s` 占位符数量逐键一致 | 当前资源树 |
-| 音频编码 | 仓库里全部 **211** 个 OGG（模组自有 140 个，其中音乐 21 个；随包的 Golden Days 资源包 71 个）逐个实测 `codec_name == vorbis` | 扩展名骗得过所有断言，编码不对时 Minecraft 只是静默不出声 |
-| 干净 `clean build` | **本轮未重跑** | 上一次通过是 2026-08-29（53 秒）。本轮改的是 GameTest 注册、客户端开屏与文档，四个 source set 已单独编译并跑完 `unitTest` / `runGameTest` / 完整客户端套件；发版前仍需补一次 |
-| 本地部署（`build`，路径来自用户级 `~/.gradle/gradle.properties`） | **通过**（34 秒） | `build.gradle` 的默认值改为空之后复跑：日志给出 `Deployed remapped mod JAR to …`，目标文件与源 JAR 的字节数（54,262,874）和 SHA-256 完全一致。未配置 `tffDeployDir` 时同一条路径只打印一行说明并跳过 |
+复核记录见 [RC.5 音效 QA](../qa/audio_overhaul/rc5.md)。编译与自动化通过不等同于主观音画品质已验收。
 
 ## 关键测试设计
 
@@ -156,7 +151,7 @@
 ## 个人追逐关键不变量
 
 - 主线只提高 `allowedForm`；`actualForm` 每次成功最多前进一步，待追逐不形成队列。
-- 五形态时长为 60/75/85/95/110 秒，成功间隔为 20–30 分钟，捕获/中断重试为 5 分钟。
+- 三形态时长为 60/85/110 秒，成功间隔为 20–30 分钟，捕获/中断重试为 5 分钟。
 - 每个形态必须先完成安全演示；安全条件通过后固定执行 200 Tick 前置：80 Tick 终端阅读、80 Tick 只做渐进掉帧、40 Tick 输入锁定/卡死音效；前置不绘制滤镜或干扰遮罩。
 - 卡死音效为随机变体池而非单文件：`alpha_corruption_collapse` 与 `alpha_corruption_warning` 各至少 3 个，`ResourceContractTest` 断言数量下限、无重复条目、全部为真实 Ogg 且每个 > 16 KB。变体的听感只能人工验收，测试挡不住"不好听"。
 - 黑屏只由服务端时序切换；入场等待目标维度中玩家周围 7×7 区块全部就绪并连续稳定 8 Tick，最多等待 200 Tick。从镜像复制到返程来源世界与加载界面消失前，加载画面都必须被遮蔽。
@@ -215,16 +210,12 @@
 
 ## 发布物
 
-由 **2026-09-06** 的干净 `clean build` 产出，对应上面记录的全部改动（798/798 单测在同一次构建内跑过）：
+RC.5 最终 `build` 产物：
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 51,874,169 | `A42543914171CA25439BAB4A28D673EC45AB36955DAD68957BB700D0E9E6DB37` |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 51,362,334 | `DA63BD83A4F1B480480A16F9C84DFEEDFA7441601984A4ECFCA6D224F58BCFC3` |
-
-可运行 JAR 共 6,278 个条目。**本轮构建刻意跳过了部署步骤**（`-PtffDeployDir=`），没有向本地游戏实例写入任何东西；上面那行「本地部署」记录的是上一次真正跑过复制的那次。
-
-只记录**在最后一次生产源码/资源修改之后**完成的干净构建；更旧的 JAR 不作为发布证据。
+| `build/libs/thefourthfrequency-1.0.0-rc.5.jar` | 53,194,833 | `ED895A43FACAB7BEB68E457012EA4B1A39939B38CE6814905D0C445E0606ABC2` |
+| `build/libs/thefourthfrequency-1.0.0-rc.5-sources.jar` | 52,637,790 | `9645CCA2103694FB7CA5EBC2360AC7C53AE795B3314E3092DB66AF55966D6106` |
 
 ## 发布前仍需完成
 

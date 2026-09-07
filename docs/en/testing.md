@@ -1,6 +1,6 @@
 # Testing and acceptance
 
-The test entry points, layered coverage, key invariants and **the evidence actually produced this round** for `1.0.0-rc.1`. Only results that really finished are listed as current evidence; a successful compile is not acceptance.
+The test entry points, layered coverage, key invariants and **the evidence actually produced this round** for `1.0.0-rc.5`. Only results that really finished are listed as current evidence; a successful compile is not acceptance.
 
 Release steps and sync rules are in [Repository maintenance](maintenance.md).
 
@@ -48,7 +48,7 @@ Release steps and sync rules are in [Repository maintenance](maintenance.md).
 
 `build`'s last step runs only after every preceding compile and test succeeds: it copies the runnable JAR produced by `remapJar` into a local instance's `mods` folder. **It is off by default** - the destination belongs to one machine and is not committed. Set `tffDeployDir=<path>` in the user-wide `~/.gradle/gradle.properties` to enable it for good, or use `-PtffDeployDir=<path>` for one invocation and `-PtffDeployDir=` to turn it off. With nothing configured it prints a notice, and a missing drive is skipped; neither fails the build (see [Repository maintenance](maintenance.md#local-deployment)). It does not copy the sources JAR and does not delete other mods; running `remapJar` alone only produces `build/libs/` artefacts and triggers no deployment.
 
-Permitted client suite IDs: `all`, `default`, `mainline`, `tools-ui`, `notice-entry`, `alpha-relaunch`, `anomalies`, `anomaly-meta-smoke`, `rework-forms`, `watcher-model`, `world-interface`, `terminal-3d`, `screen-filters`. `all` covers the whole mainline, tools UI, anomalies, the Corrector, the Watcher model, the World Interface (including the End's weather), the handheld terminal and the screen filters; the notice/relaunch suites still run separately. Only the `anomalies` suite accepts an additional `-PtffAnomaly=<id>`.
+Permitted client suite IDs: `all`, `default`, `mainline`, `tools-ui`, `notice-entry`, `alpha-relaunch`, `anomalies`, `anomaly-meta-smoke`, `rework-forms`, `watcher-model`, `horror-entities`, `world-interface`, `terminal-3d`, `screen-filters`, `audio`. `all` covers the whole mainline, tools UI, anomalies, the Corrector, the Watcher model, the World Interface (including the End's weather), the handheld terminal and the screen filters; the notice/relaunch suites still run separately. Only the `anomalies` suite accepts an additional `-PtffAnomaly=<id>`.
 
 **`all` must be a true superset of `mainline`.** For a while it was not: the early `return` in the mainline test was guarded by `runsToolsUi()`, and that predicate is true for both `all` and `tools-ui` — so the full suite returned as soon as the tools-UI checks were done, silently dropping the second half of the mainline (band progression, the four damaged files, the diary unlock, Nether round-trip continuity, the terminal capability model, the Alpha main-menu stamp) **and still reporting green**. `ClientGameTestSelection.stopsAfterToolsUi()` now stops only `tools-ui` there, and `AnomalyClientAutomationContractTest` asserts the predicate in both directions across three suites. A coverage gap that reports green is worse than not having the suite.
 
@@ -77,7 +77,7 @@ The device must be **the one Station Zero actually issued**: the server validate
 
 | Layer | Coverage focus |
 | --- | --- |
-| Filtered pure-logic tests | Anomaly pool/pacing, five-form policy, terminal appearance, dynamic chunk window, no-form-skipping |
+| Filtered pure-logic tests | Anomaly pool/pacing, three-form policy, terminal appearance, dynamic chunk window, no-form-skipping |
 | Aggregate JUnit / resource contracts | Schema, payload versions, resource keys, data tables, migration, policy formulas, recovery rules |
 | Server GameTests | World events, objective advancement, multiplayer authoritative state, block/entity interaction, mirror topology, persistence (including the single server-wide pursuit slot, roster-filtered attack targeting, and doors being forced open rather than destroyed) |
 | Client GameTests | Terminal UI, notice/relaunch, anomaly presentation, models, the World Interface, the poem and view distance |
@@ -85,24 +85,19 @@ The device must be **the one Station Zero actually issued**: the server validate
 
 ## Current evidence
 
-**Only results that actually finished this round are listed.** Anything not run, timed out or disturbed by a concurrent build must be stated explicitly. The per-change re-run tallies are no longer kept here; they live in the local archive `archive/superseded-docs/testing-history.md`, because each of those numbers is only true of the round that wrote it and in the body it just argues with the current workspace.
+Completed on 2026-09-07 against the final `1.0.0-rc.5` workspace. Historical RC.1 counts are archived.
 
-The following actually completed on **2026-08-30** in the current workspace at `mod_version=1.0.0-rc.1`.
+| Check | Result and scope |
+| --- | --- |
+| `build` (compilation, resources, JUnit, server GameTests) | Passed; 866/866 unit tests and 99/99 server GameTests |
+| `verifyRemappedJar` | Passed; 60 mixin classes, 22 Minecraft injection targets |
+| `runClientGameTest -PtffClientTestSuite=all` | Full pass, exit 0; includes mainline, tools UI, entities, World Interface and audio. Only the original vibration cue was restored afterwards, followed by a passing final `audio` run |
+| Client audio checks | Actual OpenAL initial/tick/refresh gain, vanilla isolation, mute; no slider sweep overlay and exactly one original terminal carrier after unmute |
+| Audio resources | 242 decoded non-music OGG files checked for true peaks, seams and hashes; nine original beds plus the vibration cue preserved byte-for-byte, and 198 cleaned foreground files |
+| Local deployment | RC.5 copied into PCL mods with matching SHA-256; RC.4 moved into ignored build storage |
+| Not covered | Separate `notice-entry` / `alpha-relaunch` runs, launching the actual PCL instance, two-machine combat and subjective listening acceptance |
 
-> **These numbers have a cut-off.** Re-run them after every change and replace them here. The previous version of this table recorded the full client GameTest suite as passing, and that run predated the locked-render-distance assertion added to `M0ClientGameTest` - so the assertion had never passed once while the table said green. A stale number is not only a stale number.
-
-| Check | Result | Boundary |
-| --- | --- | --- |
-| `compileJava` / `compileClientJava` / `compileTestJava` / `processResources` | Pass | All four source sets compile |
-| Aggregate `unitTest` | **798/798 pass** (139 containers), 0 failed, 0 skipped | Every compiled test class enumerated explicitly via `--select-class` |
-| Server GameTests | **93/93 pass** | `All 93 required tests passed`. It was 87 before, and 80 before that: `TerminalBackfillAndProfileGameTests` had never been listed in `src/gametest/resources/fabric.mod.json`, so those 6 tests had never run once. `ResourceContractTest` now watches the registration in both directions. The four new ones are `PursuitRuntimeGameTests`: the chase had ten pure-policy unit tests and one game test that only checked the dimension files were packaged, so neither of the two chains a player can feel - the refund ledger and the mirror's placement rule - was covered at all |
-| Artefact check `verifyRemappedJar` | **Pass** (58 mixin classes, 21 Minecraft-owned injection targets, all intermediary) | Wired into `check`, so every `build` runs it. It covers the one class of failure the other four layers structurally cannot see: unit tests, server GameTests and the client suite all run against *named* Minecraft, where a mixin annotation Loom failed to rewrite still names a method that exists and still binds; only the remapped artefact, loaded by a real launcher against intermediary names, dies at bootstrap. Four checks: the version placeholder expanded, every entrypoint class named in `fabric.mod.json` is in the jar, every mixin the config declares is packaged, and no Minecraft-owned injection target survived under its Mojang name. **Both counts are printed** - a check that examined nothing reports the same pass as one that examined everything, so zero is treated as a failure. Verified in reverse this round by injecting a non-existent entrypoint, which the task refused and named |
-| Full (`all`) client GameTests | **Pass** (8 m 39 s, exit code 0), 166 screenshots | 18 in the catalogue, 17 covered: the unrendered layer is exempted by name in `AnomalyClientScenario.UNCOVERED`. The log shows `unrendered_layer` and all six mirror dimensions loading and saving normally, which is **direct** evidence that the three datapack files and the generator codec work at real runtime. This round it caught two things: the terminal opening evicting a screen the player had opened, and `terminal-3d`'s "a terminal nobody opened is at rest" assertion, which stopped being true when the greeting shipped. **Note**: running this alongside another Gradle/Minecraft process contends for `build/run/clientGameTest` and shows up as an unfinished save plus a native crash, which looks like a mainline assertion failure |
-| Targeted `notice-entry` client GameTests | **Not re-run this round** (last pass 45 s) | It is not part of `all` - `ClientGameTestSelection.runsNoticeEntry()` is true for this suite only, so a green full run does not cover it. The last run was on its own after `thefourthfrequency.mixins.json` was sorted and re-indented, confirming all 7 common and 50 client mixins still resolve - the manifest is `defaultRequire: 1`, so one name broken by formatting is a bootstrap crash, not a silent downgrade |
-| Chinese/English language JSON | **902** keys each, parses, key sets fully symmetric, `%s` placeholder counts identical key by key | Current resource tree |
-| Audio encoding | All **211** OGGs in the repository (140 the mod's own, 21 of those music; 71 in the bundled Golden Days pack) measured individually for `codec_name == vorbis` | The extension fools every assertion; with the wrong codec Minecraft simply plays nothing |
-| Clean `clean build` | **Not re-run this round** | Last passed 2026-08-29 (53 s). This round changed GameTest registration, the client opening and the docs; all four source sets were compiled separately and `unitTest`, `runGameTest` and the full client suite all ran. Still owed before release |
-| Local deployment (`build`, path from the user-wide `~/.gradle/gradle.properties`) | **Pass** (34 s) | Re-run after the `build.gradle` default became empty: the log says `Deployed remapped mod JAR to ...` and the target matches the source JAR in size (54,262,874) and SHA-256. With `tffDeployDir` unset the same path prints one notice and skips |
+See [RC.5 audio QA](../qa/audio_overhaul/rc5.md). Passing automation does not establish subjective presentation quality.
 
 ## How the sharp tests are shaped
 
@@ -157,7 +152,7 @@ Their value is not in re-running things known to be correct but in that each one
 ## Key personal-pursuit invariants
 
 - The mainline only raises `allowedForm`; `actualForm` advances at most one step per success, and pending pursuits never form a queue.
-- The five form durations are 60/75/85/95/110 seconds, the success interval is 20–30 minutes, and the retry after capture/interruption is 5 minutes.
+- The three form durations are 60/85/110 seconds, the success interval is 20–30 minutes, and the retry after capture/interruption is 5 minutes.
 - Every form must first complete a safe demonstration. Once safety conditions pass, a fixed 200-tick lead-in runs: 80 ticks of terminal reading, 80 ticks of progressive frame-rate decay only, 40 ticks of input lock and hang audio. The lead-in draws no filter or interference overlay.
 - The hang audio is a random variant pool rather than a single file: `alpha_corruption_collapse` and `alpha_corruption_warning` have at least 3 each, and `ResourceContractTest` asserts the minimum count, no duplicate entries, that all are real Ogg files and that each is over 16 KB. How the variants *sound* is manual acceptance only; a test cannot stop "it sounds wrong".
 - The black screen is switched only by server timing. Entry waits for 7×7 chunks around the player in the destination dimension to be ready and stable for 8 consecutive ticks, up to 200 ticks. From mirror copying through the return to the source world and the loading screen disappearing, loading screens must remain covered.
@@ -216,16 +211,12 @@ The manual flow for a candidate build is in the [Manual acceptance checklist](ac
 
 ## Release artefacts
 
-From the clean `clean build` of **2026-09-06**, which covers every change recorded above (the 798/798 unit run happened inside that same build):
+Final RC.5 `build` output:
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `build/libs/thefourthfrequency-1.0.0-rc.1.jar` | 51,874,169 | `A42543914171CA25439BAB4A28D673EC45AB36955DAD68957BB700D0E9E6DB37` |
-| `build/libs/thefourthfrequency-1.0.0-rc.1-sources.jar` | 51,362,334 | `DA63BD83A4F1B480480A16F9C84DFEEDFA7441601984A4ECFCA6D224F58BCFC3` |
-
-The runnable JAR holds 6,278 entries. **This round's build deliberately skipped the deploy step** (`-PtffDeployDir=`), so nothing was written to the local play instance; the deployment row above records the last run that actually exercised the copy.
-
-Only record a clean build completed **after the last production source/resource change**; an older JAR is not release evidence.
+| `build/libs/thefourthfrequency-1.0.0-rc.5.jar` | 53,194,833 | `ED895A43FACAB7BEB68E457012EA4B1A39939B38CE6814905D0C445E0606ABC2` |
+| `build/libs/thefourthfrequency-1.0.0-rc.5-sources.jar` | 52,637,790 | `9645CCA2103694FB7CA5EBC2360AC7C53AE795B3314E3092DB66AF55966D6106` |
 
 ## Still outstanding before release
 

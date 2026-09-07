@@ -1,0 +1,68 @@
+{
+  "note": "Original first-added assets from Git, preserved byte-for-byte. Exempt from effects cleanup and gain boost.",
+  "files": {
+    "device/terminal/carrier/loop": {
+      "event": "terminal_carrier",
+      "commit": "0515200c2c278b2f5f64b87b85f531ea61c444aa",
+      "sha256": "52bea8c3144d56894b4c895cee9cc7b7004217408489c9cfc054755ff782aecc",
+      "seconds": 4.0,
+      "channels": 1
+    },
+    "signal/carrier_loop": {
+      "event": "signal_carrier",
+      "commit": "9a73cdb554b6dee698b715d32c1844f471ae34cd",
+      "sha256": "3fcae93127fa3b7418335ba6e25354c43155f5b23fbba8ad646ebaab5e079614",
+      "seconds": 11.300022675736962,
+      "channels": 2
+    },
+    "signal/static_loop": {
+      "event": "signal_static",
+      "commit": "9a73cdb554b6dee698b715d32c1844f471ae34cd",
+      "sha256": "c147e4d2ed592a409549eb44369b32bb4a8f58a2d947fcdd8a28dd6afca06a06",
+      "seconds": 13.700022675736962,
+      "channels": 2
+    },
+    "signal/tape_hiss_loop": {
+      "event": "signal_tape_hiss",
+      "commit": "9a73cdb554b6dee698b715d32c1844f471ae34cd",
+      "sha256": "c941e789ad76b2140061d15a5fdad28b7dea5633027587238534bf95680934ef",
+      "seconds": 17.900022675736963,
+      "channels": 2
+    },
+    "signal/dead_air_loop": {
+      "event": "signal_dead_air",
+      "commit": "9a73cdb554b6dee698b715d32c1844f471ae34cd",
+      "sha256": "04e25258df67540a7109ff9fa206ba763c1323bf70de1959179fc0168134cac2",
+      "seconds": 19.1,
+      "channels": 2
+    },
+    "world_interface/ambient_form_1/01": {
+      "event": "world_interface_ambient_1",
+      "commit": "ab27edf1f55830d22570ed907e0185ae797ba068",
+      "sha256": "a4b21483d93a75ab39bd43ffec8fdde82f91a744ad7a9c099657b7597799c95d",
+      "seconds": 6.0,
+      "channels": 1
+    },
+    "world_interface/ambient_form_2/01": {
+      "event": "world_interface_ambient_2",
+      "commit": "ab27edf1f55830d22570ed907e0185ae797ba068",
+      "sha256": "9b8927c468790f4a57c4dac5e97b47d04c4a4414108a03ca572eabef087f296d",
+      "seconds": 6.0,
+      "channels": 1
+    },
+    "world_interface/ambient_form_3/01": {
+      "event": "world_interface_ambient_3",
+      "commit": "ab27edf1f55830d22570ed907e0185ae797ba068",
+      "sha256": "236b1a755265533341c979580009cd886453f8a9a7b8ec2fc03ca43e5235eb32",
+      "seconds": 6.0,
+      "channels": 1
+    },
+    "unrendered/layer_ambience": {
+      "event": "unrendered_layer_ambience",
+      "commit": "0515200c2c278b2f5f64b87b85f531ea61c444aa",
+      "sha256": "33ef90afebc2ba7f577d8d6753e40c1364845f0822b2ca2002a3fe50b2fe1c62",
+      "seconds": 20.00002267573696,
+      "channels": 2
+    }
+  }
+}

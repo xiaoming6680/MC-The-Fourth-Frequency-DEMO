@@ -17,6 +17,7 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 	@Override public void runTest(ClientGameTestContext context) {
 		if (!ClientGameTestSelection.current().runsAudio()) return;
 		context.waitForScreen(TitleScreen.class);
+		OutputGainClientCheck.run(context);
 		context.runOnClient(client -> {
 			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.stopAll();
 			com.xm.thefourthfrequency.client_ui.AlphaCorruptionAudio.tick(client,
@@ -44,6 +45,8 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 		});
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
 			EntityVisualFixture.finishFirstBoot(context);
+			// The boot-complete notice owns a 300 ms feedback cooldown. Test the warning after it.
+			context.waitTicks(8);
 			context.runOnClient(client -> {
 				int resolved = 0;
 				for (var id : BuiltInRegistries.SOUND_EVENT.keySet()) {
@@ -66,11 +69,19 @@ public final class SoundscapeClientGameTest implements FabricClientGameTest {
 				}
 				if (sounds.size()!=before || notices!=com.xm.thefourthfrequency.client_ui.TerminalClientAudio.attentionPlaysForTesting())
 					throw new AssertionError("Passive guidance created audio playback");
-				if (sounds.keySet().stream().anyMatch(s -> s.getIdentifier().getPath().equals("terminal_carrier")))
-					throw new AssertionError("Reading the terminal started an idle sound bed");
+				if (sounds.keySet().stream().filter(s -> s.getIdentifier().getPath().equals("terminal_carrier")).count() > 1)
+					throw new AssertionError("Terminal stacked duplicate original carrier loops");
 				if (!com.xm.thefourthfrequency.client_ui.TerminalClientAudio.audibleNotice(3)
 						|| !com.xm.thefourthfrequency.client_ui.TerminalClientAudio.audibleNotice(4))
 					throw new AssertionError("Actionable warnings were muted with passive guidance");
+				com.xm.thefourthfrequency.client_ui.TerminalClientAudio.attention(3);
+			});
+			context.waitTicks(2);
+			context.runOnClient(client -> {
+				var engine = ((com.xm.thefourthfrequency.mixin.SoundManagerEngineAccessor)client.getSoundManager()).thefourthfrequency$soundEngine();
+				var sounds = ((com.xm.thefourthfrequency.mixin.SoundEngineStateAccessor)engine).thefourthfrequency$instanceToChannel();
+				if (sounds.keySet().stream().noneMatch(s -> s.getIdentifier().getPath().equals("terminal_anomaly")))
+					throw new AssertionError("Original terminal vibration warning did not start playback");
 			});
 			UUID id = world.getServer().computeOnServer(server -> {
 				var player = server.getPlayerList().getPlayers().getFirst();

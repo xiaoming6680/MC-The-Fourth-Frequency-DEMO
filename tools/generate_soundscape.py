@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build/tff-audio-tooling'))
+sys.path.insert(0, str(ROOT / '.gradle/tff-audio-tooling'))
 import numpy as np
 import soundfile as sf
 import imageio_ffmpeg
@@ -23,6 +24,8 @@ import generate_world_interface_audio as boss
 
 ASSETS = ROOT / 'src/main/resources/assets/thefourthfrequency'
 REPORT = ROOT / 'docs/art/audio/soundscape_manifest.json'
+ORIGINAL_BEDS = ROOT / 'docs/art/audio/original_beds.json'
+ORIGINAL_CUES = ROOT / 'docs/art/audio/original_cues.json'
 # id: variants, duration, radius, Chinese subtitle, English subtitle
 ADDITIONS = {
     'terminal_raise': (3,.22,16,'终端抬起','Terminal raised'),
@@ -93,7 +96,17 @@ def configure():
     return sounds
 
 
+def original_asset(path):
+    for manifest in (ORIGINAL_BEDS, ORIGINAL_CUES):
+        if manifest.exists() and path in read(manifest)['files']:
+            return read(manifest)['files'][path]
+    return None
+
+
 def specification(event, path):
+    original = original_asset(path)
+    if original:
+        return original['seconds'], original.get('loop', True), original['channels']
     if event in ADDITIONS: return ADDITIONS[event][1],False,1
     if event.startswith('world_interface_'):
         group = event.removeprefix('world_interface_').replace('ambient_','ambient_form_')
@@ -152,7 +165,10 @@ def main():
             if path in entries and not partial: continue
             duration,loop,channels=specification(event,path)
             file=ASSETS/'sounds'/f'{path}.ogg'
-            if not args.verify_only:
+            preserved = original_asset(path)
+            if preserved:
+                assert hashlib.sha256(file.read_bytes()).hexdigest() == preserved['sha256'], f'Original audio changed: {path}'
+            if not args.verify_only and not preserved:
                 file.parent.mkdir(parents=True,exist_ok=True)
                 if event.startswith('world_interface_'):
                     group=event.removeprefix('world_interface_').replace('ambient_','ambient_form_')

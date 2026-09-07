@@ -281,10 +281,13 @@ final class ResourceContractTest {
 		String generator = Files.readString(Path.of("tools/audio_materials.py"), StandardCharsets.UTF_8);
 		assertTrue(generator.contains("853*t") && generator.contains("960*t"), "Alert identity must retain its two tones");
 		var measured = JsonParser.parseString(Files.readString(Path.of("docs/art/audio/soundscape_manifest.json"))).getAsJsonObject().getAsJsonObject("files");
+		var originals = JsonParser.parseString(Files.readString(Path.of("docs/art/audio/original_beds.json"))).getAsJsonObject().getAsJsonObject("files");
 		for (var entry : measured.entrySet()) {
 			var cue = entry.getValue().getAsJsonObject();
 			if (entry.getKey().startsWith("signal/") && cue.get("loop").getAsBoolean()) {
-				assertTrue(cue.get("peakDbfs").getAsDouble() <= -23.5, entry.getKey());
+				// The requested first-version beds retain their exact levels, not the RC.3 peak target.
+				assertEquals(originals.getAsJsonObject(entry.getKey()).get("sha256"), cue.get("sha256"), entry.getKey());
+				assertTrue(cue.get("truePeakDbfs").getAsDouble() < -.5, entry.getKey());
 				assertTrue(cue.get("seam").getAsDouble() < .035, entry.getKey());
 			}
 		}

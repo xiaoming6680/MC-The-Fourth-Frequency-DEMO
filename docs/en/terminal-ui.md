@@ -90,12 +90,12 @@ Everything except "move the highlight" used to share one `click()` at one weight
 
 | Voice | Sample family | Base pitch | Relative volume | When |
 |---|---|---|---|---|
-| `MOVE` | `password` (key) | 1.00 | 0.34 | Moving a highlight through a list |
+| `MOVE` | `terminal_keypress` (key) | 1.00 | 0.34 | Moving a highlight through a list |
 | `TAB` | `click` (contact) | 0.68 | 0.48 | A page actually changed |
 | `OPEN` | `click` | 1.18 | 0.44 | One level in: a tool detail, a file body |
 | `BACK` | `click` | 0.84 | 0.36 | One level out; un-pinning a tool |
 | `COMMIT` | `lock` (bolt) | 1.14 | 0.52 | **The server was told to do something**: rescan, start/stop guidance, choose a destination |
-| `ACKNOWLEDGE` | `tune` (detent) | 0.60 | 0.22 | The unread lamp going out - the machine finishing, not the player starting |
+| `ACKNOWLEDGE` | `terminal_detent` (detent) | 0.60 | 0.22 | The unread lamp going out - the machine finishing, not the player starting |
 
 Three audible rules, each asserted by `TerminalContactVoiceTest`:
 
@@ -111,11 +111,17 @@ Contact pitch drops with the **terminal's visual stage**, `WEAR_PER_STAGE = 0.03
 
 **That is 0-2, not 0-5.** What the client is handed is `TerminalSnapshot.visualStage`, i.e. `PursuitProgressPolicy.terminalVisualStage` - a three-step tier computed from resolved chases, the allowed form and the anomaly stage, and clamped to 0-2 on the way in. There are five anomaly stages, but the panel is never told which one it is in; writing the bound as five would leave two thirds of the range unreachable and the wear per step three times smaller than it reads.
 
-Still well under the carrier loop (0.05 per step of the same tier): the noise floor is one continuous sound the ear settles into, while these are transients heard dozens of times a session. Wide enough to survive a side-by-side recording, narrow enough that nobody catches it happening - and it cannot be caught in any case, because the stage only ever moves between sessions, so there is no press where the sound steps.
+Contact feedback stays light and automatic guidance is silent. The original terminal carrier runs once while the screen is open and stops on close or world exit.
 
-The device states the resulting figure once per open; see [The short check on every open](#the-short-check-on-every-open) above.
+The device displays the resulting figure once per open, without per-line audio; see [The short check on every open](#the-short-check-on-every-open) above.
 
-The stage is latched in passing by `carrierOn(stage)`, the one call fed the visual stage every tick. Closing the screen does **not** clear it: a stale value is only ever the stage this same player had a moment ago.
+The stage is latched by `updatePanelStage(stage)`, which updates state without starting a noise bed. Closing the screen does not reset it.
+
+## Tuning feedback (RC.5)
+
+Dragging, scrolling and arrow keys share quiet notch feedback, limited to once per 2 ticks, with no sweep loop. A successful lock replaces that notch; releasing adds no sound. Automatic guidance text is silent, while important results retain light feedback. See [Audio](audio.md) for output gain.
+
+“The terminal is shaking violently” uses the original `terminal_anomaly` asset at the existing warning pitch, delivered only to the affected player. It is separate from the original terminal carrier. Source and hash: `docs/art/audio/original_cues.json`.
 
 ## Animation
 
